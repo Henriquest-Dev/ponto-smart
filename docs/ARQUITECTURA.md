@@ -115,6 +115,8 @@ erDiagram
   subscription_plans ||--o{ subscriptions : ""
   companies ||--o{ subscriptions : ""
   subscriptions ||--o{ billing_invoices : ""
+  subscription_plans ||--o{ company_requests : "plano pedido"
+  company_requests |o--o| companies : "aprovado → empresa"
 ```
 
 Tabelas auxiliares: `sessions` (sessões revogáveis), `rate_limits` (contadores partilhados).
@@ -158,6 +160,9 @@ A fonte de verdade é `src/lib/auth/rbac.ts`; o seed espelha-a em `roles`/`permi
 | GET | `/api/health` | Disponibilidade |
 
 ## Assistente de IA
+
+Fornecedor: Gemini (`GEMINI_API_KEY`, modelo rápido com alternativas automáticas em caso de sobrecarga) ou Claude (`ANTHROPIC_API_KEY`). Ciclo manual de chamadas de funções em `src/lib/ai/agent.ts`, limitado a 4 rondas.
+
 
 Ferramentas: `getAttendanceSummary`, `findLateEmployees`, `getAbsenceRequests`, `preparePayrollReport`, `explainPayrollCalculation`, `createNotificationDraft`, `generateDocument`.
 

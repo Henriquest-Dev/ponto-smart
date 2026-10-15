@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Verificação em dois passos" };
 export default async function MfaPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   const session = await readSessionRow();
   if (!session) redirect("/login");
-  if (!session.mfaPending) redirect("/");
+  if (!session.mfaPending) redirect("/inicio");
   const { next } = await searchParams;
   return (
     <div>

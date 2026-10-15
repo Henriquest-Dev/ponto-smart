@@ -13,6 +13,8 @@ import { classifyDay, createAbsenceRequest, decideAbsence } from "@/lib/domain/a
 import { signQrToken } from "@/lib/domain/qr";
 import { approveRun, closeAttendance, getOrCreatePeriod, prepareRun } from "@/lib/domain/payroll/service";
 import { sha256 } from "@/lib/crypto";
+import { provisionCompany } from "@/lib/domain/companies";
+import { verifyPassword } from "@/lib/auth/password";
 import { HttpError } from "@/lib/errors";
 import { addDays, localDate, monthRange } from "@/lib/time";
 
@@ -185,6 +187,19 @@ describe.skipIf(!run)("integração (PostgreSQL + PostGIS)", () => {
       // Imutabilidade garantida pela base de dados
       await expectDbError(db.execute(sql`UPDATE payroll_lines SET amount = 1 WHERE company_id = ${A.company.id}`), /imutável/);
       await expectDbError(db.execute(sql`DELETE FROM payroll_items WHERE company_id = ${A.company.id}`), /imutável/);
+    });
+
+    it("Super Admin cria a conta da empresa com credenciais do proprietário", async () => {
+      await db.insert(s.roles).values({ code: "owner", name: "Proprietário" }).onConflictDoNothing();
+      const [plan] = await db.insert(s.subscriptionPlans).values({ code: `t-${Date.now()}`, name: "Teste", priceMonthly: "100.00", maxEmployees: 10 }).returning();
+      const r = await provisionCompany({ name: "Nova Lda", planId: plan.id, ownerName: "Dona Nova", ownerEmail: `dona.${Date.now()}@test.example`, trialDays: 30 });
+      expect(r.company.status).toBe("trial");
+      expect(r.temporaryPassword).toBeTruthy();
+      expect(await verifyPassword(r.temporaryPassword!, r.owner.passwordHash)).toBe(true);
+      const [m] = await db.select({ role: s.roles.code }).from(s.memberships).innerJoin(s.roles, eq(s.roles.id, s.memberships.roleId)).where(eq(s.memberships.companyId, r.company.id));
+      expect(m.role).toBe("owner");
+      const [sub] = await db.select().from(s.subscriptions).where(eq(s.subscriptions.companyId, r.company.id));
+      expect(sub.status).toBe("trialing");
     });
 
     it("trilho de auditoria é apenas de acréscimo", async () => {

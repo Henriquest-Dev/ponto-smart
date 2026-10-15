@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { requireCompany } from "@/lib/auth/context";
 import { db } from "@/lib/db";
 import { aiConversations } from "@/lib/db/schema";
-import { env } from "@/lib/env";
+import { aiProvider } from "@/lib/ai/agent";
 import { AssistantChat } from "./chat";
 
 export const metadata: Metadata = { title: "Assistente" };
@@ -24,8 +24,8 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
     <>
       <PageHeader title="Assistente" description="Perguntas sobre assiduidade, justificações e salários, com ferramentas limitadas e auditadas." />
       <div className="px-4 py-5 sm:px-6 lg:px-8">
-        {!env.anthropicKey() ? (
-          <Notice tone="warning" title="Assistente desactivado">Defina a variável ANTHROPIC_API_KEY no ambiente (Netlify → Site configuration → Environment variables).</Notice>
+        {!aiProvider() ? (
+          <Notice tone="warning" title="Assistente desactivado">Defina a variável GEMINI_API_KEY (ou ANTHROPIC_API_KEY) no ambiente (Netlify → Site configuration → Environment variables).</Notice>
         ) : (
           <AssistantChat
             key={active?.id ?? "new"}

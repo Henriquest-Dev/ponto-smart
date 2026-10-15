@@ -1,7 +1,8 @@
 import { AlertCircle, ArrowRight, CalendarClock, FileClock } from "lucide-react";
 import type { Metadata } from "next";
+import { rollingAverage } from "@/lib/series";
 import Link from "next/link";
-import { DailyBars, GroupedBars, Legend } from "@/components/charts/charts";
+import { DailyBars, GroupedBars, Legend, SmoothArea } from "@/components/charts/charts";
 import { CHART_COLORS } from "@/components/charts/colors";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -29,6 +30,13 @@ export default async function CompanyDashboard() {
   const punctuality = last30.present ? Math.round(((last30.present - last30.late) / last30.present) * 1000) / 10 : 0;
   const dateLabel = new Intl.DateTimeFormat("pt-PT", { timeZone: tz, weekday: "long", day: "numeric", month: "long" }).format(new Date());
 
+  const trend = rollingAverage(series
+    .filter((d) => d.present + d.absent > 0)
+    .map((d) => ({
+      date: d.date,
+      pontualidade: d.present ? Math.round(((d.present - d.late) / d.present) * 1000) / 10 : 0,
+      presenca: Math.round((d.present / (d.present + d.absent)) * 1000) / 10,
+    })), ["pontualidade", "presenca"]);
   const rows = board.rows.map((r) => ({
     id: r.id,
     name: r.name,
@@ -116,6 +124,17 @@ export default async function CompanyDashboard() {
             />
           </Card>
         </div>
+
+        <Card className="p-5">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h2 className="text-[15px] font-semibold">Pontualidade e presença</h2>
+              <p className="text-xs text-muted">Média móvel de 7 dias · últimos 30 dias</p>
+            </div>
+            <Legend items={[{ label: "Pontualidade", color: CHART_COLORS.primary }, { label: "Presença", color: CHART_COLORS.indigo }]} />
+          </div>
+          <SmoothArea data={trend} category="date" categoryFormat="date" percent series={[{ key: "pontualidade", name: "Pontualidade %" }, { key: "presenca", name: "Presença %" }]} />
+        </Card>
 
         <section>
           <div className="mb-3 flex items-end justify-between">

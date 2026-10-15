@@ -955,3 +955,32 @@ export const rateLimits = pgTable("rate_limits", {
   count: integer("count").notNull().default(0),
 });
 
+
+/* ------------------------------------------------------------------ */
+/* Pedidos de conta (home pública → aprovação pelo Super Admin)        */
+/* ------------------------------------------------------------------ */
+
+export const companyRequestStatus = pgEnum("company_request_status", ["pending", "approved", "rejected"]);
+
+export const companyRequests = pgTable(
+  "company_requests",
+  {
+    id: id(),
+    companyName: text("company_name").notNull(),
+    nuit: text("nuit"),
+    contactName: text("contact_name").notNull(),
+    email: text("email").notNull(),
+    phone: text("phone"),
+    city: text("city"),
+    employeesEstimate: integer("employees_estimate"),
+    planId: uuid("plan_id").references(() => subscriptionPlans.id, { onDelete: "set null" }),
+    message: text("message"),
+    status: companyRequestStatus("status").notNull().default("pending"),
+    companyId: uuid("company_id").references(() => companies.id, { onDelete: "set null" }),
+    decidedBy: uuid("decided_by").references(() => users.id),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    ip: text("ip"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("company_requests_status_idx").on(t.status, t.createdAt)],
+);

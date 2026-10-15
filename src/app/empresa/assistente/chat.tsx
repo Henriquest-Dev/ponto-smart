@@ -86,8 +86,8 @@ export function AssistantChat({ conversations, conversationId, initial }: { conv
           ) : (
             messages.map((m, i) => (
               <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
-                <div className={cn("max-w-[85%] rounded-2xl px-4 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-wrap", m.role === "user" ? "bg-primary text-white" : "bg-surface")}>
-                  {m.content}
+                <div className={cn("max-w-[85%] rounded-2xl px-4 py-2.5 text-[13.5px] leading-relaxed", m.role === "user" ? "bg-primary whitespace-pre-wrap text-white" : "bg-surface")}>
+                  {m.role === "assistant" ? <RichText text={m.content} /> : m.content}
                   {m.artifacts?.map((a) => <ArtifactCard key={a.executionId} artifact={a} />)}
                 </div>
               </div>
@@ -162,5 +162,35 @@ function ArtifactCard({ artifact }: { artifact: Artifact }) {
         <p className="mt-1 text-xs text-muted">{state === "sent" ? "Enviada." : "Descartada."}</p>
       )}
     </div>
+  );
+}
+
+/** Formatação mínima e segura das respostas (negrito, código e listas), sem HTML arbitrário. */
+function RichText({ text }: { text: string }) {
+  const inline = (line: string) =>
+    line.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((part, i) =>
+      part.startsWith("**") && part.endsWith("**") ? (
+        <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>
+      ) : part.startsWith("`") && part.endsWith("`") ? (
+        <code key={i} className="rounded bg-background px-1 font-mono text-[12px]">{part.slice(1, -1)}</code>
+      ) : (
+        <span key={i}>{part.replace(/(^|\s)\*([^*]+)\*/g, "$1$2")}</span>
+      ),
+    );
+  return (
+    <>
+      {text.split("\n").map((raw, i) => {
+        const line = raw.trimEnd();
+        const bullet = /^\s*[-*]\s+/.test(line);
+        const numbered = /^\s*\d+\.\s+/.test(line);
+        if (!line.trim()) return <span key={i} className="block h-2" />;
+        return (
+          <span key={i} className={cn("block", (bullet || numbered) && "pl-4", /^\s{2,}/.test(raw) && "pl-8")}>
+            {bullet ? "• " : null}
+            {inline(bullet ? line.replace(/^\s*[-*]\s+/, "") : line.trim())}
+          </span>
+        );
+      })}
+    </>
   );
 }

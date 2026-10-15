@@ -110,7 +110,7 @@ export function SmoothArea({
           </defs>
           <CartesianGrid vertical stroke={GRID} horizontal={false} />
           <XAxis dataKey={category} tickFormatter={formatCategory} tick={{ fill: AXIS, fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={24} />
-          <YAxis tickFormatter={(v) => (percent ? `${v}%` : Number(v).toLocaleString("pt-PT", { notation: "compact" }))} tick={{ fill: AXIS, fontSize: 11 }} axisLine={false} tickLine={false} domain={percent ? [0, 100] : ["auto", "auto"]} />
+          <YAxis tickFormatter={(v) => (percent ? `${v}%` : Number(v).toLocaleString("pt-PT", { notation: "compact" }))} tick={{ fill: AXIS, fontSize: 11 }} axisLine={false} tickLine={false} domain={percent ? [(min: number) => Math.max(0, Math.floor((min - 10) / 10) * 10), 100] : ["auto", "auto"]} />
           <Tooltip content={(p) => <ChartTooltip {...(p as TooltipContentProps<number, string>)} formatLabel={formatCategory} />} />
           {series.map((s, i) => (
             <Area

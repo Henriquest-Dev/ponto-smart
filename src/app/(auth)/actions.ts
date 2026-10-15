@@ -27,7 +27,7 @@ function safeNext(next: string | undefined) {
 }
 
 export async function loginAction(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
-  let destination = "/";
+  let destination = "/inicio";
   const result = await runAction(async () => {
     const input = loginSchema.parse(Object.fromEntries(fd));
     const { ip } = await requestMeta();
@@ -50,14 +50,14 @@ export async function loginAction(_prev: ActionResult | null, fd: FormData): Pro
     await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id));
     await audit({ companyId: m?.companyId ?? null, actorId: user.id, action: "auth.login", entity: "user", entityId: user.id });
     const ctx = await getContext();
-    destination = safeNext(input.next) ?? (ctx ? homeFor(ctx) : "/");
+    destination = safeNext(input.next) ?? (ctx ? homeFor(ctx) : "/inicio");
   });
   if (!result.ok) return result;
   redirect(destination);
 }
 
 export async function verifyMfaAction(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
-  let destination = "/";
+  let destination = "/inicio";
   const result = await runAction(async () => {
     const code = String(fd.get("code") ?? "");
     const session = await readSessionRow();
@@ -72,7 +72,7 @@ export async function verifyMfaAction(_prev: ActionResult | null, fd: FormData):
     await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id));
     await audit({ companyId: session.companyId, actorId: user.id, action: "auth.login", entity: "user", entityId: user.id, after: { mfa: true } });
     const ctx = await getContext();
-    destination = safeNext(fd.get("next")?.toString()) ?? (ctx ? homeFor(ctx) : "/");
+    destination = safeNext(fd.get("next")?.toString()) ?? (ctx ? homeFor(ctx) : "/inicio");
   });
   if (!result.ok) return result;
   redirect(destination);
@@ -90,7 +90,7 @@ export async function switchCompanyAction(companyId: string) {
   if (!ctx) redirect("/login");
   if (!ctx.memberships.some((m) => m.companyId === companyId)) return;
   await db.update(sessions).set({ companyId }).where(eq(sessions.id, ctx.sessionId));
-  redirect("/");
+  redirect("/inicio");
 }
 
 export async function markNotificationsReadAction() {

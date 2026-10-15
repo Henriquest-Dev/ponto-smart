@@ -25,7 +25,7 @@ export default async function NoAccess({ searchParams }: { searchParams: Promise
         <p className="mt-2 text-sm text-muted">{message}</p>
         <div className="mt-6 flex justify-center gap-2">
           <Button variant="outline" asChild>
-            <Link href="/">Voltar ao início</Link>
+            <Link href="/inicio">Voltar ao início</Link>
           </Button>
           {ctx ? (
             <form action={logoutAction}>

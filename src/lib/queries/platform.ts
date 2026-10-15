@@ -1,7 +1,7 @@
 import "server-only";
-import { count, desc, eq, gte, sql } from "drizzle-orm";
+import { asc, count, desc, eq, gte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { attendanceEvents, billingInvoices, companies, employees, subscriptionPlans, subscriptions } from "@/lib/db/schema";
+import { attendanceDaily, attendanceEvents, billingInvoices, companies, companyRequests, employees, subscriptionPlans, subscriptions } from "@/lib/db/schema";
 
 /** Métricas da plataforma — agregadas, sem dados salariais. */
 export async function platformOverview() {
@@ -37,4 +37,42 @@ export async function platformOverview() {
       openInvoices: invoices.filter((i) => i.i.status === "issued").length,
     },
   };
+}
+
+export async function pendingRequests() {
+  return db
+    .select({ r: companyRequests, plan: subscriptionPlans.name })
+    .from(companyRequests)
+    .leftJoin(subscriptionPlans, eq(subscriptionPlans.id, companyRequests.planId))
+    .where(eq(companyRequests.status, "pending"))
+    .orderBy(asc(companyRequests.createdAt));
+}
+
+export async function pendingRequestCount() {
+  const [{ n }] = await db.select({ n: count() }).from(companyRequests).where(eq(companyRequests.status, "pending"));
+  return n;
+}
+
+/** Pontualidade e presença agregadas de todas as empresas (últimos 30 dias). */
+export async function platformAttendanceTrend() {
+  const from = new Date(Date.now() - 29 * 86400_000).toISOString().slice(0, 10);
+  const rows = await db
+    .select({
+      date: attendanceDaily.workDate,
+      onTime: sql<number>`count(*) filter (where ${attendanceDaily.status} in ('on_time','present'))`.mapWith(Number),
+      late: sql<number>`count(*) filter (where ${attendanceDaily.status} = 'late')`.mapWith(Number),
+      absent: sql<number>`count(*) filter (where ${attendanceDaily.status} in ('absent_pending','unjustified','justified'))`.mapWith(Number),
+      scheduled: sql<number>`count(*) filter (where ${attendanceDaily.status} not in ('holiday','day_off'))`.mapWith(Number),
+    })
+    .from(attendanceDaily)
+    .where(gte(attendanceDaily.workDate, from))
+    .groupBy(attendanceDaily.workDate)
+    .orderBy(asc(attendanceDaily.workDate));
+  return rows
+    .filter((r) => r.scheduled > 0)
+    .map((r) => ({
+      date: r.date,
+      pontualidade: r.onTime + r.late ? Math.round((r.onTime / (r.onTime + r.late)) * 1000) / 10 : 0,
+      presenca: Math.round(((r.scheduled - r.absent) / r.scheduled) * 1000) / 10,
+    }));
 }

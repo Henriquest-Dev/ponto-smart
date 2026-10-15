@@ -4,11 +4,11 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { billingInvoices, companies, memberships, roles, subscriptionPlans, subscriptions, users } from "@/lib/db/schema";
+import { billingInvoices, companies, companyRequests, subscriptionPlans, subscriptions } from "@/lib/db/schema";
 import { requireContext } from "@/lib/auth/context";
-import { hashPassword } from "@/lib/auth/password";
 import { randomToken } from "@/lib/crypto";
 import { audit } from "@/lib/domain/audit";
+import { provisionCompany } from "@/lib/domain/companies";
 import { formObject, runAction, type ActionResult } from "@/lib/action";
 import { HttpError } from "@/lib/errors";
 import { addDays } from "@/lib/time";
@@ -29,22 +29,7 @@ export async function createCompanyAction(_p: ActionResult | null, fd: FormData)
         trialDays: z.coerce.number().int().min(0).max(90).default(30),
       })
       .parse(formObject(fd));
-    const result = await db.transaction(async (tx) => {
-      const [company] = await tx.insert(companies).values({ name: o.name, nuit: o.nuit ?? null, email: o.email ?? null, status: o.trialDays ? "trial" : "active" }).returning();
-      let [owner] = await tx.select().from(users).where(eq(users.email, o.ownerEmail)).limit(1);
-      let temporaryPassword: string | null = null;
-      if (!owner) {
-        temporaryPassword = `Ps-${randomToken(9)}`;
-        [owner] = await tx.insert(users).values({ email: o.ownerEmail, name: o.ownerName, passwordHash: await hashPassword(temporaryPassword) }).returning();
-      }
-      const [role] = await tx.select().from(roles).where(eq(roles.code, "owner")).limit(1);
-      await tx.insert(memberships).values({ userId: owner.id, companyId: company.id, roleId: role.id });
-      await tx.insert(subscriptions).values({
-        companyId: company.id, planId: o.planId, status: o.trialDays ? "trialing" : "active",
-        currentPeriodStart: today(), currentPeriodEnd: addDays(today(), o.trialDays || 30),
-      });
-      return { company, temporaryPassword };
-    });
+    const result = await provisionCompany({ name: o.name, nuit: o.nuit, email: o.email, planId: o.planId, ownerName: o.ownerName, ownerEmail: o.ownerEmail, trialDays: o.trialDays });
     await audit({ companyId: result.company.id, actorId: ctx.user.id, action: "platform.company_created", entity: "company", entityId: result.company.id, after: { name: o.name, owner: o.ownerEmail } });
     revalidatePath("/admin", "layout");
     return { ok: true, message: "Empresa criada.", data: { temporaryPassword: result.temporaryPassword } };
@@ -121,5 +106,43 @@ export async function setInvoiceStatusAction(id: string, status: "paid" | "void"
     await audit({ companyId: inv.companyId, actorId: ctx.user.id, action: `platform.invoice_${status}`, entity: "billing_invoice", entityId: id });
     revalidatePath("/admin", "layout");
     return { ok: true, message: status === "paid" ? "Pagamento registado." : "Factura anulada." };
+  });
+}
+
+/* ------------------------- Pedidos de conta (home pública) ------------------------- */
+
+export async function approveRequestAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  return runAction(async () => {
+    const ctx = await requireContext("platform.companies.manage");
+    const o = z
+      .object({ requestId: z.string().uuid(), planId: z.string().uuid(), trialDays: z.coerce.number().int().min(0).max(90).default(30) })
+      .parse(formObject(fd));
+    const [req] = await db.select().from(companyRequests).where(eq(companyRequests.id, o.requestId)).limit(1);
+    if (!req) throw new HttpError(404, "Pedido não encontrado.");
+    if (req.status !== "pending") throw new HttpError(409, "Este pedido já foi tratado.");
+    const result = await provisionCompany({
+      name: req.companyName, nuit: req.nuit, email: req.email, phone: req.phone, planId: o.planId,
+      ownerName: req.contactName, ownerEmail: req.email.toLowerCase(), trialDays: o.trialDays,
+    });
+    await db.update(companyRequests).set({ status: "approved", companyId: result.company.id, decidedBy: ctx.user.id, decidedAt: new Date() }).where(eq(companyRequests.id, req.id));
+    await audit({ companyId: result.company.id, actorId: ctx.user.id, action: "platform.request_approved", entity: "company_request", entityId: req.id, after: { company: req.companyName, owner: req.email } });
+    // Sem revalidação aqui: a lista só é actualizada quando o diálogo fecha,
+    // para que as credenciais temporárias fiquem visíveis.
+    return { ok: true, message: "Conta da empresa criada.", data: { temporaryPassword: result.temporaryPassword, email: req.email } };
+  });
+}
+
+export async function rejectRequestAction(id: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const ctx = await requireContext("platform.companies.manage");
+    const res = await db
+      .update(companyRequests)
+      .set({ status: "rejected", decidedBy: ctx.user.id, decidedAt: new Date() })
+      .where(and(eq(companyRequests.id, id), eq(companyRequests.status, "pending")))
+      .returning({ id: companyRequests.id });
+    if (!res.length) throw new HttpError(409, "Pedido já tratado ou inexistente.");
+    await audit({ companyId: null, actorId: ctx.user.id, action: "platform.request_rejected", entity: "company_request", entityId: id });
+    revalidatePath("/admin", "layout");
+    return { ok: true, message: "Pedido recusado." };
   });
 }
