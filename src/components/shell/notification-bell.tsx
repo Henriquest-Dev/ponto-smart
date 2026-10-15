@@ -1,61 +1,57 @@
 "use client";
 
-import { Bell } from "lucide-react";
 import Link from "next/link";
 import { Dropdown, DropdownContent, DropdownTrigger } from "@/components/ui/dropdown";
 import { cn } from "@/lib/utils";
 
 export type NotificationView = { id: string; title: string; body: string | null; link: string | null; when: string; unread: boolean };
 
+/** Avisos: botão de texto com contador (sem sino). */
 export function NotificationBell({ items, unread, onMarkRead }: { items: NotificationView[]; unread: number; onMarkRead: () => void }) {
   return (
     <Dropdown>
       <DropdownTrigger asChild>
         <button
-          className="relative inline-flex size-10 items-center justify-center rounded-md border border-border-strong bg-background text-muted hover:text-foreground"
-          aria-label={unread ? `Notificações (${unread} por ler)` : "Notificações"}
+          className={cn(
+            "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-bold transition-colors",
+            unread ? "bg-primary text-white hover:bg-primary-hover" : "bg-background text-muted hover:text-foreground",
+          )}
+          aria-label={unread ? `Avisos, ${unread} por ler` : "Avisos"}
         >
-          <Bell className="size-[18px]" strokeWidth={1.7} />
-          {unread ? (
-            <span className="absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-white tabular">
-              {unread > 9 ? "9+" : unread}
-            </span>
-          ) : null}
+          Avisos
+          {unread ? <span className="tabular">{unread > 9 ? "9+" : unread}</span> : null}
         </button>
       </DropdownTrigger>
-      <DropdownContent className="w-[min(360px,calc(100vw-24px))] p-0">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <p className="text-sm font-semibold">Notificações</p>
+      <DropdownContent className="w-[min(380px,calc(100vw-24px))] p-0">
+        <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+          <p className="text-[15px] font-extrabold">Avisos</p>
           {unread ? (
-            <button
-              onClick={onMarkRead}
-              className="text-xs font-medium text-primary disabled:opacity-50"
-            >
-              Marcar como lidas
+            <button onClick={onMarkRead} className="h-8 rounded-full px-3 text-[12.5px] font-bold text-primary hover:bg-primary-soft">
+              Marcar como lidos
             </button>
           ) : null}
         </div>
-        <div className="max-h-[360px] overflow-y-auto">
+        <div className="max-h-[380px] overflow-y-auto">
           {items.length === 0 ? (
-            <p className="px-4 py-8 text-center text-[13px] text-muted">Sem notificações.</p>
+            <p className="px-5 py-8 text-[13.5px] text-muted">Sem avisos por agora.</p>
           ) : (
             items.map((n) => {
               const content = (
                 <>
-                  <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", n.unread ? "bg-primary" : "bg-transparent")} />
+                  <span className={cn("mt-1 h-4 w-[4px] shrink-0 rounded-full", n.unread ? "bg-primary" : "bg-transparent")} aria-hidden />
                   <span className="min-w-0">
-                    <span className="block text-[13px] font-medium">{n.title}</span>
-                    {n.body ? <span className="mt-0.5 line-clamp-2 block text-xs text-muted">{n.body}</span> : null}
-                    <span className="mt-1 block text-[11px] text-subtle">{n.when}</span>
+                    <span className={cn("block text-[13.5px]", n.unread ? "font-extrabold" : "font-medium")}>{n.title}</span>
+                    {n.body ? <span className="mt-0.5 line-clamp-2 block text-[12.5px] text-muted">{n.body}</span> : null}
+                    <span className="mt-1 block text-[11.5px] text-subtle">{n.when}</span>
                   </span>
                 </>
               );
               return n.link ? (
-                <Link key={n.id} href={n.link} className="flex gap-3 border-b border-border px-4 py-3 last:border-0 hover:bg-surface">
+                <Link key={n.id} href={n.link} className="flex gap-3 border-b border-border px-5 py-3.5 last:border-0 hover:bg-surface">
                   {content}
                 </Link>
               ) : (
-                <div key={n.id} className="flex gap-3 border-b border-border px-4 py-3 last:border-0">
+                <div key={n.id} className="flex gap-3 border-b border-border px-5 py-3.5 last:border-0">
                   {content}
                 </div>
               );

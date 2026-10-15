@@ -1,6 +1,5 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { periodLabel } from "@/lib/format";
 
 export function shiftMonth(ym: string, delta: number) {
@@ -19,15 +18,15 @@ export function MonthPicker({ value, onChange, max }: { value: string; onChange:
   const [y, m] = value.split("-").map(Number);
   const next = shiftMonth(value, 1);
   const disabledNext = max ? next > max : false;
-  const cls = "inline-flex size-9 cursor-pointer items-center justify-center rounded-md text-muted hover:bg-surface hover:text-foreground disabled:pointer-events-none disabled:opacity-30";
+  const cls = "inline-flex size-9 cursor-pointer items-center justify-center rounded-full font-bold text-foreground hover:bg-background disabled:pointer-events-none disabled:opacity-30";
   return (
-    <div className="inline-flex h-10 items-center gap-1 rounded-md border border-border-strong bg-background px-1">
+    <div className="inline-flex h-11 items-center gap-1 rounded-full bg-surface-2 px-1">
       <button type="button" onClick={() => onChange(shiftMonth(value, -1))} className={cls} aria-label="Mês anterior">
-        <ChevronLeft className="size-4" />
+        <span aria-hidden className="text-[18px] leading-none">‹</span>
       </button>
-      <span className="min-w-32 text-center text-[13px] font-medium">{periodLabel(y, m)}</span>
+      <span className="min-w-32 text-center text-[13.5px] font-bold">{periodLabel(y, m)}</span>
       <button type="button" onClick={() => onChange(next)} disabled={disabledNext} className={cls} aria-label="Mês seguinte">
-        <ChevronRight className="size-4" />
+        <span aria-hidden className="text-[18px] leading-none">›</span>
       </button>
     </div>
   );

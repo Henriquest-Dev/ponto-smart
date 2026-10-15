@@ -1,4 +1,4 @@
-/* PontoSmart — service worker mínimo.
+/* Horbit — service worker mínimo.
  * Rede primeiro. Só guarda activos estáticos e a página offline; nunca dados (esses vêm do Supabase). */
 const CACHE = "pontosmart-static-v2";
 const BASE = new URL(self.registration.scope).pathname.replace(/\/$/, "");

@@ -13,21 +13,21 @@ import {
   type TooltipContentProps,
 } from "recharts";
 
-const PRIMARY = "#7041ec";
-const INDIGO = "#4a3fdc";
-const INDIGO_SOFT = "#dfe0fb";
-const GRID = "#ececf2";
-const AXIS = "#8b8d9c";
+const PRIMARY = "#673fec";
+const INDIGO = "#1a1530";
+const INDIGO_SOFT = "#d4c8fb";
+const GRID = "#eeecf5";
+const AXIS = "#8c88a0";
 
 function ChartTooltip({ active, payload, label, formatLabel }: TooltipContentProps<number, string> & { formatLabel?: (l: string) => string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border border-border bg-background px-3 py-2 text-xs shadow-panel">
-      <p className="mb-1 font-medium">{formatLabel ? formatLabel(String(label)) : label}</p>
+    <div className="rounded-[14px] bg-[#1a1530] px-3.5 py-2.5 text-xs text-white">
+      <p className="mb-1 font-extrabold">{formatLabel ? formatLabel(String(label)) : label}</p>
       {payload.map((p) => (
-        <p key={String(p.dataKey)} className="flex items-center gap-2 text-muted">
-          <span className="size-2 rounded-full" style={{ background: p.color === INDIGO_SOFT ? "#b9bbf3" : p.color }} />
-          {p.name}: <span className="font-medium text-foreground tabular">{Number(p.value).toLocaleString("pt-PT")}</span>
+        <p key={String(p.dataKey)} className="flex items-center gap-2 text-white/70">
+          <span className="h-3 w-[4px] rounded-full" style={{ background: p.color === INDIGO_SOFT ? "#b7a6f7" : p.color === INDIGO ? "#ffffff" : p.color }} />
+          {p.name}: <span className="font-extrabold text-white tabular">{Number(p.value).toLocaleString("pt-PT")}</span>
         </p>
       ))}
     </div>
@@ -47,7 +47,7 @@ export function DailyBars({ data, dataKey, name }: { data: Record<string, string
           <CartesianGrid vertical stroke={GRID} strokeDasharray="3 3" horizontal={false} />
           <XAxis dataKey="date" tickFormatter={shortDate} tick={{ fill: AXIS, fontSize: 11 }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={40} />
           <YAxis allowDecimals={false} tick={{ fill: AXIS, fontSize: 11 }} axisLine={false} tickLine={false} />
-          <Tooltip cursor={{ fill: "rgb(112 65 236 / 0.06)" }} content={(p) => <ChartTooltip {...(p as TooltipContentProps<number, string>)} formatLabel={shortDate} />} />
+          <Tooltip cursor={{ fill: "rgb(103 63 236 / 0.06)" }} content={(p) => <ChartTooltip {...(p as TooltipContentProps<number, string>)} formatLabel={shortDate} />} />
           <Bar dataKey={dataKey} name={name} fill={PRIMARY} radius={[3, 3, 0, 0]} maxBarSize={7} />
         </BarChart>
       </ResponsiveContainer>
@@ -72,9 +72,9 @@ export function GroupedBars({
           <CartesianGrid vertical={false} stroke={GRID} />
           <XAxis dataKey={category} tick={{ fill: AXIS, fontSize: 11 }} axisLine={false} tickLine={false} interval={0} />
           <YAxis allowDecimals={false} tick={{ fill: AXIS, fontSize: 11 }} axisLine={false} tickLine={false} />
-          <Tooltip cursor={{ fill: "rgb(74 63 220 / 0.05)" }} content={(p) => <ChartTooltip {...(p as TooltipContentProps<number, string>)} />} />
+          <Tooltip cursor={{ fill: "rgb(103 63 236 / 0.06)" }} content={(p) => <ChartTooltip {...(p as TooltipContentProps<number, string>)} />} />
           {series.map((s) => (
-            <Bar key={s.key} dataKey={s.key} name={s.name} fill={s.tone === "strong" ? INDIGO : INDIGO_SOFT} radius={[2, 2, 0, 0]} maxBarSize={36} />
+            <Bar key={s.key} dataKey={s.key} name={s.name} fill={s.tone === "strong" ? INDIGO : INDIGO_SOFT} radius={[6, 6, 6, 6]} maxBarSize={36} />
           ))}
         </BarChart>
       </ResponsiveContainer>
@@ -133,10 +133,10 @@ export function SmoothArea({
 
 export function Legend({ items }: { items: { label: string; color: string }[] }) {
   return (
-    <div className="flex flex-wrap gap-4 text-[13px] text-muted">
+    <div className="flex flex-wrap gap-4 text-[13px] font-bold text-muted">
       {items.map((i) => (
         <span key={i.label} className="inline-flex items-center gap-2">
-          <span className="size-2 rounded-full" style={{ background: i.color }} />
+          <span className="h-3 w-[4px] rounded-full" style={{ background: i.color }} />
           {i.label}
         </span>
       ))}

@@ -39,8 +39,8 @@ export function GeofenceMap({
       if (cancelled || !el.current || map.current) return;
       const m = L.map(el.current, { zoomControl: true, attributionControl: true, scrollWheelZoom: !!editable }).setView([lat, lng], 17);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" }).addTo(m);
-      circle.current = L.circle([lat, lng], { radius, color: "#7041ec", weight: 2, fillColor: "#7041ec", fillOpacity: 0.12 }).addTo(m);
-      dot.current = L.circleMarker([lat, lng], { radius: 5, color: "#fff", weight: 2, fillColor: "#7041ec", fillOpacity: 1 }).addTo(m);
+      circle.current = L.circle([lat, lng], { radius, color: "#673fec", weight: 2, fillColor: "#673fec", fillOpacity: 0.12 }).addTo(m);
+      dot.current = L.circleMarker([lat, lng], { radius: 5, color: "#fff", weight: 2, fillColor: "#673fec", fillOpacity: 1 }).addTo(m);
       if (editable) m.on("click", (e) => pick.current?.(Number(e.latlng.lat.toFixed(6)), Number(e.latlng.lng.toFixed(6))));
       map.current = m;
     })();

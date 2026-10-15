@@ -2,7 +2,7 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-/** Projecto Supabase do PontoSmart. A chave publicável é pública por natureza; a segurança está nas regras (RLS). */
+/** Projecto Supabase do Horbit. A chave publicável é pública por natureza; a segurança está nas regras (RLS). */
 export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tbblsxwqclpujebzbpiu.supabase.co";
 export const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_KEY || "sb_publishable_H08vpjkR56vRrpMlakMJxA_S7wt-Od_";
 
@@ -35,7 +35,7 @@ export function errorMessage(err: unknown): string {
   if (e.code === "23505" && /duplicate key/i.test(msg)) return "Já existe um registo com esses dados.";
   if (e.code === "PGRST202") return "Função em falta no Supabase. Execute o script 04_parte1.sql … 04_parte5.sql.";
   if (e.code === "42P01" || e.code === "PGRST205") return "Tabelas em falta no Supabase. Execute os scripts SQL.";
-  return msg;
+  return msg.replaceAll("PontoSmart", "Horbit");
 }
 
 /** Chama uma função SQL (RPC) e lança erro legível. */

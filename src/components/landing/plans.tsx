@@ -50,24 +50,22 @@ export function Plans() {
           <div
             key={p.code}
             className={cn(
-              "flex flex-col rounded-2xl border p-6",
-              highlight ? "border-[#15131f] bg-[#15131f] text-white" : "border-[#e7e3f1] bg-white",
+              "flex flex-col rounded-[28px] border-2 p-7",
+              highlight ? "border-[#1a1530] bg-[#1a1530] text-white" : "border-border bg-white",
             )}
           >
             <div className="flex items-baseline justify-between gap-3">
-              <h3 className="font-display text-[20px] font-semibold">{p.name}</h3>
-              <span className={cn("text-[13px]", highlight ? "text-white/70" : "text-[#6b6e7f]")}>até {p.max_employees} pessoas</span>
+              <h3 className="text-[22px] font-extrabold tracking-[-0.01em]">{p.name}</h3>
+              <span className={cn("text-[13px]", highlight ? "text-white/70" : "text-muted")}>até {p.max_employees} pessoas</span>
             </div>
             <p className="mt-5">
-              <span className="font-display text-[34px] font-semibold tracking-tight tabular">{price(p.price_monthly)} {p.currency}</span>
-              <span className={cn("ml-1 text-[13px]", highlight ? "text-white/70" : "text-[#6b6e7f]")}>por mês</span>
+              <span className="text-[38px] font-extrabold tracking-[-0.03em] tabular">{price(p.price_monthly)} {p.currency}</span>
+              <span className={cn("ml-1 text-[13px]", highlight ? "text-white/70" : "text-muted")}>por mês</span>
             </p>
-            <ul className={cn("mt-6 flex-1 space-y-2.5 text-[14px]", highlight ? "text-white/85" : "text-[#3a3d4f]")}>
+            <ul className={cn("mt-6 flex-1 space-y-2.5 text-[14px]", highlight ? "text-white/85" : "text-[#3d3854]")}>
               {(p.modules ?? []).map((m) => (
-                <li key={m} className="flex gap-2.5">
-                  <svg viewBox="0 0 16 16" className={cn("mt-1 size-3.5 shrink-0", highlight ? "text-[#b9a4f8]" : "text-primary")} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <path d="M3.5 8.5l3 3 6-7" />
-                  </svg>
+                <li key={m} className="flex gap-3 font-medium">
+                  <span className={cn("stem mt-[5px] h-3", highlight ? "text-[#b7a6f7]" : "text-primary")} aria-hidden />
                   {MODULES[m] ?? m}
                 </li>
               ))}

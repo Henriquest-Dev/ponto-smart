@@ -1,4 +1,4 @@
-# Arquitectura do PontoSmart
+# Arquitectura do Horbit
 
 ## Visão geral
 

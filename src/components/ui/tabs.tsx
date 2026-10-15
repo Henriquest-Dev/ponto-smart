@@ -4,20 +4,20 @@ import { cn } from "@/lib/utils";
 /** Separadores em forma de pílula (ex.: "Sent Emails / Campaigns"), baseados em links. */
 export function LinkTabs({ items, active, className }: { items: { href: string; label: string; key: string; count?: number }[]; active: string; className?: string }) {
   return (
-    <div className={cn("inline-flex max-w-full gap-1 overflow-x-auto rounded-lg bg-surface p-1 scrollbar-none", className)}>
+    <div className={cn("inline-flex max-w-full gap-5 overflow-x-auto border-b border-border scrollbar-none", className)}>
       {items.map((t) => (
         <Link
           key={t.key}
           href={t.href}
           scroll={false}
           className={cn(
-            "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-3 text-[13px] font-medium transition-colors",
-            active === t.key ? "bg-background text-primary shadow-[0_1px_2px_rgb(17_19_31/0.06)]" : "text-muted hover:text-foreground",
+            "relative inline-flex h-10 shrink-0 items-center gap-1.5 text-[14px] font-bold transition-colors after:absolute after:inset-x-0 after:-bottom-px after:h-[4px] after:rounded-full after:bg-primary after:transition-transform after:duration-200",
+            active === t.key ? "text-foreground after:scale-x-100" : "text-muted after:scale-x-0 hover:text-foreground",
           )}
         >
           {t.label}
           {t.count !== undefined ? (
-            <span className={cn("rounded-full px-1.5 text-[11px] tabular", active === t.key ? "bg-primary-soft" : "bg-surface-2")}>{t.count}</span>
+            <span className={cn("text-[12px] tabular", active === t.key ? "text-primary" : "text-subtle")}>{t.count}</span>
           ) : null}
         </Link>
       ))}
@@ -28,7 +28,7 @@ export function LinkTabs({ items, active, className }: { items: { href: string; 
 /** Separadores com estado local (sem mudar de URL). */
 export function Tabs<K extends string>({ items, active, onChange, className }: { items: { key: K; label: string; count?: number }[]; active: K; onChange: (k: K) => void; className?: string }) {
   return (
-    <div role="tablist" className={cn("inline-flex max-w-full gap-1 overflow-x-auto rounded-lg bg-surface p-1 scrollbar-none", className)}>
+    <div role="tablist" className={cn("inline-flex max-w-full gap-5 overflow-x-auto border-b border-border scrollbar-none", className)}>
       {items.map((t) => (
         <button
           key={t.key}
@@ -37,13 +37,13 @@ export function Tabs<K extends string>({ items, active, onChange, className }: {
           aria-selected={active === t.key}
           onClick={() => onChange(t.key)}
           className={cn(
-            "inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-3 text-[13px] font-medium transition-colors",
-            active === t.key ? "bg-background text-primary shadow-[0_1px_2px_rgb(17_19_31/0.06)]" : "text-muted hover:text-foreground",
+            "relative inline-flex h-10 shrink-0 cursor-pointer items-center gap-1.5 text-[14px] font-bold transition-colors after:absolute after:inset-x-0 after:-bottom-px after:h-[4px] after:rounded-full after:bg-primary after:transition-transform after:duration-200",
+            active === t.key ? "text-foreground after:scale-x-100" : "text-muted after:scale-x-0 hover:text-foreground",
           )}
         >
           {t.label}
           {t.count !== undefined ? (
-            <span className={cn("rounded-full px-1.5 text-[11px] tabular", active === t.key ? "bg-primary-soft" : "bg-surface-2")}>{t.count}</span>
+            <span className={cn("text-[12px] tabular", active === t.key ? "text-primary" : "text-subtle")}>{t.count}</span>
           ) : null}
         </button>
       ))}

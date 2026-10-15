@@ -34,7 +34,7 @@ function right(page: PDFPage, value: string, xRight: number, y: number, font: PD
 export async function renderPayslipPdf(d: PayslipData): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   pdf.setTitle(`Recibo ${d.reference}`);
-  pdf.setProducer("PontoSmart");
+  pdf.setProducer("Horbit");
   const page = pdf.addPage([595.28, 841.89]);
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -108,7 +108,7 @@ export async function renderPayslipPdf(d: PayslipData): Promise<Uint8Array> {
     `Processamento v${d.run.version} · ${d.run.engineVersion} · integridade ${d.run.inputHash.slice(0, 16)}`,
     L, foot - 12, regular, 7, MUTED,
   );
-  text(page, `Emitido em ${d.issuedAt.toISOString().slice(0, 10)} · Gerado por PontoSmart`, L, foot - 24, regular, 7, MUTED);
+  text(page, `Emitido em ${d.issuedAt.toISOString().slice(0, 10)} · Gerado por Horbit`, L, foot - 24, regular, 7, MUTED);
 
   return pdf.save();
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
@@ -22,7 +21,7 @@ function FullScreen({ children }: { children: React.ReactNode }) {
 export function LoadingScreen() {
   return (
     <FullScreen>
-      <Loader2 className="size-6 animate-spin text-primary" aria-label="A carregar" />
+      <span className="spinner text-[28px] text-primary" role="status" aria-label="A carregar" />
     </FullScreen>
   );
 }
@@ -62,11 +61,11 @@ export function Area({ kind, children }: { kind: Kind; children: React.ReactNode
   if (state.status !== "ready" || !me || !allowed(kind, me, company)) return <LoadingScreen />;
 
   const links: MenuLink[] = [];
-  if (kind !== "app" && company?.employeeId) links.push({ href: "/app/", label: "O meu ponto", icon: "app" });
-  if (kind !== "empresa" && company && company.role !== "employee") links.push({ href: "/empresa/", label: "Painel da empresa", icon: "company" });
-  if (kind !== "admin" && me.isPlatformAdmin) links.push({ href: "/admin/", label: "Plataforma", icon: "platform" });
-  if (kind === "app") links.push({ href: "/app/perfil/", label: "Perfil e dispositivos", icon: "profile" });
-  links.push({ href: "/conta/", label: "Segurança da conta", icon: "security" });
+  if (kind !== "app" && company?.employeeId) links.push({ href: "/app/", label: "O meu ponto" });
+  if (kind !== "empresa" && company && company.role !== "employee") links.push({ href: "/empresa/", label: "Painel da empresa" });
+  if (kind !== "admin" && me.isPlatformAdmin) links.push({ href: "/admin/", label: "Plataforma" });
+  if (kind === "app") links.push({ href: "/app/perfil/", label: "Perfil e dispositivos" });
+  links.push({ href: "/conta/", label: "Segurança da conta" });
 
   const user = {
     name: me.name,
@@ -90,7 +89,7 @@ export function Area({ kind, children }: { kind: Kind; children: React.ReactNode
     <AppShell
       sections={nav.sections}
       root={nav.root}
-      subtitle={kind === "admin" ? "Plataforma" : company?.companyName}
+      subtitle={kind === "admin" ? "Administração da plataforma" : company?.companyName}
       user={user}
       notifications={notifications}
       mobileTabs={nav.tabs}
@@ -106,60 +105,59 @@ function appNav() {
   const sections: NavSection[] = [
     {
       items: [
-        { href: "/app/", label: "Início", icon: "home" },
-        { href: "/app/marcar/", label: "Marcar ponto", icon: "scan" },
-        { href: "/app/historico/", label: "Histórico", icon: "history" },
-        { href: "/app/justificacoes/", label: "Justificações", icon: "file" },
-        { href: "/app/recibos/", label: "Recibos", icon: "receipt" },
-        { href: "/app/perfil/", label: "Perfil", icon: "user" },
+        { href: "/app/", label: "Início" },
+        { href: "/app/marcar/", label: "Marcar ponto" },
+        { href: "/app/historico/", label: "Histórico" },
+        { href: "/app/justificacoes/", label: "Justificações" },
+        { href: "/app/recibos/", label: "Recibos" },
+        { href: "/app/perfil/", label: "Perfil" },
       ],
     },
   ];
   const tabs: NavItem[] = [
-    { href: "/app/", label: "Início", icon: "home" },
-    { href: "/app/historico/", label: "Histórico", icon: "history" },
-    { href: "/app/justificacoes/", label: "Faltas", icon: "file" },
-    { href: "/app/recibos/", label: "Recibos", icon: "receipt" },
+    { href: "/app/", label: "Início" },
+    { href: "/app/historico/", label: "Histórico" },
+    { href: "/app/justificacoes/", label: "Faltas" },
+    { href: "/app/recibos/", label: "Recibos" },
   ];
   return { root: "/app/", sections, tabs };
 }
 
 function adminNav() {
   const items: NavItem[] = [
-    { href: "/admin/", label: "Visão geral", icon: "dashboard" },
-    { href: "/admin/empresas/", label: "Empresas", icon: "building" },
-    { href: "/admin/pedidos/", label: "Pedidos de conta", icon: "file" },
-    { href: "/admin/planos/", label: "Planos", icon: "layers" },
-    { href: "/admin/auditoria/", label: "Auditoria", icon: "scroll" },
+    { href: "/admin/", label: "Visão geral" },
+    { href: "/admin/empresas/", label: "Empresas" },
+    { href: "/admin/pedidos/", label: "Pedidos de conta" },
+    { href: "/admin/planos/", label: "Planos" },
+    { href: "/admin/auditoria/", label: "Auditoria" },
   ];
   return { root: "/admin/", sections: [{ items }], tabs: items.slice(0, 4) };
 }
 
 function companyNav(can: (...p: string[]) => boolean) {
-  const operations: NavItem[] = [{ href: "/empresa/", label: "Painel", icon: "dashboard" }];
-  if (can("employees.view")) operations.push({ href: "/empresa/colaboradores/", label: "Colaboradores", icon: "users" });
-  if (can("attendance.view")) operations.push({ href: "/empresa/assiduidade/", label: "Assiduidade", icon: "calendar" });
-  if (can("absence.decide", "absence.decide.team")) operations.push({ href: "/empresa/justificacoes/", label: "Justificações", icon: "file" });
+  const operations: NavItem[] = [{ href: "/empresa/", label: "Painel" }];
+  if (can("employees.view")) operations.push({ href: "/empresa/colaboradores/", label: "Colaboradores" });
+  if (can("attendance.view")) operations.push({ href: "/empresa/assiduidade/", label: "Assiduidade" });
+  if (can("absence.decide", "absence.decide.team")) operations.push({ href: "/empresa/justificacoes/", label: "Justificações" });
 
   const finance: NavItem[] = [];
   if (can("payroll.view"))
     finance.push({
       href: "/empresa/salarios/",
       label: "Salários",
-      icon: "wallet",
       children: [
         { href: "/empresa/salarios/", label: "Processamento" },
         { href: "/empresa/salarios/rubricas/", label: "Rubricas e regras" },
       ],
     });
-  if (can("reports.view")) finance.push({ href: "/empresa/relatorios/", label: "Relatórios", icon: "chart" });
+  if (can("reports.view")) finance.push({ href: "/empresa/relatorios/", label: "Relatórios" });
 
   const setup: NavItem[] = [];
-  if (can("schedules.manage")) setup.push({ href: "/empresa/horarios/", label: "Horários e feriados", icon: "clock" });
-  if (can("locations.manage", "stations.display")) setup.push({ href: "/empresa/locais/", label: "Locais e estações", icon: "map" });
-  if (can("ai.use")) setup.push({ href: "/empresa/assistente/", label: "Assistente", icon: "messages" });
-  if (can("audit.view")) setup.push({ href: "/empresa/auditoria/", label: "Auditoria", icon: "scroll" });
-  if (can("company.settings.manage", "users.manage", "org.manage")) setup.push({ href: "/empresa/definicoes/", label: "Definições", icon: "settings" });
+  if (can("schedules.manage")) setup.push({ href: "/empresa/horarios/", label: "Horários e feriados" });
+  if (can("locations.manage", "stations.display")) setup.push({ href: "/empresa/locais/", label: "Locais e estações" });
+  if (can("ai.use")) setup.push({ href: "/empresa/assistente/", label: "Assistente" });
+  if (can("audit.view")) setup.push({ href: "/empresa/auditoria/", label: "Auditoria" });
+  if (can("company.settings.manage", "users.manage", "org.manage")) setup.push({ href: "/empresa/definicoes/", label: "Definições" });
 
   const sections: NavSection[] = [{ items: operations }];
   if (finance.length) sections.push({ title: "Gestão", items: finance });
@@ -168,7 +166,7 @@ function companyNav(can: (...p: string[]) => boolean) {
   const tabs: NavItem[] = [operations[0]];
   for (const href of ["/empresa/assiduidade/", "/empresa/justificacoes/", "/empresa/salarios/", "/empresa/colaboradores/"]) {
     const item = [...operations, ...finance].find((i) => i.href === href);
-    if (item && tabs.length < 4) tabs.push({ ...item, children: undefined, label: item.label === "Justificações" ? "Faltas" : item.label });
+    if (item && tabs.length < 4) tabs.push({ ...item, children: undefined, label: item.label === "Justificações" ? "Faltas" : item.label === "Colaboradores" ? "Equipa" : item.label });
   }
   return { root: "/empresa/", sections, tabs };
 }

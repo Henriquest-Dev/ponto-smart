@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import type { ActionResult } from "@/lib/result";
@@ -23,7 +22,7 @@ export function ActionButton({ action, confirm, children, ...props }: Omit<Butto
         });
       }}
     >
-      {pending ? <Loader2 className="animate-spin" /> : null}
+      {pending ? <span className="spinner" aria-hidden /> : null}
       {children}
     </Button>
   );

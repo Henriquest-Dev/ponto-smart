@@ -5,15 +5,15 @@ const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "PontoSmart",
-    short_name: "PontoSmart",
+    name: "Horbit",
+    short_name: "Horbit",
     description: "Marcação de ponto, assiduidade e recibos.",
     start_url: `${base}/`,
     scope: `${base}/`,
     display: "standalone",
     orientation: "portrait",
     background_color: "#ffffff",
-    theme_color: "#7041ec",
+    theme_color: "#673fec",
     lang: "pt-PT",
     categories: ["business", "productivity"],
     icons: [

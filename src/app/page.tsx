@@ -1,21 +1,20 @@
-import "@fontsource-variable/bricolage-grotesque";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ClockScene } from "@/components/landing/clock-scene";
+import { OrbitScene } from "@/components/brand/orbit-scene";
 import { Plans } from "@/components/landing/plans";
 import { SiteHeader } from "@/components/landing/site-header";
-import { Logo } from "@/components/shell/logo";
+import { Wordmark } from "@/components/shell/logo";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: { absolute: "PontoSmart — ponto, assiduidade e salários" },
+  title: { absolute: "Horbit — ponto, assiduidade e salários" },
   description:
     "Os colaboradores marcam o ponto no telemóvel, com QR Code que muda e localização confirmada. Assiduidade, justificações e recibos num só sítio. Para empresas em Moçambique.",
 };
 
 const STEPS = [
   {
-    who: "PontoSmart",
+    who: "Horbit",
     title: "Criamos a conta da empresa",
     text: "Peça a conta nesta página. Depois de validarmos os dados, o responsável da empresa recebe o utilizador e a palavra-passe.",
   },
@@ -27,7 +26,7 @@ const STEPS = [
   {
     who: "Colaborador",
     title: "O colaborador marca o ponto",
-    text: "Abre o PontoSmart no telemóvel e lê o QR do ecrã da recepção. O sistema confirma o código, a hora e se está dentro do local.",
+    text: "Abre o Horbit no telemóvel e lê o QR do ecrã da recepção. O sistema confirma o código, a hora e se está dentro do local.",
   },
   {
     who: "RH e financeiro",
@@ -75,72 +74,84 @@ const TRUST = [
 
 export default function Home() {
   return (
-    <div className="min-h-dvh bg-[#f6f4fb] text-[#15131f]">
+    <div className="min-h-dvh bg-canvas text-foreground">
       <SiteHeader />
 
       <main>
-        {/* Hero */}
-        <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pt-12 pb-16 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:pt-20 lg:pb-24">
+        {/* Hero: texto à esquerda, palco 2.5D à direita */}
+        <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-10 pb-16 sm:px-6 lg:grid-cols-[1fr_1.05fr] lg:gap-12 lg:pt-16 lg:pb-24">
           <div>
-            <h1 className="font-display text-[38px] leading-[1.04] font-semibold tracking-[-0.02em] text-balance sm:text-[54px] lg:text-[60px]">
+            <h1 className="text-[40px] leading-[1.02] font-extrabold tracking-[-0.035em] text-balance sm:text-[56px] lg:text-[64px]">
               O ponto da equipa, marcado no telemóvel e no sítio certo.
             </h1>
-            <p className="mt-6 max-w-[34rem] text-[17px] leading-relaxed text-[#55586a]">
-              Sem relógio de ponto nem folhas para assinar. O colaborador lê o QR da recepção, o PontoSmart confirma a hora e a localização, e o
+            <p className="mt-6 max-w-[34rem] text-[17px] leading-relaxed text-muted">
+              Sem relógio de ponto nem folhas para assinar. O colaborador lê o QR da recepção, o Horbit confirma a hora e a localização, e o
               RH vê a assiduidade, as faltas e os salários do mês num só lugar.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Button size="lg" asChild>
                 <Link href="/registo/">Pedir conta para a empresa</Link>
               </Button>
-              <Button size="lg" variant="outline" asChild className="bg-white">
+              <Button size="lg" variant="outline" asChild>
                 <Link href="/login/">Já tenho acesso</Link>
               </Button>
             </div>
-            <p className="mt-5 text-[13px] text-[#6b6e7f]">Feito para empresas em Moçambique: meticais, horário de Maputo e português.</p>
+            <p className="mt-6 flex items-center gap-2.5 text-[13.5px] font-medium text-muted">
+              <span className="stem text-primary" aria-hidden />
+              Feito para Moçambique: meticais, horário de Maputo e português.
+            </p>
           </div>
-          <ClockScene />
+          <div className="relative overflow-hidden rounded-[36px] bg-[#1a1530] p-6 sm:p-12">
+            <OrbitScene />
+          </div>
         </section>
 
         {/* Como funciona */}
-        <section id="como-funciona" className="scroll-mt-20 border-t border-[#e7e3f1] bg-white">
+        <section id="como-funciona" className="scroll-mt-20 rounded-t-[40px] bg-background">
           <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
             <div className="max-w-2xl">
-              <h2 className="font-display text-[30px] leading-tight font-semibold tracking-[-0.01em] sm:text-[38px]">Como funciona</h2>
-              <p className="mt-3 text-[16px] leading-relaxed text-[#55586a]">
+              <h2 className="text-[32px] leading-tight font-extrabold tracking-[-0.025em] sm:text-[42px]">Como funciona</h2>
+              <p className="mt-3 text-[16px] leading-relaxed text-muted">
                 Os acessos são criados de cima para baixo. Ninguém se regista sozinho: cada conta tem um responsável.
               </p>
             </div>
 
             <ol className="mt-12 grid gap-x-8 gap-y-10 md:grid-cols-2 lg:grid-cols-4">
               {STEPS.map((s, i) => (
-                <li key={s.title} className="relative border-t-2 border-[#15131f] pt-5">
-                  <div className="flex items-center gap-3">
-                    <span className="font-display text-[15px] font-semibold text-primary tabular">{i + 1}</span>
-                    <span className="rounded-full bg-[#f1ecfd] px-2.5 py-0.5 text-[12px] font-medium text-[#5f32d6]">{s.who}</span>
+                <li key={s.title}>
+                  <div className="flex items-center gap-1.5" aria-hidden>
+                    {STEPS.map((_, j) => (
+                      <span key={j} className={j <= i ? "h-2 w-8 rounded-full bg-primary" : "h-2 w-8 rounded-full bg-surface-2"} />
+                    ))}
                   </div>
-                  <h3 className="mt-4 text-[17px] leading-snug font-semibold">{s.title}</h3>
-                  <p className="mt-2 text-[14px] leading-relaxed text-[#55586a]">{s.text}</p>
+                  <p className="mt-5 text-[13px] font-bold text-primary">
+                    Passo {i + 1}, {s.who}
+                  </p>
+                  <h3 className="mt-1.5 text-[19px] leading-snug font-extrabold">{s.title}</h3>
+                  <p className="mt-2 text-[14.5px] leading-relaxed text-muted">{s.text}</p>
                 </li>
               ))}
             </ol>
 
-            <div className="mt-14 grid gap-6 rounded-2xl bg-[#f6f4fb] p-6 sm:p-8 lg:grid-cols-[1fr_1.4fr] lg:items-center">
+            <div className="mt-16 grid gap-8 rounded-[32px] bg-canvas p-6 sm:p-10 lg:grid-cols-[0.9fr_1.4fr] lg:items-center">
               <div>
-                <h3 className="font-display text-[22px] font-semibold">Onde se criam os acessos</h3>
-                <p className="mt-2 text-[14px] leading-relaxed text-[#55586a]">
+                <h3 className="text-[26px] leading-tight font-extrabold tracking-[-0.02em]">Onde se criam os acessos</h3>
+                <p className="mt-3 text-[15px] leading-relaxed text-muted">
                   Se é colaborador e ainda não tem utilizador, peça-o ao RH da sua empresa. Se é responsável de uma empresa, comece por pedir a conta.
                 </p>
               </div>
-              <dl className="grid gap-px overflow-hidden rounded-xl border border-[#e7e3f1] bg-[#e7e3f1] text-[14px] sm:grid-cols-3">
+              <dl className="grid gap-3 sm:grid-cols-3">
                 {[
-                  ["Conta da empresa", "Criada pela PontoSmart, no painel de administração da plataforma."],
+                  ["Conta da empresa", "Criada pela Horbit, no painel de administração da plataforma."],
                   ["Acessos da equipa", "Criados pela empresa, em Colaboradores, com papel e palavra-passe."],
                   ["Palavra-passe esquecida", "Redefinida pelo responsável da empresa, na ficha do colaborador."],
                 ].map(([k, v]) => (
-                  <div key={k} className="bg-white p-4">
-                    <dt className="font-semibold">{k}</dt>
-                    <dd className="mt-1.5 text-[13px] leading-relaxed text-[#55586a]">{v}</dd>
+                  <div key={k} className="rounded-[22px] bg-background p-5">
+                    <dt className="flex items-center gap-2 text-[15px] font-extrabold">
+                      <span className="stem text-primary" aria-hidden />
+                      {k}
+                    </dt>
+                    <dd className="mt-2 text-[13.5px] leading-relaxed text-muted">{v}</dd>
                   </div>
                 ))}
               </dl>
@@ -149,19 +160,19 @@ export default function Home() {
         </section>
 
         {/* Para cada papel */}
-        <section className="border-t border-[#e7e3f1]">
-          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
-            <h2 className="max-w-2xl font-display text-[30px] leading-tight font-semibold tracking-[-0.01em] sm:text-[38px]">
+        <section className="bg-background">
+          <div className="mx-auto max-w-6xl px-4 pb-16 sm:px-6 lg:pb-24">
+            <h2 className="max-w-2xl text-[32px] leading-tight font-extrabold tracking-[-0.025em] sm:text-[42px]">
               Cada pessoa vê o que precisa para o seu trabalho
             </h2>
-            <div className="mt-12 grid gap-10 md:grid-cols-3 md:gap-0 md:divide-x md:divide-[#e1dcee]">
+            <div className="mt-12 grid gap-10 md:grid-cols-3 md:gap-0 md:divide-x-2 md:divide-border">
               {ROLES.map((r) => (
                 <div key={r.title} className="md:px-8 md:first:pl-0 md:last:pr-0">
-                  <h3 className="text-[17px] font-semibold">{r.title}</h3>
+                  <h3 className="text-[19px] font-extrabold">{r.title}</h3>
                   <ul className="mt-5 space-y-3.5">
                     {r.lines.map((l) => (
-                      <li key={l} className="flex gap-3 text-[14px] leading-relaxed text-[#3a3d4f]">
-                        <span className="mt-[9px] h-px w-3 shrink-0 bg-primary" aria-hidden />
+                      <li key={l} className="flex gap-3 text-[14.5px] leading-relaxed text-[#3d3854]">
+                        <span className="stem mt-[5px] h-3 text-primary" aria-hidden />
                         {l}
                       </li>
                     ))}
@@ -173,15 +184,13 @@ export default function Home() {
         </section>
 
         {/* Preços */}
-        <section id="precos" className="scroll-mt-20 border-t border-[#e7e3f1] bg-white">
+        <section id="precos" className="scroll-mt-20">
           <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
-            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-              <div className="max-w-xl">
-                <h2 className="font-display text-[30px] leading-tight font-semibold tracking-[-0.01em] sm:text-[38px]">Preços em meticais</h2>
-                <p className="mt-3 text-[16px] leading-relaxed text-[#55586a]">
-                  Mensalidade por empresa, sem custo por marcação. Os primeiros 30 dias servem para configurar e experimentar.
-                </p>
-              </div>
+            <div className="max-w-xl">
+              <h2 className="text-[32px] leading-tight font-extrabold tracking-[-0.025em] sm:text-[42px]">Preços em meticais</h2>
+              <p className="mt-3 text-[16px] leading-relaxed text-muted">
+                Mensalidade por empresa, sem custo por marcação. Os primeiros 30 dias servem para configurar e experimentar.
+              </p>
             </div>
             <div className="mt-10">
               <Plans />
@@ -190,19 +199,19 @@ export default function Home() {
         </section>
 
         {/* Confiança */}
-        <section id="confianca" className="scroll-mt-20 border-t border-[#e7e3f1]">
+        <section id="confianca" className="scroll-mt-20 bg-background">
           <div className="mx-auto grid max-w-6xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:py-24">
             <div>
-              <h2 className="font-display text-[30px] leading-tight font-semibold tracking-[-0.01em] sm:text-[38px]">Regras claras, sem surpresas</h2>
-              <p className="mt-3 text-[16px] leading-relaxed text-[#55586a]">
-                O PontoSmart regista factos e ajuda a decidir. Faltas, revisões e salários são sempre decididos por uma pessoa.
+              <h2 className="text-[32px] leading-tight font-extrabold tracking-[-0.025em] sm:text-[42px]">Regras claras, sem surpresas</h2>
+              <p className="mt-3 text-[16px] leading-relaxed text-muted">
+                O Horbit regista factos e ajuda a decidir. Faltas, revisões e salários são sempre decididos por uma pessoa.
               </p>
             </div>
-            <dl className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
+            <dl className="grid gap-x-10 gap-y-9 sm:grid-cols-2">
               {TRUST.map(([t, d]) => (
-                <div key={t}>
-                  <dt className="text-[16px] font-semibold">{t}</dt>
-                  <dd className="mt-2 text-[14px] leading-relaxed text-[#55586a]">{d}</dd>
+                <div key={t} className="border-t-[4px] border-primary pt-4">
+                  <dt className="text-[17px] font-extrabold">{t}</dt>
+                  <dd className="mt-2 text-[14.5px] leading-relaxed text-muted">{d}</dd>
                 </div>
               ))}
             </dl>
@@ -210,19 +219,19 @@ export default function Home() {
         </section>
 
         {/* Chamada final */}
-        <section className="px-4 pb-16 sm:px-6">
-          <div className="mx-auto flex max-w-6xl flex-col gap-6 rounded-3xl bg-[#15131f] px-6 py-12 text-white sm:px-12 lg:flex-row lg:items-center lg:justify-between">
+        <section className="bg-background px-4 pb-16 sm:px-6">
+          <div className="mx-auto flex max-w-6xl flex-col gap-8 rounded-[36px] bg-primary px-6 py-12 text-white sm:px-12 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-xl">
-              <h2 className="font-display text-[28px] leading-tight font-semibold sm:text-[34px]">Comece pela conta da empresa</h2>
-              <p className="mt-3 text-[15px] leading-relaxed text-white/70">
+              <h2 className="text-[30px] leading-tight font-extrabold tracking-[-0.02em] sm:text-[38px]">Comece pela conta da empresa</h2>
+              <p className="mt-3 text-[15.5px] leading-relaxed text-white/80">
                 Envie o pedido com os dados da empresa. Respondemos com o acesso do responsável, que depois cria os acessos da equipa.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Button size="lg" asChild>
+              <Button size="lg" asChild className="bg-white text-primary hover:bg-white/90">
                 <Link href="/registo/">Pedir conta</Link>
               </Button>
-              <Button size="lg" variant="outline" asChild className="border-white/25 bg-transparent text-white hover:bg-white/10">
+              <Button size="lg" variant="outline" asChild className="border-white/40 bg-transparent text-white hover:border-white">
                 <Link href="/login/">Entrar</Link>
               </Button>
             </div>
@@ -230,11 +239,11 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="border-t border-[#e7e3f1]">
-        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-[13px] text-[#6b6e7f] sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <Logo />
-          <p>PontoSmart, Maputo, Moçambique</p>
-          <nav className="flex gap-5" aria-label="Rodapé">
+      <footer className="bg-background">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 border-t border-border px-4 py-8 text-[13.5px] text-muted sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <Wordmark className="h-6" />
+          <p>Horbit, Maputo, Moçambique</p>
+          <nav className="flex gap-6 font-bold" aria-label="Rodapé">
             <Link href="/login/" className="hover:text-foreground">Entrar</Link>
             <Link href="/registo/" className="hover:text-foreground">Pedir conta</Link>
           </nav>

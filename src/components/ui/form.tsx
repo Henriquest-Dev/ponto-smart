@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import * as React from "react";
 import { useFormStatus } from "react-dom";
 import { toast } from "sonner";
@@ -15,7 +14,7 @@ export function SubmitButton({ children, pendingText, ...props }: ButtonProps & 
   const pending = ctx ?? status.pending;
   return (
     <Button type="submit" disabled={pending || props.disabled} {...props}>
-      {pending ? <Loader2 className="animate-spin" /> : null}
+      {pending ? <span className="spinner" aria-hidden /> : null}
       {pending && pendingText ? pendingText : children}
     </Button>
   );

@@ -1,24 +1,33 @@
 import { cn } from "@/lib/utils";
+import { HORBIT_PATH, HORBIT_VIEWBOX } from "./logo-path";
 
-/** Marca PontoSmart: um "P" geométrico com o ponteiro de um relógio. */
-export function LogoMark({ className }: { className?: string }) {
+/** Símbolo Horbit: o "H" do logótipo em traço arredondado. */
+export function LogoMark({ className, color = "var(--primary)" }: { className?: string; color?: string }) {
   return (
-    <svg viewBox="0 0 32 32" className={cn("size-8", className)} aria-hidden>
-      <rect width="32" height="32" rx="9" fill="var(--primary)" />
-      <path d="M11 24V8h6.2a5.6 5.6 0 0 1 0 11.2H11" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M17 11.2v2.6l1.8 1.2" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity=".85" />
+    <svg viewBox="0 0 360 360" className={cn("size-8", className)} aria-hidden>
+      <g fill="none" stroke={color} strokeWidth="72" strokeLinecap="round">
+        <path d="M70 48V312" />
+        <path d="M262 48V128" />
+        <path d="M70 196C130 150 165 175 198 214C228 250 262 262 300 252" />
+      </g>
+    </svg>
+  );
+}
+
+/** Logótipo completo "Horbit". */
+export function Wordmark({ className, color = "var(--primary)" }: { className?: string; color?: string }) {
+  return (
+    <svg viewBox={HORBIT_VIEWBOX} className={cn("h-7 w-auto", className)} role="img" aria-label="Horbit">
+      <path fill={color} fillRule="evenodd" d={HORBIT_PATH} />
     </svg>
   );
 }
 
 export function Logo({ className, subtitle }: { className?: string; subtitle?: string }) {
   return (
-    <div className={cn("flex items-center gap-2.5", className)}>
-      <LogoMark />
-      <div className="leading-tight">
-        <div className="text-[15px] font-semibold tracking-tight">PontoSmart</div>
-        {subtitle ? <div className="max-w-[150px] truncate text-[11px] text-muted">{subtitle}</div> : null}
-      </div>
+    <div className={cn("flex flex-col gap-1", className)}>
+      <Wordmark className="h-6" />
+      {subtitle ? <div className="max-w-[180px] truncate text-[12px] font-medium text-muted">{subtitle}</div> : null}
     </div>
   );
 }

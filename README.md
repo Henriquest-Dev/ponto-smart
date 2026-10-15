@@ -1,4 +1,4 @@
-# PontoSmart
+# Horbit
 
 Controlo de ponto por QR Code e localização, assiduidade, justificações, salários e recibos, para empresas em Moçambique (pt-PT, MZN, Africa/Maputo).
 

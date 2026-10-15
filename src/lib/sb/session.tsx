@@ -76,9 +76,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
       const me = await rpc<Me | null>("ps_me");
       if (!me) {
-        // Conta do Auth sem ficha no PontoSmart.
+        // Conta do Auth sem ficha no Horbit.
         await sb().auth.signOut();
-        setState({ status: "error", message: "Esta conta não está registada no PontoSmart." });
+        setState({ status: "error", message: "Esta conta não está registada no Horbit." });
         return;
       }
       setState({ status: "ready", me, session });

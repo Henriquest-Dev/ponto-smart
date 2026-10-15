@@ -1,4 +1,10 @@
-import "@fontsource-variable/inter";
+import "@fontsource/m-plus-rounded-1c/latin-400.css";
+import "@fontsource/m-plus-rounded-1c/latin-500.css";
+import "@fontsource/m-plus-rounded-1c/latin-700.css";
+import "@fontsource/m-plus-rounded-1c/latin-800.css";
+import "@fontsource/m-plus-rounded-1c/latin-ext-400.css";
+import "@fontsource/m-plus-rounded-1c/latin-ext-700.css";
+import "@fontsource/m-plus-rounded-1c/latin-ext-800.css";
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import { Toaster } from "sonner";
@@ -8,17 +14,17 @@ import { SessionProvider } from "@/lib/sb/session";
 const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 export const metadata: Metadata = {
-  title: { default: "PontoSmart — ponto, assiduidade e salários", template: "%s · PontoSmart" },
+  title: { default: "Horbit — ponto, assiduidade e salários", template: "%s · Horbit" },
   description: "Controlo de ponto por QR Code e localização, assiduidade, justificações e recibos de salário para empresas em Moçambique.",
-  applicationName: "PontoSmart",
+  applicationName: "Horbit",
   manifest: `${base}/manifest.webmanifest`,
-  appleWebApp: { capable: true, title: "PontoSmart", statusBarStyle: "default" },
-  icons: { icon: `${base}/icon.png`, apple: `${base}/icons/apple-touch-icon.png` },
+  appleWebApp: { capable: true, title: "Horbit", statusBarStyle: "default" },
+  icons: { icon: `${base}/icons/icon.svg`, apple: `${base}/icons/apple-touch-icon.png` },
   formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#ffffff",
+  themeColor: "#eeecf5",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",

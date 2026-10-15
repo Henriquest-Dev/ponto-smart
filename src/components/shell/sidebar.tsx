@@ -1,11 +1,9 @@
 "use client";
 
-import { ChevronDown, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { NAV_ICONS } from "./icons";
 import { Logo } from "./logo";
 import type { NavItem, NavSection } from "./nav-types";
 
@@ -19,14 +17,31 @@ export function isActive(rawPath: string, rawHref: string, rawRoot: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/** Haste activa à esquerda: o mesmo traço arredondado do logótipo. */
+function ActiveStem({ on }: { on: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "absolute top-1/2 left-0 h-5 w-[5px] -translate-y-1/2 rounded-full bg-primary transition-[opacity,transform] duration-200",
+        on ? "opacity-100" : "scale-y-0 opacity-0",
+      )}
+    />
+  );
+}
+
+function Count({ n }: { n?: number }) {
+  return n ? <span className="text-[12px] font-extrabold text-primary tabular">{n}</span> : null;
+}
+
 function Item({ item, pathname, root, onNavigate }: { item: NavItem; pathname: string; root: string; onNavigate?: () => void }) {
-  const Icon = NAV_ICONS[item.icon];
   const active = isActive(pathname, item.href, root);
   const [open, setOpen] = React.useState(active);
   React.useEffect(() => {
     if (active) setOpen(true);
   }, [active]);
 
+  const base = "relative flex h-11 w-full items-center gap-3 rounded-[14px] pr-3 pl-5 text-[15px] transition-colors";
   if (item.children?.length) {
     return (
       <li>
@@ -34,28 +49,27 @@ function Item({ item, pathname, root, onNavigate }: { item: NavItem; pathname: s
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          className={cn(
-            "flex h-10 w-full items-center gap-3 rounded-md px-3 text-[14px] text-[#3a3d4f] transition-colors hover:bg-background/70",
-            active && "font-medium text-foreground",
-          )}
+          className={cn(base, "text-[#3d3854] hover:bg-background/80", active && "font-extrabold text-foreground")}
         >
-          <Icon className="size-[18px] text-[#4a4d5f]" strokeWidth={1.7} />
+          <ActiveStem on={active} />
           <span className="flex-1 text-left">{item.label}</span>
-          {item.badge ? <span className="rounded-full bg-primary-soft px-1.5 text-[11px] font-medium text-primary tabular">{item.badge}</span> : null}
-          <ChevronDown className={cn("size-4 text-subtle transition-transform", open && "rotate-180")} />
+          <Count n={item.badge} />
+          <span aria-hidden className={cn("text-[15px] leading-none text-subtle transition-transform", open && "rotate-90")}>
+            ›
+          </span>
         </button>
         {open ? (
-          <ul className="mt-1 mb-1 space-y-0.5 pl-9">
+          <ul className="mt-0.5 mb-1 space-y-0.5 border-l-2 border-border-strong/70 ml-6 pl-3">
             {item.children.map((c) => {
-              const childActive = pathname === c.href || (c.href !== item.href && pathname.startsWith(`${c.href}/`));
+              const childActive = trim(pathname) === trim(c.href) || (c.href !== item.href && pathname.startsWith(c.href));
               return (
                 <li key={c.href}>
                   <Link
                     href={c.href}
                     onClick={onNavigate}
                     className={cn(
-                      "flex h-9 items-center rounded-md px-3 text-[13.5px] text-muted transition-colors hover:text-foreground",
-                      childActive && "bg-background font-medium text-primary shadow-[0_1px_2px_rgb(17_19_31/0.05)]",
+                      "flex h-9 items-center rounded-[12px] px-3 text-[14px] text-muted transition-colors hover:text-foreground",
+                      childActive && "font-extrabold text-primary",
                     )}
                   >
                     {c.label}
@@ -74,14 +88,11 @@ function Item({ item, pathname, root, onNavigate }: { item: NavItem; pathname: s
         href={item.href}
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
-        className={cn(
-          "flex h-10 items-center gap-3 rounded-md px-3 text-[14px] text-[#3a3d4f] transition-colors hover:bg-background/70",
-          active && "bg-background font-medium text-primary shadow-[0_1px_2px_rgb(17_19_31/0.05)] [&_svg]:text-primary",
-        )}
+        className={cn(base, "text-[#3d3854] hover:bg-background/80", active && "bg-background font-extrabold text-foreground")}
       >
-        <Icon className="size-[18px] text-[#4a4d5f]" strokeWidth={1.7} />
+        <ActiveStem on={active} />
         <span className="flex-1">{item.label}</span>
-        {item.badge ? <span className="rounded-full bg-primary-soft px-1.5 text-[11px] font-medium text-primary tabular">{item.badge}</span> : null}
+        <Count n={item.badge} />
       </Link>
     </li>
   );
@@ -107,14 +118,15 @@ export function SidebarNav({
   const pathname = usePathname();
   const router = useRouter();
   return (
-    <div className="flex h-full flex-col gap-5 px-3 py-5">
-      <div className="flex items-center justify-between gap-2 px-2 pr-10 lg:pr-0">
-        <Logo subtitle={subtitle} />
+    <div className="flex h-full flex-col gap-6 px-4 py-6">
+      <div className="flex items-start justify-between gap-2 px-1 pr-14 lg:pr-0">
+        <Link href={root} onClick={onNavigate} aria-label="Início">
+          <Logo subtitle={subtitle} />
+        </Link>
         {headerExtra}
       </div>
       {searchHref ? (
         <form
-          className="relative px-1"
           onSubmit={(e) => {
             e.preventDefault();
             const q = new FormData(e.currentTarget).get("q");
@@ -122,19 +134,18 @@ export function SidebarNav({
             onNavigate?.();
           }}
         >
-          <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-subtle" />
           <input
             name="q"
-            placeholder="Pesquisar colaborador"
-            aria-label="Pesquisar colaborador"
-            className="h-10 w-full rounded-md border border-transparent bg-background pr-3 pl-9 text-[13px] placeholder:text-subtle focus:border-primary/40 focus:outline-none"
+            placeholder="Procurar colaborador"
+            aria-label="Procurar colaborador"
+            className="h-11 w-full rounded-[14px] border-2 border-transparent bg-background px-4 text-[14px] font-medium placeholder:font-normal placeholder:text-subtle focus:border-primary focus:outline-none"
           />
         </form>
       ) : null}
-      <nav className="-mr-1 flex-1 space-y-5 overflow-y-auto pr-1" aria-label="Navegação principal">
+      <nav className="-mr-1 flex-1 space-y-6 overflow-y-auto pr-1" aria-label="Navegação principal">
         {sections.map((section, i) => (
           <div key={i}>
-            {section.title ? <p className="mb-1.5 px-3 text-[11px] font-medium tracking-wide text-subtle uppercase">{section.title}</p> : null}
+            {section.title ? <p className="mb-1.5 px-5 text-[12.5px] font-bold text-subtle">{section.title}</p> : null}
             <ul className="space-y-0.5">
               {section.items.map((item) => (
                 <Item key={item.href} item={item} pathname={pathname} root={root} onNavigate={onNavigate} />

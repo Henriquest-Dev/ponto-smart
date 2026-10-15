@@ -5,7 +5,7 @@ export type Column = { header: string; key: string; width?: number; numFmt?: str
 /** Livro Excel com cabeçalho formatado, filtros e linha fixa. */
 export async function buildWorkbook(sheets: { name: string; title: string; columns: Column[]; rows: Record<string, unknown>[] }[]) {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "PontoSmart";
+  wb.creator = "Horbit";
   wb.created = new Date();
   for (const s of sheets) {
     const ws = wb.addWorksheet(s.name.slice(0, 31));
