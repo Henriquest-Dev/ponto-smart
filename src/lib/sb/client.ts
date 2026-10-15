@@ -33,7 +33,7 @@ export function errorMessage(err: unknown): string {
   if (/jwt expired|invalid jwt/i.test(msg)) return "Sessão expirada. Entre novamente.";
   if (e.code === "42501" && /permission denied/i.test(msg)) return "Sem permissão para esta operação.";
   if (e.code === "23505" && /duplicate key/i.test(msg)) return "Já existe um registo com esses dados.";
-  if (e.code === "PGRST202") return "Função em falta no Supabase. Execute o script 04_ligar_site.sql.";
+  if (e.code === "PGRST202") return "Função em falta no Supabase. Execute o script 04_parte1.sql … 04_parte5.sql.";
   if (e.code === "42P01" || e.code === "PGRST205") return "Tabelas em falta no Supabase. Execute os scripts SQL.";
   return msg;
 }

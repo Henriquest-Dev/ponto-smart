@@ -12,7 +12,7 @@ Controlo de ponto por QR Code e localização, assiduidade, justificações, sal
 Executar por esta ordem (copiar o ficheiro todo, colar, *Run*):
 
 1. `supabase/01_esquema.sql` — tabelas (só numa base vazia; se já correu, saltar).
-2. `supabase/04_ligar_site.sql` — login, regras de acesso, funções, Storage e auditoria. Pode ser executado de novo sempre que for actualizado.
+2. `supabase/04_parte1.sql` a `supabase/04_parte5.sql`, por esta ordem — login, regras de acesso, funções, Storage e auditoria. Podem ser executados de novo sempre que forem actualizados.
 3. Criar o Super Admin (substituir utilizador, nome e palavra-passe):
 
 ```sql
@@ -26,7 +26,7 @@ DO $$ DECLARE v_id uuid; BEGIN
 END $$;
 ```
 
-Opcional: em *Database → Extensions* activar **pg_cron** e voltar a correr o `04_ligar_site.sql` para o fecho diário automático (faltas pendentes às 22:30 UTC). Sem pg_cron, o painel da empresa fecha os dias em falta quando é aberto.
+Opcional: em *Database → Extensions* activar **pg_cron** e voltar a correr o `04_parte5.sql` para o fecho diário automático (faltas pendentes às 22:30 UTC). Sem pg_cron, o painel da empresa fecha os dias em falta quando é aberto.
 
 ### 2. Supabase → Edge Functions (assistente)
 
@@ -37,7 +37,7 @@ Opcional: em *Database → Extensions* activar **pg_cron** e voltar a correr o `
 
 *Settings → Pages → Build and deployment → Source*: **GitHub Actions**. Cada push publica o site (`.github/workflows/pages.yml`) em `https://<utilizador>.github.io/ponto-smart/`.
 
-O URL do projecto Supabase e a chave publicável estão em `src/lib/sb/client.ts` (podem ser substituídos por `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_KEY`). A chave publicável é pública por natureza; a protecção dos dados está nas regras do `04_ligar_site.sql`.
+O URL do projecto Supabase e a chave publicável estão em `src/lib/sb/client.ts` (podem ser substituídos por `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_KEY`). A chave publicável é pública por natureza; a protecção dos dados está nas regras dos scripts `04_parte*.sql`.
 
 ## Quem cria cada acesso
 

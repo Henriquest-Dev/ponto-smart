@@ -30,7 +30,7 @@ flowchart LR
 - `src/app` — páginas cliente (export estático, sem servidor próprio).
 - `src/lib/sb` — cliente Supabase, sessão (`ps_me`), carregamento de dados.
 - `src/lib/domain` — regras puras no navegador: geofence, regras de assiduidade, motor salarial (o resultado é gravado por `ps_payroll_save_run` e a aprovação confirma o hash dos dados).
-- `supabase/04_ligar_site.sql` — fonte de verdade das permissões (RLS) e das operações sensíveis (`ps_clock`, `ps_station_qr`, `ps_submit_absence`, `ps_decide_absence`, `ps_create_employee`, `ps_set_access`, `ps_admin_create_company`, `ps_payroll_*`…).
+- `supabase/04_parte1.sql … 04_parte5.sql` — fonte de verdade das permissões (RLS) e das operações sensíveis (`ps_clock`, `ps_station_qr`, `ps_submit_absence`, `ps_decide_absence`, `ps_create_employee`, `ps_set_access`, `ps_admin_create_company`, `ps_payroll_*`…).
 
 ## Modelo de dados
 
@@ -102,7 +102,7 @@ Garantias na base de dados (`01_esquema.sql`): execuções aprovadas imutáveis,
 | `supervisor` | Apenas departamentos que gere: assiduidade, revisão e justificações da equipa. |
 | `employee` | Apenas os próprios dados. |
 
-As permissões estão nas tabelas `roles`/`permissions`/`role_permissions` e são aplicadas pelas regras RLS e funções do `04_ligar_site.sql`.
+As permissões estão nas tabelas `roles`/`permissions`/`role_permissions` e são aplicadas pelas regras RLS e funções do `04_parte1.sql … 04_parte5.sql`.
 
 ## Assistente de IA
 
