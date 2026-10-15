@@ -311,9 +311,9 @@ function UsersTab() {
           <ul className="grid gap-x-10 md:grid-cols-2">
             {ROLE_INFO.map((r, i) => (
               <li key={r.code} className="flex gap-3 border-t border-border py-3.5 md:[&:nth-child(-n+2)]:border-t-0 max-md:first:border-t-0">
-                <span className={`stem mt-0.5 h-4 ${i < 2 ? "text-primary" : i < 4 ? "text-indigo" : "text-border-strong"}`} aria-hidden />
+                <span className={`stem mt-1.5 ${i < 2 ? "text-primary" : i < 4 ? "text-indigo" : "text-border-strong"}`} aria-hidden />
                 <span>
-                  <span className="block text-[14px] font-extrabold">{ROLE_LABEL[r.code]}</span>
+                  <span className="block text-[14px] font-bold">{ROLE_LABEL[r.code]}</span>
                   <span className="mt-0.5 block text-[13px] leading-relaxed text-muted">{r.description}</span>
                 </span>
               </li>

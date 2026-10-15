@@ -90,23 +90,23 @@ export default function EmployeeHome() {
     <div className="mx-auto max-w-5xl space-y-7 px-4 py-6 sm:px-6 lg:px-8 lg:py-9">
       <div>
         <p className="text-[14px] font-bold text-muted first-letter:uppercase">{dateLabel}</p>
-        <h1 className="mt-1 text-[30px] leading-[1.05] font-extrabold tracking-[-0.03em] lg:text-[38px]">
+        <h1 className="mt-1 text-[30px] leading-[1.05] font-bold tracking-[-0.02em] lg:text-[38px]">
           {greeting(tz)}
-          {o ? <span className="text-primary">, {o.firstName}</span> : null}
+          {o ? <span>, {o.firstName}</span> : null}
         </h1>
       </div>
 
       {overview.error ? <Notice tone="danger">{overview.error}</Notice> : null}
 
       <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
-        {o ? <TodayCard o={o} tz={tz} /> : <Skeleton className="h-[380px] rounded-[28px]" />}
+        {o ? <TodayCard o={o} tz={tz} /> : <Skeleton className="h-[380px] rounded-xl" />}
 
         <div className="space-y-4">
           {side.error ? <Notice tone="danger">{side.error}</Notice> : null}
           {side.data ? (
             <SideCards latest={side.data.latest} pendingDays={side.data.pendingDays} />
           ) : side.loading ? (
-            <Skeleton className="h-40 rounded-[22px]" />
+            <Skeleton className="h-40 rounded-xl" />
           ) : null}
         </div>
       </div>
@@ -114,7 +114,7 @@ export default function EmployeeHome() {
       <section>
         <SectionTitle title="Este mês" />
         {month.error ? <Notice tone="danger">{month.error}</Notice> : null}
-        {month.data ? <MonthBlock m={month.data} /> : month.loading ? <Skeleton className="h-40 rounded-[22px]" /> : null}
+        {month.data ? <MonthBlock m={month.data} /> : month.loading ? <Skeleton className="h-40 rounded-xl" /> : null}
       </section>
     </div>
   );
@@ -167,13 +167,13 @@ function TodayCard({
       initial={reduce ? false : { opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className="overflow-hidden rounded-[28px] bg-foreground text-white"
+      className="overflow-hidden rounded-xl bg-foreground text-white"
     >
       <div className="p-6 sm:p-7">
         <div className="flex items-center justify-between gap-3">
           <span className="inline-flex items-center gap-2 text-[14px] font-bold">
             <motion.span
-              className={cn("stem h-4", stateInfo.color)}
+              className={cn("stem", stateInfo.color)}
               aria-hidden
               animate={o.state === "working" && !reduce ? { scaleY: [1, 1.5, 1] } : undefined}
               transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
@@ -186,7 +186,7 @@ function TodayCard({
         </div>
 
         <p className="mt-7 text-[14px] font-bold text-white/60">Tempo trabalhado</p>
-        <p className="mt-1 text-[64px] leading-none font-extrabold tracking-[-0.04em] sm:text-[76px]">
+        <p className="mt-1 text-[64px] leading-none font-bold tracking-[-0.02em] sm:text-[76px]">
           {o.state === "working" && openIn ? (
             <LiveTimer since={openIn.occurred_at} baseMinutes={-(o.daily?.break_minutes ?? 0)} />
           ) : (
@@ -217,7 +217,7 @@ function TodayCard({
           <motion.div whileTap={reduce ? undefined : { scale: 0.98 }} className={cn(o.state !== "working" && "sm:col-span-2")}>
             <Link
               href="/app/marcar/"
-              className="flex h-14 w-full items-center justify-center rounded-full bg-primary text-[16px] font-extrabold text-white transition-colors hover:bg-primary-hover"
+              className="flex h-12 w-full items-center justify-center rounded-lg bg-primary text-[16px] font-bold text-white transition-colors hover:bg-primary-hover"
             >
               {o.state === "off" ? "Marcar entrada" : o.state === "break" ? "Terminar intervalo" : "Marcar saída"}
             </Link>
@@ -225,7 +225,7 @@ function TodayCard({
           {o.state === "working" ? (
             <Link
               href="/app/marcar/?tipo=intervalo"
-              className="flex h-14 w-full items-center justify-center rounded-full border-2 border-white/20 text-[15px] font-bold text-white transition-colors hover:border-white/50"
+              className="flex h-12 w-full items-center justify-center rounded-lg border border-white/25 text-[15px] font-bold text-white transition-colors hover:border-white/50"
             >
               Iniciar intervalo
             </Link>
@@ -243,12 +243,12 @@ function TodayCard({
               transition={{ delay: 0.3 + i * 0.06 }}
               className="flex items-center gap-3 py-2"
             >
-              <span className={cn("stem h-5", e.status === "rejected" ? "text-white/25" : e.type === "in" || e.type === "break_end" ? "text-primary" : "text-white/60")} aria-hidden />
+              <span className={cn("stem", e.status === "rejected" ? "text-white/25" : e.type === "in" || e.type === "break_end" ? "text-primary" : "text-white/60")} aria-hidden />
               <span className="flex-1 text-[14px] font-bold">{EVENT_TYPE_LABEL[e.type]}</span>
               {e.status !== "accepted" ? (
                 <span className={cn("text-[12.5px] font-bold", e.status === "review" ? "text-[#ffc56b]" : "text-[#ff8a92]")}>{EVENT_STATUS[e.status].label}</span>
               ) : null}
-              <span className="text-[15px] font-extrabold tabular">{formatTime(e.occurred_at, tz)}</span>
+              <span className="text-[15px] font-bold tabular">{formatTime(e.occurred_at, tz)}</span>
             </motion.li>
           ))}
         </ol>
@@ -268,13 +268,13 @@ function SideCards({
   return (
     <>
       {absenceDays.length ? (
-        <Link href="/app/justificacoes/" className="group block rounded-[22px] bg-warning-soft p-5 transition-colors hover:bg-[#fbe8c6]">
+        <Link href="/app/justificacoes/" className="group block rounded-xl bg-warning-soft p-5 transition-colors hover:bg-[#fbe8c6]">
           <p className="flex items-baseline gap-2.5 text-[#6f4100]">
-            <span className="text-[34px] leading-none font-extrabold tabular">{absenceDays.length}</span>
-            <span className="text-[15px] font-extrabold">{absenceDays.length === 1 ? "falta por justificar" : "faltas por justificar"}</span>
+            <span className="text-[34px] leading-none font-bold tabular">{absenceDays.length}</span>
+            <span className="text-[15px] font-bold">{absenceDays.length === 1 ? "falta por justificar" : "faltas por justificar"}</span>
           </p>
           <p className="mt-2 text-[13.5px] text-[#6f4100]/80">Submeta a justificação com documento, se aplicável.</p>
-          <span className="mt-3 inline-block text-[13.5px] font-extrabold text-[#6f4100] underline decoration-2 underline-offset-4 decoration-[#6f4100]/30 group-hover:decoration-[#6f4100]">
+          <span className="mt-3 inline-block text-[13.5px] font-bold text-[#6f4100] underline decoration-2 underline-offset-4 decoration-[#6f4100]/30 group-hover:decoration-[#6f4100]">
             Justificar agora
           </span>
         </Link>
@@ -282,7 +282,7 @@ function SideCards({
 
       <Card className="p-5 sm:p-6">
         <div className="flex items-center justify-between">
-          <p className="text-[16px] font-extrabold tracking-[-0.01em]">Último recibo</p>
+          <p className="text-[16px] font-bold tracking-[-0.01em]">Último recibo</p>
           <Link href="/app/recibos/" className="text-[13px] font-bold text-primary hover:underline">
             Ver todos
           </Link>
@@ -290,7 +290,7 @@ function SideCards({
         {latest ? (
           <div className="mt-4">
             <p className="text-[13px] font-bold text-muted">{periodLabel(latest.year, latest.month)}</p>
-            <p className="mt-1 text-[30px] leading-none font-extrabold tracking-[-0.02em] tabular">{formatMoney(latest.net, latest.currency)}</p>
+            <p className="mt-1 text-[30px] leading-none font-bold tracking-[-0.02em] tabular">{formatMoney(latest.net, latest.currency)}</p>
             <div className="mt-3">{latest.acknowledgedAt ? <Badge tone="success">Recebido</Badge> : <Badge tone="warning">Por confirmar</Badge>}</div>
           </div>
         ) : (
@@ -299,8 +299,8 @@ function SideCards({
       </Card>
 
       {pendingDays.length ? (
-        <div className="rounded-[22px] bg-surface p-5 sm:p-6">
-          <p className="text-[16px] font-extrabold tracking-[-0.01em]">Ocorrências recentes</p>
+        <div className="rounded-xl bg-surface p-5 sm:p-6">
+          <p className="text-[16px] font-bold tracking-[-0.01em]">Ocorrências recentes</p>
           <ul className="mt-3 space-y-2.5">
             {pendingDays.slice(0, 4).map((d) => {
               const s = dailyStatus(d.status);
@@ -328,11 +328,11 @@ function MonthBlock({ m }: { m: ReturnType<typeof summarize> }) {
         <div className="flex items-end justify-between gap-4">
           <div>
             <p className="text-[13px] font-bold text-muted">Horas trabalhadas</p>
-            <p className="mt-1 text-[44px] leading-none font-extrabold tracking-[-0.03em] tabular">{formatMinutes(m.workedMinutes)}</p>
+            <p className="mt-1 text-[44px] leading-none font-bold tracking-[-0.02em] tabular">{formatMinutes(m.workedMinutes)}</p>
           </div>
           <div className="text-right">
             <p className="text-[13px] font-bold text-muted">Horas extra</p>
-            <p className="mt-1 text-[22px] leading-none font-extrabold text-primary tabular">{formatMinutes(m.overtimeMinutes)}</p>
+            <p className="mt-1 text-[22px] leading-none font-bold tabular">{formatMinutes(m.overtimeMinutes)}</p>
           </div>
         </div>
         <p className="mt-2 text-[12.5px] text-muted">Excluindo intervalos. As horas extra estão sujeitas a validação.</p>
@@ -340,16 +340,16 @@ function MonthBlock({ m }: { m: ReturnType<typeof summarize> }) {
           <div className="mb-2 flex items-baseline justify-between text-[13px]">
             <span className="font-bold">Dias trabalhados</span>
             <span className="text-muted tabular">
-              <span className="font-extrabold text-foreground">{m.workedDays}</span> de {m.scheduledDays} com horário
+              <span className="font-bold text-foreground">{m.workedDays}</span> de {m.scheduledDays} com horário
             </span>
           </div>
           <ThickBar value={workedPct} />
         </div>
       </Card>
 
-      <div className="rounded-[22px] bg-surface p-5 sm:p-6">
+      <div className="rounded-xl border border-border bg-background p-5 sm:p-6">
         <p className="text-[13px] font-bold text-muted">Pontualidade</p>
-        <p className="mt-1 text-[44px] leading-none font-extrabold tracking-[-0.03em] tabular">
+        <p className="mt-1 text-[34px] leading-none font-bold tracking-[-0.02em] tabular">
           {m.punctuality === null ? "—" : `${m.punctuality.toLocaleString("pt-PT")}%`}
         </p>
         <div className="mt-5">

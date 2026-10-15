@@ -132,7 +132,7 @@ export default function PlatformAuditPage() {
         {loading && !data ? (
           <div className="space-y-2">
             {Array.from({ length: 8 }, (_, i) => (
-              <Skeleton key={i} className="h-12 rounded-[14px]" />
+              <Skeleton key={i} className="h-12 rounded-lg" />
             ))}
           </div>
         ) : !data?.rows.length ? (
@@ -140,10 +140,10 @@ export default function PlatformAuditPage() {
         ) : (
           <div className={loading ? "opacity-60 transition-opacity" : "transition-opacity"}>
             <p className="mb-3 text-[13px] text-muted">
-              <span className="text-[15px] font-extrabold text-foreground tabular">{formatNumber(data.total)}</span> registos
+              <span className="text-[15px] font-bold text-foreground tabular">{formatNumber(data.total)}</span> registos
             </p>
 
-            <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border md:hidden">
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border md:hidden">
               {data.rows.map((r) => (
                 <li key={r.id}>
                   <button type="button" onClick={() => setDetail(r)} className="w-full px-4 py-3 text-left hover:bg-surface/60">
@@ -232,10 +232,10 @@ export default function PlatformAuditPage() {
             {(["before", "after"] as const).map((k) =>
               detail[k] ? (
                 <div key={k} className="mt-4">
-                  <p className="mb-1.5 flex items-center gap-2 text-[13px] font-extrabold">
-                    <span className="stem h-3 text-primary" aria-hidden />
+                  <p className="mb-1.5 flex items-center gap-2 text-[13px] font-bold">
+                    <span className="stem text-primary" aria-hidden />
                     {k === "before" ? "Antes" : "Depois"}</p>
-                  <pre className="max-h-64 overflow-auto rounded-[14px] bg-surface px-4 py-3 font-mono text-[12px] leading-relaxed">{JSON.stringify(detail[k], null, 2)}</pre>
+                  <pre className="max-h-64 overflow-auto rounded-lg bg-surface px-4 py-3 font-mono text-[12px] leading-relaxed">{JSON.stringify(detail[k], null, 2)}</pre>
                 </div>
               ) : null,
             )}

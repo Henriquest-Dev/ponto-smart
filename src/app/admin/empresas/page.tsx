@@ -73,7 +73,7 @@ export default function CompaniesPage() {
         {loading && !data ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }, (_, i) => (
-              <Skeleton key={i} className="h-16 rounded-[22px]" />
+              <Skeleton key={i} className="h-16 rounded-xl" />
             ))}
           </div>
         ) : rows.length === 0 ? (
@@ -91,12 +91,12 @@ export default function CompaniesPage() {
         ) : (
           <>
             {/* Telemóvel: cartões */}
-            <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border lg:hidden">
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border lg:hidden">
               {rows.map((c) => (
                 <li key={c.id} className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-[16px] font-extrabold tracking-[-0.01em]">{c.name}</p>
+                      <p className="truncate text-[16px] font-bold tracking-[-0.01em]">{c.name}</p>
                       <p className="truncate font-mono text-[12px] text-muted">{c.owner_login ?? "Sem responsável"}</p>
                     </div>
                     <CompanyActions company={c} plans={plans} onChanged={reload} />

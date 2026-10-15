@@ -219,14 +219,14 @@ export function CredentialsCard({ name, login, password }: { name: string; login
   };
   return (
     <div className="space-y-5">
-      <div className="overflow-hidden rounded-[22px] border-2 border-foreground/90">
+      <div className="overflow-hidden rounded-xl border-2 border-foreground/90">
         <div className="flex items-end justify-between gap-3 bg-foreground px-5 py-4 text-background sm:px-6">
           <div className="min-w-0">
-            <p className="text-[18px] leading-none font-extrabold tracking-[-0.02em]">Horbit</p>
+            <p className="text-[18px] leading-none font-bold tracking-[-0.02em]">Horbit</p>
             <p className="mt-1.5 truncate text-[13px] opacity-75">Credenciais de acesso de {name}</p>
           </div>
           <span className="inline-flex shrink-0 items-center gap-1.5 text-[12.5px] font-bold">
-            <span className="stem h-3 text-primary-soft" aria-hidden />
+            <span className="stem text-primary-soft" aria-hidden />
             {password ? "Pessoal e intransmissível" : "Acesso actualizado"}
           </span>
         </div>
@@ -262,7 +262,7 @@ function CredentialLine({ label, value, mono, strong }: { label: string; value: 
       <dd
         className={
           strong
-            ? `select-all text-[20px] leading-tight font-extrabold tracking-[-0.01em] break-all ${mono ? "font-mono" : ""}`
+            ? `select-all text-[20px] leading-tight font-bold tracking-[-0.01em] break-all ${mono ? "font-mono" : ""}`
             : "select-all text-[14px] font-bold break-all"
         }
       >
@@ -277,7 +277,7 @@ export function LoadingRows({ rows = 5 }: { rows?: number }) {
   return (
     <div className="space-y-2">
       {Array.from({ length: rows }).map((_, i) => (
-        <Skeleton key={i} className="h-14 w-full rounded-[14px]" />
+        <Skeleton key={i} className="h-14 w-full rounded-lg" />
       ))}
     </div>
   );

@@ -236,9 +236,9 @@ function PeriodView({
               <>
                 <p className="mb-3 flex items-center gap-2 text-[14px] font-bold text-warning">
                   <span className="stem" aria-hidden />
-                  <span className="tabular font-extrabold">{pendings.length}{pendings.length >= 500 ? "+" : ""}</span> pendências por resolver
+                  <span className="tabular font-bold">{pendings.length}{pendings.length >= 500 ? "+" : ""}</span> pendências por resolver
                 </p>
-                <ul className="max-h-72 divide-y divide-border overflow-y-auto rounded-[16px] border border-border">
+                <ul className="max-h-72 divide-y divide-border overflow-y-auto rounded-lg border border-border">
                   {pendings.map((p) => (
                     <li key={p.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[13px]">
                       <span className="min-w-0 truncate font-bold">{p.employees?.full_name ?? "—"}</span>
@@ -264,7 +264,7 @@ function PeriodView({
       {period.status === "attendance_closed" && (!run || run.status === "superseded") ? (
         <Card className="flex flex-wrap items-center justify-between gap-3 border-l-[6px] border-l-primary p-5 sm:p-6">
           <div>
-            <p className="text-[16px] font-extrabold tracking-[-0.01em]">Assiduidade fechada</p>
+            <p className="text-[16px] font-bold tracking-[-0.01em]">Assiduidade fechada</p>
             <p className="text-[13px] text-muted">Gere o pré-processamento a partir de contratos, rubricas e assiduidade.</p>
           </div>
           {can("payroll.prepare") ? (
@@ -282,7 +282,7 @@ function PeriodView({
             <div className="flex flex-wrap items-center gap-2">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-3">
-                  <h2 className="text-[20px] font-extrabold tracking-[-0.02em]">Execução v{run.version}</h2>
+                  <h2 className="text-[20px] font-bold tracking-[-0.02em]">Execução v{run.version}</h2>
                   <Badge tone={RUN_STATUS[run.status]?.tone}>{RUN_STATUS[run.status]?.label ?? run.status}</Badge>
                 </div>
                 <p className="mt-1 text-[12.5px] text-muted">
@@ -382,7 +382,7 @@ function PeriodView({
 
           {items.error ? <ErrorBlock message={items.error} /> : null}
           {items.loading && !items.data ? (
-            <Skeleton className="h-64 w-full rounded-[22px]" />
+            <Skeleton className="h-64 w-full rounded-xl" />
           ) : (
             <TableWrap>
               <Table>
@@ -432,7 +432,7 @@ function PeriodView({
                         </TD>
                         <TD className="text-right tabular">{formatMoney(i.gross, cur)}</TD>
                         <TD className="text-right text-muted tabular">{formatMoney(i.deductions, cur)}</TD>
-                        <TD className="text-right font-extrabold tabular">{formatMoney(i.net, cur)}</TD>
+                        <TD className="text-right font-bold tabular">{formatMoney(i.net, cur)}</TD>
                         <TD>
                           {slip ? (
                             <PayslipButton companyId={companyId} period={period} run={run} item={i} lines={itemLines} slip={slip} />
@@ -463,7 +463,7 @@ function PeriodView({
 
           {runs.length > 1 ? (
             <div>
-              <p className="mb-2 text-[14px] font-extrabold">Versões deste período</p>
+              <p className="mb-2 text-[14px] font-bold">Versões deste período</p>
               <div className="flex flex-wrap gap-2">
                 {runs.map((r: Run) => (
                   <button
@@ -471,11 +471,11 @@ function PeriodView({
                     type="button"
                     onClick={() => setRunId(r.id)}
                     className={cn(
-                      "inline-flex cursor-pointer items-center gap-2 rounded-full border-2 px-4 py-1.5 text-[12.5px] font-bold transition-colors",
+                      "inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-[12.5px] font-bold transition-colors",
                       r.id === run.id ? "border-foreground bg-foreground text-background" : "border-border text-muted hover:border-foreground hover:text-foreground",
                     )}
                   >
-                    <span className="font-extrabold">v{r.version}</span>
+                    <span className="font-bold">v{r.version}</span>
                     <span>{RUN_STATUS[r.status]?.label ?? r.status}</span>
                     <span className="tabular">{formatMoney(r.totals?.net, cur)}</span>
                   </button>
@@ -507,7 +507,7 @@ function PayslipButton(props: { companyId: string; period: Period; run: Run; ite
     <button
       type="button"
       disabled={busy}
-      className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-primary-soft px-3.5 text-[12.5px] font-bold text-primary hover:bg-[#e4dbfd] disabled:opacity-50"
+      className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border-strong bg-background px-3 text-[12.5px] font-bold hover:bg-surface-2 disabled:opacity-50"
       onClick={async () => {
         setBusy(true);
         try {

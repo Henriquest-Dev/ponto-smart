@@ -91,7 +91,7 @@ export function RequestForm() {
               />
             ))}
           </div>
-          <h1 className="mt-8 text-[32px] leading-[1.05] font-extrabold tracking-[-0.03em] sm:text-[38px]">Pedido enviado</h1>
+          <h1 className="mt-8 text-[32px] leading-[1.05] font-bold tracking-[-0.02em] sm:text-[38px]">Pedido enviado</h1>
           <p className="mt-3 max-w-md text-[15px] leading-relaxed text-muted">
             Recebemos o pedido. A equipa Horbit cria a conta da empresa e envia-lhe o utilizador e a palavra-passe do responsável.
           </p>
@@ -117,7 +117,7 @@ export function RequestForm() {
           >
             <div>
               <motion.h1
-                className="text-[32px] leading-[1.05] font-extrabold tracking-[-0.03em] sm:text-[38px]"
+                className="text-[32px] leading-[1.05] font-bold tracking-[-0.02em] sm:text-[38px]"
                 initial={reduce ? false : { opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, ease: "easeOut" }}
@@ -139,8 +139,8 @@ export function RequestForm() {
                   className="overflow-hidden"
                   role="alert"
                 >
-                  <p className="flex gap-2.5 rounded-[16px] bg-danger-soft px-4 py-3 text-[13.5px] font-bold text-[#8e1f27]">
-                    <span className="stem mt-0.5 h-4 shrink-0 text-danger" aria-hidden />
+                  <p className="flex gap-2.5 rounded-lg bg-danger-soft px-4 py-3 text-[13.5px] font-bold text-[#8e1f27]">
+                    <span className="stem mt-1.5 shrink-0 text-danger" aria-hidden />
                     {error}
                   </p>
                 </motion.div>
@@ -148,11 +148,11 @@ export function RequestForm() {
             </AnimatePresence>
 
             <fieldset>
-              <legend className="mb-3 text-[17px] font-extrabold tracking-[-0.01em]">Plano</legend>
+              <legend className="mb-3 text-[17px] font-bold tracking-[-0.01em]">Plano</legend>
               {plans.loading ? (
                 <div className="space-y-2">
                   {Array.from({ length: 3 }, (_, i) => (
-                    <Skeleton key={i} className="h-[76px] rounded-[18px]" />
+                    <Skeleton key={i} className="h-[76px] rounded-lg" />
                   ))}
                 </div>
               ) : list.length ? (
@@ -163,7 +163,7 @@ export function RequestForm() {
                       <label
                         key={p.code}
                         className={cn(
-                          "relative flex cursor-pointer items-center gap-4 rounded-[18px] border-2 px-4 py-4 transition-colors duration-150 sm:px-5",
+                          "relative flex cursor-pointer items-center gap-4 rounded-lg border-2 px-4 py-4 transition-colors duration-150 sm:px-5",
                           "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary",
                           on ? "border-primary bg-primary-soft/50" : "border-border hover:border-border-strong",
                         )}
@@ -183,11 +183,11 @@ export function RequestForm() {
                           transition={{ duration: reduce ? 0 : 0.22, ease: "easeOut" }}
                         />
                         <span className="min-w-0 flex-1">
-                          <span className="block text-[17px] font-extrabold tracking-[-0.01em]">{p.name}</span>
+                          <span className="block text-[17px] font-bold tracking-[-0.01em]">{p.name}</span>
                           <span className="block text-[13px] text-muted">Até {p.max_employees} colaboradores</span>
                         </span>
                         <span className="text-right">
-                          <span className="block text-[17px] font-extrabold whitespace-nowrap tabular">{planPrice(p.price_monthly, p.currency)}</span>
+                          <span className="block text-[17px] font-bold whitespace-nowrap tabular">{planPrice(p.price_monthly, p.currency)}</span>
                           <span className="block text-[12.5px] text-muted">por mês</span>
                         </span>
                       </label>
@@ -195,7 +195,7 @@ export function RequestForm() {
                   })}
                 </div>
               ) : (
-                <p className="rounded-[18px] bg-surface px-4 py-4 text-[13.5px] text-muted">
+                <p className="rounded-lg bg-surface px-4 py-4 text-[13.5px] text-muted">
                   {plans.error
                     ? "Não foi possível carregar os planos. Pode enviar o pedido e combinamos o plano consigo."
                     : "O plano é combinado com a equipa Horbit depois do pedido."}
@@ -204,7 +204,7 @@ export function RequestForm() {
             </fieldset>
 
             <fieldset className="space-y-3">
-              <legend className="mb-3 text-[17px] font-extrabold tracking-[-0.01em]">Empresa</legend>
+              <legend className="mb-3 text-[17px] font-bold tracking-[-0.01em]">Empresa</legend>
               <FloatField label="Nome da empresa" name="company_name" required minLength={2} maxLength={160} autoComplete="organization" />
               <div className="grid gap-3 sm:grid-cols-2">
                 <FloatField label="NUIT" name="nuit" inputMode="numeric" maxLength={20} />
@@ -214,7 +214,7 @@ export function RequestForm() {
             </fieldset>
 
             <fieldset className="space-y-3">
-              <legend className="mb-3 text-[17px] font-extrabold tracking-[-0.01em]">Responsável</legend>
+              <legend className="mb-3 text-[17px] font-bold tracking-[-0.01em]">Responsável</legend>
               <FloatField label="Nome do responsável" name="contact_name" required minLength={3} maxLength={120} autoComplete="name" />
               <div className="grid gap-3 sm:grid-cols-2">
                 <FloatField label="Email" name="email" type="email" required autoComplete="email" />
@@ -229,7 +229,7 @@ export function RequestForm() {
                   name="message"
                   maxLength={1000}
                   placeholder="Filiais, turnos ou necessidades específicas"
-                  className="rounded-[18px] px-5 py-4 text-[15px]"
+                  className="rounded-lg px-5 py-4 text-[15px]"
                 />
               </div>
             </fieldset>
@@ -237,7 +237,7 @@ export function RequestForm() {
             <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden />
 
             <div>
-              <PendingButton size="lg" className="h-14 w-full text-[16px] font-extrabold" pendingText="A enviar o pedido…">
+              <PendingButton size="lg" className="h-14 w-full text-[16px] font-bold" pendingText="A enviar o pedido…">
                 Enviar pedido
               </PendingButton>
             </div>

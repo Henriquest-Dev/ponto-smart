@@ -37,7 +37,7 @@ export default function PlansPage() {
         {error ? <Notice tone="danger">{error}</Notice> : null}
 
         {loading && !data ? (
-          <Skeleton className="h-72 rounded-[22px]" />
+          <Skeleton className="h-72 rounded-xl" />
         ) : plans.length === 0 ? (
           <EmptyState
             title="Sem planos"
@@ -45,7 +45,7 @@ export default function PlansPage() {
             action={<Button onClick={() => setEditing("new")}>Novo plano</Button>}
           />
         ) : (
-          <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border">
+          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
             {plans.map((p) => {
               const used = usage(p.code);
               const revenue = used.reduce((s, c) => s + Number(c.price_monthly ?? 0), 0);
@@ -59,18 +59,18 @@ export default function PlansPage() {
                 >
                   <div className="min-w-0">
                     <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <span className="text-[18px] font-extrabold tracking-[-0.01em]">{p.name}</span>
+                      <span className="text-[18px] font-bold tracking-[-0.01em]">{p.name}</span>
                       {p.active ? <Badge tone="success">Activo</Badge> : <Badge>Inactivo</Badge>}
                     </p>
                     <p className="mt-0.5 font-mono text-[12px] text-muted">{p.code}</p>
                     {p.modules.length ? <p className="mt-2 text-[13px] text-muted">{p.modules.join(", ")}</p> : null}
                   </div>
                   <div>
-                    <p className="text-[26px] leading-none font-extrabold tracking-[-0.02em] tabular">{formatMoney(p.price_monthly, p.currency)}</p>
+                    <p className="text-[26px] leading-none font-bold tracking-[-0.02em] tabular">{formatMoney(p.price_monthly, p.currency)}</p>
                     <p className="mt-1.5 text-[13px] text-muted">por mês, até {formatNumber(p.max_employees)} colaboradores</p>
                   </div>
                   <div>
-                    <p className="text-[15px] font-extrabold tabular">
+                    <p className="text-[15px] font-bold tabular">
                       {used.length} {used.length === 1 ? "empresa" : "empresas"}
                     </p>
                     <p className="mt-0.5 text-[13px] text-muted tabular">

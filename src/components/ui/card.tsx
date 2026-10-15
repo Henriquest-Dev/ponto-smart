@@ -2,7 +2,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 export function Card({ className, ...props }: React.ComponentProps<"div">) {
-  return <div className={cn("rounded-[22px] border border-border bg-background", className)} {...props} />;
+  return <div className={cn("rounded-xl border border-border bg-background", className)} {...props} />;
 }
 
 export function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
@@ -10,7 +10,7 @@ export function CardHeader({ className, ...props }: React.ComponentProps<"div">)
 }
 
 export function CardTitle({ className, ...props }: React.ComponentProps<"h3">) {
-  return <h3 className={cn("text-[16px] font-extrabold tracking-[-0.01em] text-foreground", className)} {...props} />;
+  return <h3 className={cn("text-[15px] font-bold text-foreground", className)} {...props} />;
 }
 
 export function CardDescription({ className, ...props }: React.ComponentProps<"p">) {
@@ -25,7 +25,7 @@ export function SectionTitle({ title, action, description }: { title: string; de
   return (
     <div className="mb-3 flex items-end justify-between gap-3">
       <div>
-        <h2 className="text-[18px] font-extrabold tracking-[-0.01em]">{title}</h2>
+        <h2 className="text-[16px] font-bold">{title}</h2>
         {description ? <p className="mt-0.5 text-[13px] text-muted">{description}</p> : null}
       </div>
       {action}

@@ -103,7 +103,7 @@ function Locations() {
                   <div className="p-5 sm:p-6">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="flex flex-wrap items-center gap-3 text-[18px] font-extrabold tracking-[-0.01em]">
+                        <p className="flex flex-wrap items-center gap-3 text-[18px] font-bold tracking-[-0.01em]">
                           {l.name}
                           {!l.active ? <Badge tone="neutral">Inactivo</Badge> : null}
                         </p>
@@ -111,11 +111,11 @@ function Locations() {
                         <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-2">
                           <div>
                             <dt className="text-[12px] text-muted">Raio</dt>
-                            <dd className="text-[20px] leading-tight font-extrabold tabular">{l.radius_m} m</dd>
+                            <dd className="text-[20px] leading-tight font-bold tabular">{l.radius_m} m</dd>
                           </div>
                           <div>
                             <dt className="text-[12px] text-muted">Precisão GPS aceite</dt>
-                            <dd className="text-[20px] leading-tight font-extrabold tabular">±{l.max_accuracy_m} m</dd>
+                            <dd className="text-[20px] leading-tight font-bold tabular">±{l.max_accuracy_m} m</dd>
                           </div>
                         </dl>
                       </div>
@@ -123,8 +123,8 @@ function Locations() {
                     </div>
                     <div className="mt-5 space-y-2">
                       {st.map((s) => (
-                        <div key={s.id} className="flex flex-wrap items-center gap-3 rounded-[16px] bg-surface px-4 py-3">
-                          <span className={`stem h-8 ${s.active ? (s.qr_mode === "dynamic" ? "text-primary" : "text-warning") : "text-border-strong"}`} aria-hidden />
+                        <div key={s.id} className="flex flex-wrap items-center gap-3 rounded-lg bg-surface px-4 py-3">
+                          <span className={`stem ${s.active ? (s.qr_mode === "dynamic" ? "text-primary" : "text-warning") : "text-border-strong"}`} aria-hidden />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-[14px] font-bold">{s.name}</p>
                             <p className="text-xs text-muted">
@@ -388,7 +388,7 @@ function StaticQr({ station, onDone }: { station: Station; onDone: () => void })
       </Button>
       <Dialog open={!!qr} onOpenChange={(o) => !o && setQr(null)}>
         <DialogContent title={`QR fixo de ${station.name}`} description="Imprima e afixe no local. Este código não volta a ser mostrado.">
-          <div id="ps-print-qr" className="mx-auto w-64 rounded-[22px] border border-border bg-white p-4 [&_svg]:h-auto [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: qr ?? "" }} />
+          <div id="ps-print-qr" className="mx-auto w-64 rounded-xl border border-border bg-white p-4 [&_svg]:h-auto [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: qr ?? "" }} />
           <Button className="mt-4 w-full" variant="outline" onClick={() => printSvg(qr ?? "", station.name)}>
             Imprimir
           </Button>

@@ -11,8 +11,8 @@ export function LinkTabs({ items, active, className }: { items: { href: string; 
           href={t.href}
           scroll={false}
           className={cn(
-            "relative inline-flex h-10 shrink-0 items-center gap-1.5 text-[14px] font-bold transition-colors after:absolute after:inset-x-0 after:-bottom-px after:h-[4px] after:rounded-full after:bg-primary after:transition-transform after:duration-200",
-            active === t.key ? "text-foreground after:scale-x-100" : "text-muted after:scale-x-0 hover:text-foreground",
+            "relative inline-flex h-10 shrink-0 items-center gap-1.5 text-[14px] font-medium transition-colors after:absolute after:inset-x-0 after:-bottom-px after:h-[2px] after:rounded-full after:bg-primary after:transition-transform after:duration-200",
+            active === t.key ? "font-bold text-foreground after:scale-x-100" : "text-muted after:scale-x-0 hover:text-foreground",
           )}
         >
           {t.label}
@@ -37,8 +37,8 @@ export function Tabs<K extends string>({ items, active, onChange, className }: {
           aria-selected={active === t.key}
           onClick={() => onChange(t.key)}
           className={cn(
-            "relative inline-flex h-10 shrink-0 cursor-pointer items-center gap-1.5 text-[14px] font-bold transition-colors after:absolute after:inset-x-0 after:-bottom-px after:h-[4px] after:rounded-full after:bg-primary after:transition-transform after:duration-200",
-            active === t.key ? "text-foreground after:scale-x-100" : "text-muted after:scale-x-0 hover:text-foreground",
+            "relative inline-flex h-10 shrink-0 cursor-pointer items-center gap-1.5 text-[14px] font-medium transition-colors after:absolute after:inset-x-0 after:-bottom-px after:h-[2px] after:rounded-full after:bg-primary after:transition-transform after:duration-200",
+            active === t.key ? "font-bold text-foreground after:scale-x-100" : "text-muted after:scale-x-0 hover:text-foreground",
           )}
         >
           {t.label}

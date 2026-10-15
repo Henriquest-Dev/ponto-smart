@@ -16,7 +16,7 @@ export default function SemAcesso() {
           <span className="block h-9 w-[7px] rounded-full bg-current" />
           <span className="block h-5 w-[7px] rounded-full bg-current opacity-30" />
         </span>
-        <h1 className="text-[30px] leading-[1.05] font-extrabold tracking-[-0.03em]">Conta sem empresa activa</h1>
+        <h1 className="text-[30px] leading-[1.05] font-bold tracking-[-0.02em]">Conta sem empresa activa</h1>
         <p className="text-[15px] leading-relaxed text-muted">
           A sua conta existe, mas não está ligada a nenhuma empresa activa. Fale com o responsável da sua empresa ou com o suporte Horbit.
         </p>

@@ -31,30 +31,30 @@ export function AppShell({ sections, root, subtitle, user, notifications, mobile
   const tabs = centerAction ? mobileTabs.slice(0, 4) : mobileTabs.slice(0, 3);
 
   return (
-    <div className="min-h-dvh bg-canvas lg:flex lg:gap-3 lg:p-3">
+    <div className="min-h-dvh bg-canvas lg:flex">
       {/* Barra lateral (desktop): sobre o fundo lilás, sem caixa. */}
-      <aside className="hidden w-[272px] shrink-0 lg:block">
-        <div className="sticky top-3 h-[calc(100dvh-24px)]">
+      <aside className="hidden w-[260px] shrink-0 bg-[#16131f] text-white lg:block">
+        <div className="sticky top-0 h-dvh">
           <SidebarNav
             sections={sections}
             root={root}
             subtitle={subtitle}
             searchHref={searchHref}
-            headerExtra={<NotificationBell {...notifications} />}
-            footer={<UserMenu {...user} />}
+            headerExtra={<NotificationBell {...notifications} dark />}
+            footer={<UserMenu {...user} dark />}
           />
         </div>
       </aside>
 
-      <div className="flex min-h-dvh min-w-0 flex-1 flex-col bg-background lg:min-h-[calc(100dvh-24px)] lg:rounded-[28px]">
+      <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
         {/* Barra superior (telemóvel/tablet) */}
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur lg:hidden">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-[#16131f] px-4 text-white lg:hidden">
           <Link href={root} className="flex min-w-0 items-center gap-2.5" aria-label="Início">
-            <LogoMark className="size-7 shrink-0" />
-            <span className="truncate text-[15px] font-extrabold">{subtitle ?? "Horbit"}</span>
+            <LogoMark className="size-6 shrink-0" color="#ffffff" />
+            <span className="truncate text-[14.5px] font-bold">{subtitle ?? "Horbit"}</span>
           </Link>
           <div className="ml-auto flex items-center gap-2">
-            <NotificationBell {...notifications} />
+            <NotificationBell {...notifications} dark />
             <UserMenu {...user} compact />
           </div>
         </header>
@@ -73,7 +73,7 @@ export function AppShell({ sections, root, subtitle, user, notifications, mobile
               <li className="flex justify-center">
                 <Link
                   href={centerAction.href}
-                  className="flex h-12 w-full max-w-[84px] items-center justify-center rounded-full bg-primary text-[13px] font-extrabold text-white active:scale-95"
+                  className="flex h-11 w-full max-w-[84px] items-center justify-center rounded-lg bg-primary text-[13px] font-bold text-white"
                 >
                   Marcar
                 </Link>
@@ -88,17 +88,17 @@ export function AppShell({ sections, root, subtitle, user, notifications, mobile
                 <D.Trigger className="relative flex h-16 w-full items-center justify-center text-[13px] font-bold text-muted">Menu</D.Trigger>
                 <D.Portal>
                   <D.Overlay className="fixed inset-0 z-50 bg-[#1a1530]/40 data-[state=open]:animate-fade-in" />
-                  <D.Content className="fixed inset-y-0 left-0 z-50 w-[88vw] max-w-[340px] bg-canvas data-[state=open]:animate-slide-in-left">
+                  <D.Content className="fixed inset-y-0 left-0 z-50 w-[88vw] max-w-[320px] bg-[#16131f] text-white data-[state=open]:animate-slide-in-left">
                     <D.Title className="sr-only">Menu</D.Title>
                     <D.Description className="sr-only">Navegação completa</D.Description>
-                    <D.Close className="absolute top-6 right-4 h-9 rounded-full bg-background px-3 text-[13px] font-bold">Fechar</D.Close>
+                    <D.Close className="absolute top-5 right-4 h-8 rounded-md bg-white/10 px-2.5 text-[13px] font-bold text-white">Fechar</D.Close>
                     <SidebarNav
                       sections={sections}
                       root={root}
                       subtitle={subtitle}
                       searchHref={searchHref}
                       onNavigate={() => setOpen(false)}
-                      footer={<UserMenu {...user} />}
+                      footer={<UserMenu {...user} dark />}
                     />
                   </D.Content>
                 </D.Portal>
@@ -122,7 +122,7 @@ function TabLink({ item, root, pathname }: { item: NavItem; root: string; pathna
       >
         <span
           aria-hidden
-          className={cn("absolute top-0 left-1/2 h-[4px] w-7 -translate-x-1/2 rounded-full bg-primary transition-transform", active ? "scale-x-100" : "scale-x-0")}
+          className={cn("absolute top-0 left-1/2 h-[3px] w-8 -translate-x-1/2 rounded-full bg-primary transition-transform", active ? "scale-x-100" : "scale-x-0")}
         />
         {item.label}
       </Link>

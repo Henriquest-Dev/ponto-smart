@@ -61,7 +61,7 @@ export function ScanFrame({ found = false }: { found?: boolean }) {
   return (
     <motion.div
       aria-hidden
-      className="pointer-events-none absolute inset-[13%] rounded-[28px] shadow-[0_0_0_999px_rgb(13_14_22/0.5)]"
+      className="pointer-events-none absolute inset-[13%] rounded-xl shadow-[0_0_0_999px_rgb(13_14_22/0.5)]"
       animate={reduce ? undefined : { scale: found ? 0.94 : [1, 0.975, 1] }}
       transition={
         found
@@ -109,7 +109,7 @@ export function StemSteps({
         const active = i === current;
         return (
           <li key={l} aria-current={active ? "step" : undefined}>
-            <div className="relative h-2 overflow-hidden rounded-full bg-surface-2">
+            <div className="relative h-1 overflow-hidden rounded-full bg-surface-2">
               <motion.div
                 className="absolute inset-y-0 left-0 rounded-full bg-primary"
                 initial={false}
@@ -120,17 +120,6 @@ export function StemSteps({
                     : { type: "spring", stiffness: 140, damping: 22 }
                 }
               />
-              {active && !reduce ? (
-                <motion.div
-                  className="absolute inset-y-0 w-6 rounded-full bg-white/50"
-                  animate={{ left: ["-10%", "100%"] }}
-                  transition={{
-                    duration: 1.3,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                />
-              ) : null}
             </div>
             <p
               className={cn(

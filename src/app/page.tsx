@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { OrbitScene } from "@/components/brand/orbit-scene";
+import { HeroVideo, Illustration } from "@/components/brand/media";
 import { Plans } from "@/components/landing/plans";
 import { SiteHeader } from "@/components/landing/site-header";
 import { Wordmark } from "@/components/shell/logo";
@@ -12,23 +12,27 @@ export const metadata: Metadata = {
     "Os colaboradores marcam o ponto no telemóvel, com QR Code que muda e localização confirmada. Assiduidade, justificações e recibos num só sítio. Para empresas em Moçambique.",
 };
 
-const STEPS = [
+const STEPS: { img: Illustration; who: string; title: string; text: string }[] = [
   {
+    img: "company",
     who: "Horbit",
     title: "Criamos a conta da empresa",
     text: "Peça a conta nesta página. Depois de validarmos os dados, o responsável da empresa recebe o utilizador e a palavra-passe.",
   },
   {
+    img: "team",
     who: "Empresa",
     title: "A empresa cria os acessos da equipa",
     text: "O responsável ou o RH regista cada colaborador e define o utilizador, a palavra-passe e o papel: colaborador, supervisor, RH ou financeiro.",
   },
   {
+    img: "scan",
     who: "Colaborador",
     title: "O colaborador marca o ponto",
     text: "Abre o Horbit no telemóvel e lê o QR do ecrã da recepção. O sistema confirma o código, a hora e se está dentro do local.",
   },
   {
+    img: "payroll",
     who: "RH e financeiro",
     title: "O mês fecha sem papelada",
     text: "Faltas justificadas com anexos, assiduidade revista, salários calculados e aprovados por outra pessoa, recibos em PDF.",
@@ -78,10 +82,10 @@ export default function Home() {
       <SiteHeader />
 
       <main>
-        {/* Hero: texto à esquerda, palco 2.5D à direita */}
+        {/* Hero: texto à esquerda, vídeo 3D do produto à direita */}
         <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-10 pb-16 sm:px-6 lg:grid-cols-[1fr_1.05fr] lg:gap-12 lg:pt-16 lg:pb-24">
           <div>
-            <h1 className="text-[40px] leading-[1.02] font-extrabold tracking-[-0.035em] text-balance sm:text-[56px] lg:text-[64px]">
+            <h1 className="text-[40px] leading-[1.02] font-bold tracking-[-0.02em] text-balance sm:text-[56px] lg:text-[64px]">
               O ponto da equipa, marcado no telemóvel e no sítio certo.
             </h1>
             <p className="mt-6 max-w-[34rem] text-[17px] leading-relaxed text-muted">
@@ -96,46 +100,43 @@ export default function Home() {
                 <Link href="/login/">Já tenho acesso</Link>
               </Button>
             </div>
-            <p className="mt-6 flex items-center gap-2.5 text-[13.5px] font-medium text-muted">
-              <span className="stem text-primary" aria-hidden />
+            <p className="mt-6 text-[13.5px] font-medium text-muted">
               Feito para Moçambique: meticais, horário de Maputo e português.
             </p>
           </div>
-          <div className="relative overflow-hidden rounded-[36px] bg-[#1a1530] p-6 sm:p-12">
-            <OrbitScene />
+          <div className="overflow-hidden rounded-2xl bg-[#efebfb]">
+            <HeroVideo className="block h-auto w-full" />
           </div>
         </section>
 
         {/* Como funciona */}
-        <section id="como-funciona" className="scroll-mt-20 rounded-t-[40px] bg-background">
+        <section id="como-funciona" className="scroll-mt-20 border-t border-border bg-background">
           <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
             <div className="max-w-2xl">
-              <h2 className="text-[32px] leading-tight font-extrabold tracking-[-0.025em] sm:text-[42px]">Como funciona</h2>
+              <h2 className="text-[32px] leading-tight font-bold tracking-[-0.025em] sm:text-[42px]">Como funciona</h2>
               <p className="mt-3 text-[16px] leading-relaxed text-muted">
                 Os acessos são criados de cima para baixo. Ninguém se regista sozinho: cada conta tem um responsável.
               </p>
             </div>
 
-            <ol className="mt-12 grid gap-x-8 gap-y-10 md:grid-cols-2 lg:grid-cols-4">
+            <ol className="mt-12 grid gap-x-6 gap-y-12 md:grid-cols-2 lg:grid-cols-4">
               {STEPS.map((s, i) => (
-                <li key={s.title}>
-                  <div className="flex items-center gap-1.5" aria-hidden>
-                    {STEPS.map((_, j) => (
-                      <span key={j} className={j <= i ? "h-2 w-8 rounded-full bg-primary" : "h-2 w-8 rounded-full bg-surface-2"} />
-                    ))}
+                <li key={s.title} className="flex flex-col">
+                  <div className="flex aspect-[4/3] items-center justify-center rounded-xl bg-[#efebfb] p-5">
+                    <Illustration name={s.img} className="h-full w-full object-contain" />
                   </div>
-                  <p className="mt-5 text-[13px] font-bold text-primary">
-                    Passo {i + 1}, {s.who}
+                  <p className="mt-5 text-[13px] font-bold text-muted">
+                    {i + 1}. {s.who}
                   </p>
-                  <h3 className="mt-1.5 text-[19px] leading-snug font-extrabold">{s.title}</h3>
+                  <h3 className="mt-1 text-[18px] leading-snug font-bold">{s.title}</h3>
                   <p className="mt-2 text-[14.5px] leading-relaxed text-muted">{s.text}</p>
                 </li>
               ))}
             </ol>
 
-            <div className="mt-16 grid gap-8 rounded-[32px] bg-canvas p-6 sm:p-10 lg:grid-cols-[0.9fr_1.4fr] lg:items-center">
+            <div className="mt-16 grid gap-8 rounded-xl bg-canvas p-6 sm:p-10 lg:grid-cols-[0.9fr_1.4fr] lg:items-center">
               <div>
-                <h3 className="text-[26px] leading-tight font-extrabold tracking-[-0.02em]">Onde se criam os acessos</h3>
+                <h3 className="text-[26px] leading-tight font-bold tracking-[-0.02em]">Onde se criam os acessos</h3>
                 <p className="mt-3 text-[15px] leading-relaxed text-muted">
                   Se é colaborador e ainda não tem utilizador, peça-o ao RH da sua empresa. Se é responsável de uma empresa, comece por pedir a conta.
                 </p>
@@ -146,11 +147,8 @@ export default function Home() {
                   ["Acessos da equipa", "Criados pela empresa, em Colaboradores, com papel e palavra-passe."],
                   ["Palavra-passe esquecida", "Redefinida pelo responsável da empresa, na ficha do colaborador."],
                 ].map(([k, v]) => (
-                  <div key={k} className="rounded-[22px] bg-background p-5">
-                    <dt className="flex items-center gap-2 text-[15px] font-extrabold">
-                      <span className="stem text-primary" aria-hidden />
-                      {k}
-                    </dt>
+                  <div key={k} className="rounded-lg border border-border bg-background p-5">
+                    <dt className="text-[15px] font-bold">{k}</dt>
                     <dd className="mt-2 text-[13.5px] leading-relaxed text-muted">{v}</dd>
                   </div>
                 ))}
@@ -162,17 +160,16 @@ export default function Home() {
         {/* Para cada papel */}
         <section className="bg-background">
           <div className="mx-auto max-w-6xl px-4 pb-16 sm:px-6 lg:pb-24">
-            <h2 className="max-w-2xl text-[32px] leading-tight font-extrabold tracking-[-0.025em] sm:text-[42px]">
+            <h2 className="max-w-2xl text-[32px] leading-tight font-bold tracking-[-0.025em] sm:text-[42px]">
               Cada pessoa vê o que precisa para o seu trabalho
             </h2>
-            <div className="mt-12 grid gap-10 md:grid-cols-3 md:gap-0 md:divide-x-2 md:divide-border">
+            <div className="mt-12 grid gap-10 md:grid-cols-3 md:gap-0 md:divide-x md:divide-border">
               {ROLES.map((r) => (
                 <div key={r.title} className="md:px-8 md:first:pl-0 md:last:pr-0">
-                  <h3 className="text-[19px] font-extrabold">{r.title}</h3>
+                  <h3 className="text-[19px] font-bold">{r.title}</h3>
                   <ul className="mt-5 space-y-3.5">
                     {r.lines.map((l) => (
-                      <li key={l} className="flex gap-3 text-[14.5px] leading-relaxed text-[#3d3854]">
-                        <span className="stem mt-[5px] h-3 text-primary" aria-hidden />
+                      <li key={l} className="border-b border-border pb-3.5 text-[14.5px] leading-relaxed text-foreground/80 last:border-0">
                         {l}
                       </li>
                     ))}
@@ -187,7 +184,7 @@ export default function Home() {
         <section id="precos" className="scroll-mt-20">
           <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
             <div className="max-w-xl">
-              <h2 className="text-[32px] leading-tight font-extrabold tracking-[-0.025em] sm:text-[42px]">Preços em meticais</h2>
+              <h2 className="text-[32px] leading-tight font-bold tracking-[-0.025em] sm:text-[42px]">Preços em meticais</h2>
               <p className="mt-3 text-[16px] leading-relaxed text-muted">
                 Mensalidade por empresa, sem custo por marcação. Os primeiros 30 dias servem para configurar e experimentar.
               </p>
@@ -202,15 +199,15 @@ export default function Home() {
         <section id="confianca" className="scroll-mt-20 bg-background">
           <div className="mx-auto grid max-w-6xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:py-24">
             <div>
-              <h2 className="text-[32px] leading-tight font-extrabold tracking-[-0.025em] sm:text-[42px]">Regras claras, sem surpresas</h2>
+              <h2 className="text-[32px] leading-tight font-bold tracking-[-0.025em] sm:text-[42px]">Regras claras, sem surpresas</h2>
               <p className="mt-3 text-[16px] leading-relaxed text-muted">
                 O Horbit regista factos e ajuda a decidir. Faltas, revisões e salários são sempre decididos por uma pessoa.
               </p>
             </div>
             <dl className="grid gap-x-10 gap-y-9 sm:grid-cols-2">
               {TRUST.map(([t, d]) => (
-                <div key={t} className="border-t-[4px] border-primary pt-4">
-                  <dt className="text-[17px] font-extrabold">{t}</dt>
+                <div key={t} className="border-t border-border-strong pt-4">
+                  <dt className="text-[17px] font-bold">{t}</dt>
                   <dd className="mt-2 text-[14.5px] leading-relaxed text-muted">{d}</dd>
                 </div>
               ))}
@@ -220,15 +217,15 @@ export default function Home() {
 
         {/* Chamada final */}
         <section className="bg-background px-4 pb-16 sm:px-6">
-          <div className="mx-auto flex max-w-6xl flex-col gap-8 rounded-[36px] bg-primary px-6 py-12 text-white sm:px-12 lg:flex-row lg:items-center lg:justify-between">
+          <div className="mx-auto flex max-w-6xl flex-col gap-8 rounded-2xl bg-[#16131f] px-6 py-12 text-white sm:px-12 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-xl">
-              <h2 className="text-[30px] leading-tight font-extrabold tracking-[-0.02em] sm:text-[38px]">Comece pela conta da empresa</h2>
+              <h2 className="text-[30px] leading-tight font-bold tracking-[-0.02em] sm:text-[38px]">Comece pela conta da empresa</h2>
               <p className="mt-3 text-[15.5px] leading-relaxed text-white/80">
                 Envie o pedido com os dados da empresa. Respondemos com o acesso do responsável, que depois cria os acessos da equipa.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Button size="lg" asChild className="bg-white text-primary hover:bg-white/90">
+              <Button size="lg" asChild className="bg-white text-foreground hover:bg-white/90">
                 <Link href="/registo/">Pedir conta</Link>
               </Button>
               <Button size="lg" variant="outline" asChild className="border-white/40 bg-transparent text-white hover:border-white">

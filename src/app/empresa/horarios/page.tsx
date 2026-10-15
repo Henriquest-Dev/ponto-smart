@@ -87,7 +87,7 @@ function Schedules() {
                   {data.data.schedules.map((s) => (
                     <li key={s.id} className="grid gap-4 px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,240px)_1fr_auto] lg:items-center lg:gap-8">
                       <div className="min-w-0">
-                        <p className="truncate text-[16px] font-extrabold tracking-[-0.01em]">{s.name}</p>
+                        <p className="truncate text-[16px] font-bold tracking-[-0.01em]">{s.name}</p>
                         <p className="mt-0.5 text-[12.5px] text-muted">
                           Tolerância de <span className="font-bold text-foreground tabular">{s.toleranceMinutes} min</span>
                         </p>
@@ -228,7 +228,7 @@ function ScheduleEditor({ schedule, onDone }: { schedule?: Schedule; onDone: () 
               <Input name="toleranceMinutes" type="number" min={0} max={120} defaultValue={schedule?.toleranceMinutes ?? 10} />
             </Field>
           </div>
-          <div className="overflow-x-auto rounded-[16px] border border-border">
+          <div className="overflow-x-auto rounded-lg border border-border">
             <table className="w-full min-w-[520px] text-[13px]">
               <thead className="bg-surface text-left text-[12px] font-bold text-muted">
                 <tr>

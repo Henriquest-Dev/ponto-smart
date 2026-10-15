@@ -18,9 +18,9 @@ export function MonthPicker({ value, onChange, max }: { value: string; onChange:
   const [y, m] = value.split("-").map(Number);
   const next = shiftMonth(value, 1);
   const disabledNext = max ? next > max : false;
-  const cls = "inline-flex size-9 cursor-pointer items-center justify-center rounded-full font-bold text-foreground hover:bg-background disabled:pointer-events-none disabled:opacity-30";
+  const cls = "inline-flex size-9 cursor-pointer items-center justify-center rounded-md font-bold text-foreground hover:bg-surface-2 disabled:pointer-events-none disabled:opacity-30";
   return (
-    <div className="inline-flex h-11 items-center gap-1 rounded-full bg-surface-2 px-1">
+    <div className="inline-flex h-10 items-center gap-1 rounded-lg border border-border-strong bg-background px-0.5">
       <button type="button" onClick={() => onChange(shiftMonth(value, -1))} className={cls} aria-label="Mês anterior">
         <span aria-hidden className="text-[18px] leading-none">‹</span>
       </button>

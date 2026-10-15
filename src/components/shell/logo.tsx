@@ -23,11 +23,11 @@ export function Wordmark({ className, color = "var(--primary)" }: { className?: 
   );
 }
 
-export function Logo({ className, subtitle }: { className?: string; subtitle?: string }) {
+export function Logo({ className, subtitle, dark }: { className?: string; subtitle?: string; dark?: boolean }) {
   return (
     <div className={cn("flex flex-col gap-1", className)}>
-      <Wordmark className="h-6" />
-      {subtitle ? <div className="max-w-[180px] truncate text-[12px] font-medium text-muted">{subtitle}</div> : null}
+      <Wordmark className="h-6" color={dark ? "#ffffff" : undefined} />
+      {subtitle ? <div className={cn("max-w-[180px] truncate text-[12px] font-medium", dark ? "text-white/55" : "text-muted")}>{subtitle}</div> : null}
     </div>
   );
 }

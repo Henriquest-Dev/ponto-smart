@@ -16,28 +16,27 @@ export type UserMenuProps = {
   onLogout: () => void;
 };
 
-export function UserMenu({ name, email, links, companies, onSwitchCompany, onLogout, compact }: UserMenuProps & { compact?: boolean }) {
+export function UserMenu({ name, email, links, companies, onSwitchCompany, onLogout, compact, dark }: UserMenuProps & { compact?: boolean; dark?: boolean }) {
   return (
     <Dropdown>
       <DropdownTrigger asChild>
         {compact ? (
-          <button className="rounded-[38%]" aria-label="Conta">
-            <Avatar name={name} size={36} />
+          <button className="rounded-lg" aria-label="Conta">
+            <Avatar name={name} size={32} className="bg-white/10 text-white" />
           </button>
         ) : (
-          <button className="flex w-full items-center gap-3 rounded-[18px] bg-background p-2.5 text-left transition-colors hover:bg-[#fbfaff]">
-            <Avatar name={name} size={38} />
+          <button className={cn("flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors", dark ? "hover:bg-white/5" : "bg-background hover:bg-surface-2")}>
+            <Avatar name={name} size={34} className={dark ? "bg-white/10 text-white" : undefined} />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[14px] font-extrabold">{name}</span>
-              <span className="block truncate text-[12px] text-muted">{email}</span>
+              <span className="block truncate text-[13.5px] font-bold">{name}</span>
+              <span className={cn("block truncate text-[12px]", dark ? "text-white/50" : "text-muted")}>{email}</span>
             </span>
-            <span className="pr-1 text-[12px] font-bold text-subtle">Conta</span>
           </button>
         )}
       </DropdownTrigger>
       <DropdownContent align={compact ? "end" : "start"} side={compact ? "bottom" : "top"} className="w-64">
         <DropdownLabel>
-          <span className="block truncate text-[14px] font-extrabold text-foreground">{name}</span>
+          <span className="block truncate text-[14px] font-bold text-foreground">{name}</span>
           <span className="block truncate">{email}</span>
         </DropdownLabel>
         <DropdownSeparator />
@@ -51,7 +50,7 @@ export function UserMenu({ name, email, links, companies, onSwitchCompany, onLog
             <DropdownSeparator />
             <DropdownLabel>Empresa activa</DropdownLabel>
             {companies.map((c) => (
-              <DropdownItem key={c.id} onSelect={() => onSwitchCompany(c.id)} className={cn(c.active && "font-extrabold text-primary")}>
+              <DropdownItem key={c.id} onSelect={() => onSwitchCompany(c.id)} className={cn(c.active && "font-bold text-primary")}>
                 <span className="truncate">{c.name}</span>
               </DropdownItem>
             ))}

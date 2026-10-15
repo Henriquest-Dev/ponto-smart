@@ -50,22 +50,21 @@ export function Plans() {
           <div
             key={p.code}
             className={cn(
-              "flex flex-col rounded-[28px] border-2 p-7",
-              highlight ? "border-[#1a1530] bg-[#1a1530] text-white" : "border-border bg-white",
+              "flex flex-col rounded-xl border bg-white p-7",
+              highlight ? "border-foreground shadow-[0_0_0_1px_var(--color-foreground)]" : "border-border",
             )}
           >
             <div className="flex items-baseline justify-between gap-3">
-              <h3 className="text-[22px] font-extrabold tracking-[-0.01em]">{p.name}</h3>
-              <span className={cn("text-[13px]", highlight ? "text-white/70" : "text-muted")}>até {p.max_employees} pessoas</span>
+              <h3 className="text-[22px] font-bold tracking-[-0.01em]">{p.name}</h3>
+              <span className="text-[13px] text-muted">até {p.max_employees} pessoas</span>
             </div>
             <p className="mt-5">
-              <span className="text-[38px] font-extrabold tracking-[-0.03em] tabular">{price(p.price_monthly)} {p.currency}</span>
-              <span className={cn("ml-1 text-[13px]", highlight ? "text-white/70" : "text-muted")}>por mês</span>
+              <span className="text-[38px] font-bold tracking-[-0.02em] tabular">{price(p.price_monthly)} {p.currency}</span>
+              <span className="ml-1 text-[13px] text-muted">por mês</span>
             </p>
-            <ul className={cn("mt-6 flex-1 space-y-2.5 text-[14px]", highlight ? "text-white/85" : "text-[#3d3854]")}>
+            <ul className="mt-6 flex-1 space-y-2.5 text-[14px] text-foreground/80">
               {(p.modules ?? []).map((m) => (
-                <li key={m} className="flex gap-3 font-medium">
-                  <span className={cn("stem mt-[5px] h-3", highlight ? "text-[#b7a6f7]" : "text-primary")} aria-hidden />
+                <li key={m} className="border-b border-border pb-2.5 last:border-0">
                   {MODULES[m] ?? m}
                 </li>
               ))}

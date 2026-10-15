@@ -85,7 +85,7 @@ export default function CompanyAbsences() {
           <EmptyState title={view === "pendentes" ? "Sem justificações por decidir" : "Sem decisões registadas"} />
         ) : (
           <ul
-            className={`divide-y divide-border overflow-hidden rounded-[22px] border border-border bg-background ${list.loading ? "opacity-60 transition-opacity" : ""}`}
+            className={`divide-y divide-border overflow-hidden rounded-xl border border-border bg-background ${list.loading ? "opacity-60 transition-opacity" : ""}`}
           >
             {requests.map((r) => {
               const name = r.employees?.full_name ?? "—";
@@ -101,7 +101,7 @@ export default function CompanyAbsences() {
                     <div className="flex items-start gap-3">
                       <Avatar name={name} />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[15px] font-extrabold tracking-[-0.01em]">{name}</p>
+                        <p className="truncate text-[15px] font-bold tracking-[-0.01em]">{name}</p>
                         <p className="truncate text-[12.5px] text-muted">
                           {[r.employees?.job_title, r.employees?.departments?.name ?? "Sem departamento"].filter(Boolean).join(", ")}
                         </p>
@@ -123,7 +123,7 @@ export default function CompanyAbsences() {
                       </div>
                       <div>
                         <dt className="text-[12px] text-muted">Duração</dt>
-                        <dd className="mt-0.5 text-[14px] font-extrabold tabular">
+                        <dd className="mt-0.5 text-[14px] font-bold tabular">
                           {nDays} {nDays === 1 ? "dia" : "dias"}
                         </dd>
                       </div>
@@ -136,7 +136,7 @@ export default function CompanyAbsences() {
                             key={d.id}
                             type="button"
                             onClick={() => void openSignedFile("justificacoes", d.storage_key)}
-                            className="inline-flex h-9 max-w-full cursor-pointer items-center gap-2 rounded-full bg-surface-2 px-4 text-[12.5px] font-bold hover:bg-primary-soft hover:text-primary"
+                            className="inline-flex h-9 max-w-full cursor-pointer items-center gap-2 rounded-lg border border-border-strong bg-background px-4 text-[12.5px] font-bold hover:bg-surface-2"
                             title={`Abrir ${d.file_name}`}
                           >
                             <span className="truncate">{d.file_name}</span>

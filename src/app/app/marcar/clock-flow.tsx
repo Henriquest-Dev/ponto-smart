@@ -1,5 +1,6 @@
 "use client";
 
+import { Illustration } from "@/components/brand/media";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -261,13 +262,13 @@ export function ClockFlow({
     <div className="mx-auto flex min-h-[calc(100dvh-8rem)] max-w-md flex-col px-4 py-5 sm:py-8">
       <div className="mb-6 flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-[28px] leading-[1.05] font-extrabold tracking-[-0.03em]">Marcar ponto</h1>
+          <h1 className="text-[28px] leading-[1.05] font-bold tracking-[-0.02em]">Marcar ponto</h1>
           <p className="mt-1.5 flex items-center gap-2 text-[14px] text-muted">
             <span className="stem text-primary" aria-hidden />
             Próxima marcação: <span className="font-bold text-foreground">{action}</span>
           </p>
         </div>
-        <Link href="/app/" className="inline-flex h-9 shrink-0 items-center rounded-full px-4 text-[13px] font-bold text-muted hover:bg-surface-2 hover:text-foreground">
+        <Link href="/app/" className="inline-flex h-9 shrink-0 items-center rounded-md px-3 text-[13px] font-bold text-muted hover:bg-surface-2 hover:text-foreground">
           Voltar
         </Link>
       </div>
@@ -284,22 +285,16 @@ export function ClockFlow({
       >
           {step === "intro" ? (
             <div className="mt-6 flex flex-1 flex-col">
-              <div className="relative overflow-hidden rounded-[28px] bg-foreground px-6 pt-7 pb-6 text-white">
-                <div className="flex items-end gap-[6px]" aria-hidden>
-                  {[22, 38, 54, 38, 22].map((h, i) => (
-                    <motion.span
-                      key={i}
-                      className={cn("block w-[7px] rounded-full", i === 2 ? "bg-primary" : "bg-white/25")}
-                      initial={reduce ? false : { height: 6 }}
-                      animate={{ height: h }}
-                      transition={{ delay: 0.08 * i, type: "spring", stiffness: 220, damping: 16 }}
-                    />
-                  ))}
+              <div className="overflow-hidden rounded-xl border border-border bg-background">
+                <div className="flex h-44 items-center justify-center bg-[#efebfb] p-4">
+                  <Illustration name="scan" priority className="h-full w-auto object-contain" />
                 </div>
-                <p className="mt-6 text-[22px] leading-tight font-extrabold tracking-[-0.02em]">Leia o QR Code da estação</p>
-                <p className="mt-2 text-[14px] leading-relaxed text-white/70">
-                  Aponte a câmara para o código no ecrã da recepção ou portaria. O código muda a cada poucos segundos.
-                </p>
+                <div className="px-5 pt-5 pb-5">
+                  <p className="text-[20px] leading-tight font-bold tracking-[-0.02em]">Leia o QR Code da estação</p>
+                  <p className="mt-2 text-[14px] leading-relaxed text-muted">
+                    Aponte a câmara para o código no ecrã da recepção ou portaria. O código muda a cada poucos segundos.
+                  </p>
+                </div>
               </div>
               <ul className="mt-5 space-y-3.5 text-[13.5px] leading-relaxed text-muted">
                 {[
@@ -307,15 +302,14 @@ export function ClockFlow({
                   "A hora registada é a do servidor, não a do telemóvel.",
                   "Se o GPS estiver impreciso, a marcação fica em revisão e nunca é tratada como fraude.",
                 ].map((t) => (
-                  <li key={t} className="flex gap-3">
-                    <span className="stem mt-1 text-primary" aria-hidden />
+                  <li key={t} className="border-b border-border pb-3.5 last:border-0">
                     {t}
                   </li>
                 ))}
               </ul>
               <div className="mt-auto space-y-2 pt-6">
                 <ManualCode open={manual} setOpen={setManual} code={code} setCode={setCode} error={codeError} onSubmit={applyCode} />
-                <Button size="lg" className="h-14 w-full text-[16px] font-extrabold" onClick={() => setStep("scanning")}>
+                <Button size="lg" className="w-full" onClick={() => setStep("scanning")}>
                   Abrir câmara
                 </Button>
               </div>
@@ -324,7 +318,7 @@ export function ClockFlow({
 
           {step === "scanning" ? (
             <div className="mt-6 flex flex-1 flex-col">
-              <div className="relative aspect-square w-full overflow-hidden rounded-[28px] bg-[#0d0e16]">
+              <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-[#0d0e16]">
                 <video ref={videoRef} className="size-full object-cover" playsInline muted autoPlay />
                 <ScanFrame />
               </div>
@@ -353,11 +347,11 @@ export function ClockFlow({
           {step === "locating" ? (
             <div className="mt-12 flex flex-1 flex-col items-center text-center">
               <StemLoader count={7} />
-              <p className="mt-7 text-[20px] font-extrabold tracking-[-0.02em]">A obter localização</p>
+              <p className="mt-7 text-[20px] font-bold tracking-[-0.02em]">A obter localização</p>
               <p className="mt-1.5 text-[14px] text-muted">
                 {liveAccuracy ? (
                   <>
-                    Precisão actual <span className="font-extrabold text-foreground tabular">±{liveAccuracy} m</span>
+                    Precisão actual <span className="font-bold text-foreground tabular">±{liveAccuracy} m</span>
                   </>
                 ) : (
                   "Autorize o acesso à localização quando o navegador pedir."
@@ -382,7 +376,7 @@ export function ClockFlow({
           {step === "submitting" ? (
             <div className="mt-16 flex flex-1 flex-col items-center text-center">
               <StemLoader count={5} />
-              <p className="mt-7 text-[20px] font-extrabold tracking-[-0.02em]">A validar no servidor</p>
+              <p className="mt-7 text-[20px] font-bold tracking-[-0.02em]">A validar no servidor</p>
               <p className="mt-1.5 text-[14px] text-muted">QR Code, perímetro e dispositivo</p>
             </div>
           ) : null}
@@ -419,7 +413,7 @@ function ManualCode({
   }
   return (
     <form
-      className="space-y-2.5 rounded-[22px] bg-surface p-4"
+      className="space-y-2.5 rounded-xl bg-surface p-4"
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit();
@@ -494,13 +488,13 @@ function Result({
     return (
       <div className="mt-12 flex flex-1 flex-col items-center text-center">
         <ResultMark tone="danger" />
-        <motion.p {...rise(0.15)} className="mt-6 text-[24px] font-extrabold tracking-[-0.02em]">
+        <motion.p {...rise(0.15)} className="mt-6 text-[24px] font-bold tracking-[-0.02em]">
           Marcação não registada
         </motion.p>
         <motion.p {...rise(0.22)} className="mt-2 max-w-xs text-[14px] leading-relaxed text-muted">
           {response.error.message}
         </motion.p>
-        <Button size="lg" className="mt-auto h-14 w-full text-[16px] font-extrabold" onClick={onRetry}>
+        <Button size="lg" className="mt-auto h-14 w-full text-[16px] font-bold" onClick={onRetry}>
           Ler QR Code novamente
         </Button>
       </div>
@@ -514,7 +508,7 @@ function Result({
       <div className="mt-8 flex flex-1 flex-col">
         <div className="flex flex-col items-center text-center">
           <ResultMark tone="warning" />
-          <motion.p {...rise(0.15)} className="mt-6 text-[24px] font-extrabold tracking-[-0.02em]">
+          <motion.p {...rise(0.15)} className="mt-6 text-[24px] font-bold tracking-[-0.02em]">
             Fora do perímetro
           </motion.p>
           <motion.p {...rise(0.22)} className="mx-auto mt-2 max-w-xs text-[14px] leading-relaxed text-muted">
@@ -552,7 +546,7 @@ function Result({
         {TYPE_LABEL[r.type]}
       </motion.p>
       <motion.p
-        className="text-[72px] leading-none font-extrabold tracking-[-0.04em] tabular"
+        className="text-[72px] leading-none font-bold tracking-[-0.02em] tabular"
         initial={reduce ? false : { opacity: 0, scale: 0.85 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 18 }}
@@ -567,7 +561,7 @@ function Result({
       <motion.p {...rise(0.38)} className="mt-4 max-w-xs text-[14px] leading-relaxed text-muted">
         {r.message}
       </motion.p>
-      <Button size="lg" className="mt-auto h-14 w-full text-[16px] font-extrabold" asChild>
+      <Button size="lg" className="mt-auto h-14 w-full text-[16px] font-bold" asChild>
         <Link href="/app/">Concluir</Link>
       </Button>
     </div>

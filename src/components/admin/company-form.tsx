@@ -32,7 +32,7 @@ export function PasswordInput({ value, onChange, name = "password" }: { value: s
         <button
           type="button"
           onClick={() => setShow((s) => !s)}
-          className="absolute top-1/2 right-1.5 h-8 -translate-y-1/2 rounded-full px-3 text-[12.5px] font-bold text-primary hover:bg-primary-soft"
+          className="absolute top-1/2 right-1.5 h-8 -translate-y-1/2 rounded-md px-3 text-[12.5px] font-bold text-muted hover:bg-surface-2 hover:text-foreground"
           aria-pressed={!show}
         >
           {show ? "Ocultar" : "Mostrar"}
@@ -165,7 +165,7 @@ function CompanyForm({
       ) : null}
 
       <fieldset className="grid gap-4 sm:grid-cols-2">
-        <legend className="mb-3 flex items-center gap-2 text-[15px] font-extrabold tracking-[-0.01em]">
+        <legend className="mb-3 flex items-center gap-2 text-[15px] font-bold tracking-[-0.01em]">
           <span className="stem text-primary" aria-hidden />
           Empresa
         </legend>
@@ -203,8 +203,8 @@ function CompanyForm({
         </Field>
       </fieldset>
 
-      <fieldset className="grid gap-4 rounded-[22px] bg-surface p-4 sm:grid-cols-2 sm:p-5">
-        <legend className="float-left mb-1 flex w-full items-center gap-2 text-[15px] font-extrabold tracking-[-0.01em] sm:col-span-2">
+      <fieldset className="grid gap-4 rounded-xl bg-surface p-4 sm:grid-cols-2 sm:p-5">
+        <legend className="float-left mb-1 flex w-full items-center gap-2 text-[15px] font-bold tracking-[-0.01em] sm:col-span-2">
           <span className="stem text-primary" aria-hidden />
           Responsável da empresa
         </legend>

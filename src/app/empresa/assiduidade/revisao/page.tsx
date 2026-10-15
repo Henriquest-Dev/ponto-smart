@@ -83,7 +83,7 @@ export default function ReviewPage() {
           <EmptyState title="Nada por rever" description="Todas as marcações foram validadas." />
         ) : (
           <>
-            <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border bg-background md:hidden">
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background md:hidden">
               {rows.map((ev) => {
                 const name = ev.employees?.full_name ?? "—";
                 return (

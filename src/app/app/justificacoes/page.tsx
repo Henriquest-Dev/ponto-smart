@@ -58,14 +58,14 @@ export default function AbsencesPage() {
         {error ? <Notice tone="danger">{error}</Notice> : null}
 
         {data?.open.length ? (
-          <div className="rounded-[22px] bg-warning-soft p-5 text-[#6f4100]">
+          <div className="rounded-xl bg-warning-soft p-5 text-[#6f4100]">
             <p className="flex items-baseline gap-2.5">
-              <span className="text-[34px] leading-none font-extrabold tabular">{data.open.length}</span>
-              <span className="text-[15px] font-extrabold">{data.open.length === 1 ? "dia por justificar" : "dias por justificar"}</span>
+              <span className="text-[34px] leading-none font-bold tabular">{data.open.length}</span>
+              <span className="text-[15px] font-bold">{data.open.length === 1 ? "dia por justificar" : "dias por justificar"}</span>
             </p>
             <ul className="mt-3 flex flex-wrap gap-2">
               {data.open.map((d) => (
-                <li key={d.id} className="rounded-full bg-white/70 px-3 py-1 text-[13px] font-bold tabular">
+                <li key={d.id} className="rounded-md bg-white/70 px-2.5 py-1 text-[13px] font-bold tabular">
                   {formatDate(d.work_date, tz)}
                 </li>
               ))}
@@ -75,8 +75,8 @@ export default function AbsencesPage() {
 
         {loading && !data ? (
           <div className="space-y-3">
-            <Skeleton className="h-40 rounded-[22px]" />
-            <Skeleton className="h-40 rounded-[22px]" />
+            <Skeleton className="h-40 rounded-xl" />
+            <Skeleton className="h-40 rounded-xl" />
           </div>
         ) : data && data.requests.length === 0 ? (
           <EmptyState title="Sem pedidos" description="Quando submeter uma justificação, poderá acompanhar aqui o estado da aprovação." />
@@ -89,7 +89,7 @@ export default function AbsencesPage() {
                 <Card key={r.id} className="p-5 sm:p-6">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[17px] font-extrabold tracking-[-0.01em]">{ABSENCE_TYPES[r.type] ?? r.type}</p>
+                      <p className="text-[17px] font-bold tracking-[-0.01em]">{ABSENCE_TYPES[r.type] ?? r.type}</p>
                       <p className="mt-1 text-[14px] font-bold tabular">
                         {r.start_date === r.end_date ? formatDate(r.start_date, tz) : `${formatDate(r.start_date, tz)} a ${formatDate(r.end_date, tz)}`}
                       </p>
@@ -123,7 +123,7 @@ export default function AbsencesPage() {
                       })}
                     </ol>
                   ) : null}
-                  {r.decision_reason ? <p className="mt-4 rounded-[14px] bg-surface px-4 py-2.5 text-[13px] text-muted"><span className="font-bold text-foreground">Fundamento:</span> {r.decision_reason}</p> : null}
+                  {r.decision_reason ? <p className="mt-4 rounded-lg bg-surface px-4 py-2.5 text-[13px] text-muted"><span className="font-bold text-foreground">Fundamento:</span> {r.decision_reason}</p> : null}
                   {r.status === "pending" ? (
                     <div className="mt-3 flex justify-end">
                       <CancelAbsence id={r.id} onDone={reload} />

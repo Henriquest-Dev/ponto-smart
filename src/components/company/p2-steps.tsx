@@ -14,7 +14,7 @@ export function StepStems({ steps, current, className }: { steps: string[]; curr
             <span
               aria-hidden
               className={cn(
-                "block h-3 rounded-full transition-colors duration-300",
+                "block h-1 rounded-full transition-colors duration-300",
                 state === "done" ? "bg-primary" : state === "current" ? "bg-foreground" : "bg-border",
               )}
             />
@@ -25,7 +25,7 @@ export function StepStems({ steps, current, className }: { steps: string[]; curr
                 state === "done" && "text-primary",
               )}
             >
-              <span className="tabular font-extrabold">{i + 1}</span>
+              <span className="tabular font-bold">{i + 1}</span>
               <span className="truncate">{s}</span>
             </span>
           </li>

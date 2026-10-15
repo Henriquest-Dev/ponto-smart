@@ -32,7 +32,7 @@ function Problem({ title, message }: { title: string; message: string }) {
     <Centered>
       <div className="max-w-sm space-y-4">
         <Wordmark className="mx-auto mb-8 h-9" />
-        <p className="text-[22px] leading-tight font-extrabold tracking-[-0.02em]">{title}</p>
+        <p className="text-[22px] leading-tight font-bold tracking-[-0.02em]">{title}</p>
         <p className="text-[14px] leading-relaxed text-muted">{message}</p>
         <Button asChild variant="outline">
           <Link href="/empresa/locais/">Voltar aos locais</Link>
@@ -172,7 +172,7 @@ function StationDisplay({ stationId, company, timeZone }: { stationId: string; c
           <Wordmark color="var(--background)" className="h-8 shrink-0 sm:h-10" />
           <span className="hidden h-9 w-[3px] shrink-0 rounded-full bg-background/20 sm:block" aria-hidden />
           <div className="hidden min-w-0 sm:block">
-            <p className="truncate text-[17px] font-extrabold tracking-[-0.01em]">{company}</p>
+            <p className="truncate text-[17px] font-bold tracking-[-0.01em]">{company}</p>
             <p className="truncate text-[14px] font-medium text-background/60">
               {qr ? [qr.station, qr.location].filter(Boolean).join(", ") : "Estação de marcação"}
             </p>
@@ -189,13 +189,13 @@ function StationDisplay({ stationId, company, timeZone }: { stationId: string; c
         ) : null}
       </header>
       <div className="mt-3 min-w-0 sm:hidden">
-        <p className="truncate text-[16px] font-extrabold">{company}</p>
+        <p className="truncate text-[16px] font-bold">{company}</p>
         <p className="truncate text-[13px] text-background/60">{qr ? [qr.station, qr.location].filter(Boolean).join(", ") : "Estação de marcação"}</p>
       </div>
 
       <main className="flex flex-1 flex-col items-center justify-center gap-10 py-8 lg:flex-row lg:justify-between lg:gap-16">
         <div className="w-full max-w-xl text-center lg:text-left">
-          <p className="text-[clamp(76px,13vw,176px)] leading-[0.9] font-extrabold tracking-[-0.045em] tabular">
+          <p className="text-[clamp(76px,13vw,176px)] leading-[0.9] font-bold tracking-[-0.045em] tabular">
             {time.slice(0, 5)}
             <span className="ml-1 text-[0.38em] tracking-[-0.02em] text-background/35">{time.slice(5)}</span>
           </p>
@@ -204,23 +204,23 @@ function StationDisplay({ stationId, company, timeZone }: { stationId: string; c
           <ol className="mx-auto mt-10 max-w-md space-y-4 text-left lg:mx-0">
             {STEPS.map((s, i) => (
               <li key={s} className="flex items-center gap-4">
-                <span className="stem h-9 w-[6px] text-primary" aria-hidden />
-                <span className="w-6 shrink-0 text-[26px] leading-none font-extrabold text-background/40 tabular">{i + 1}</span>
+                <span className="stem text-primary" aria-hidden />
+                <span className="w-6 shrink-0 text-[26px] leading-none font-bold text-background/40 tabular">{i + 1}</span>
                 <span className="text-[clamp(16px,1.8vw,21px)] font-bold">{s}</span>
               </li>
             ))}
           </ol>
 
           {error ? (
-            <p role="alert" className="mx-auto mt-8 inline-flex items-center gap-3 rounded-full bg-danger px-5 py-3 text-left text-[15px] font-bold text-white lg:mx-0">
-              <span className="stem h-4" aria-hidden />
+            <p role="alert" className="mx-auto mt-8 inline-flex items-center gap-3 rounded-lg bg-danger px-5 py-3 text-left text-[15px] font-bold text-white lg:mx-0">
+              <span className="stem" aria-hidden />
               {error}
             </p>
           ) : null}
         </div>
 
         <div className="flex shrink-0 flex-col items-center">
-          <div className="rounded-[32px] bg-background p-5 text-foreground sm:p-7">
+          <div className="rounded-xl bg-background p-5 text-foreground sm:p-7">
             <div className="relative size-[min(78vw,46vh,560px)] lg:size-[min(40vw,64vh,600px)]">
               <AnimatePresence initial={false}>
                 {qr ? (
@@ -238,7 +238,7 @@ function StationDisplay({ stationId, company, timeZone }: { stationId: string; c
                 ) : (
                   <motion.div
                     key="loading"
-                    className="absolute inset-0 flex items-center justify-center rounded-[20px] bg-surface-2"
+                    className="absolute inset-0 flex items-center justify-center rounded-xl bg-surface-2"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}

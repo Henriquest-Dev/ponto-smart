@@ -90,7 +90,7 @@ function Reports() {
       <PageBody>
         {stats.error ? <ErrorBlock message={stats.error} /> : null}
         {stats.loading && !stats.data ? (
-          <Skeleton className="h-28 w-full rounded-[22px]" />
+          <Skeleton className="h-28 w-full rounded-xl" />
         ) : (
           <StatRow>
             <Stat label="Pontualidade (mês)" value={`${(cur?.pontualidade ?? 0).toLocaleString("pt-PT")}%`} />
@@ -103,7 +103,7 @@ function Reports() {
         <Card className="p-5 sm:p-6">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-[18px] font-extrabold tracking-[-0.01em]">Evolução mensal</h2>
+              <h2 className="text-[18px] font-bold tracking-[-0.01em]">Evolução mensal</h2>
               <p className="mt-0.5 text-[13px] text-muted">Últimos 6 meses</p>
             </div>
             <Legend items={[{ label: "Pontualidade", color: CHART_COLORS.primary }, { label: "Presença", color: CHART_COLORS.indigo }]} />
@@ -117,22 +117,22 @@ function Reports() {
               series={[{ key: "pontualidade", name: "Pontualidade %" }, { key: "presenca", name: "Presença %" }]}
             />
           ) : (
-            <Skeleton className="h-60 w-full rounded-[16px]" />
+            <Skeleton className="h-60 w-full rounded-lg" />
           )}
         </Card>
 
         {exp ? (
           <Card>
             <div className="px-5 pt-5 sm:px-6 sm:pt-6">
-              <h2 className="text-[18px] font-extrabold tracking-[-0.01em]">Exportações</h2>
+              <h2 className="text-[18px] font-bold tracking-[-0.01em]">Exportações</h2>
               <p className="mt-0.5 text-[13px] text-muted">Ficheiros Excel prontos para a contabilidade.</p>
             </div>
             <div className="mt-3 divide-y divide-border">
             <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <div className="flex gap-3">
-                <span className="stem mt-1 h-5 text-primary" aria-hidden />
+                <span className="stem mt-1.5 text-primary" aria-hidden />
                 <div>
-                  <p className="text-[15px] font-extrabold">Assiduidade mensal</p>
+                  <p className="text-[15px] font-bold">Assiduidade mensal</p>
                   <p className="text-[13px] text-muted">Resumo por colaborador e detalhe diário.</p>
                 </div>
               </div>
@@ -153,9 +153,9 @@ function Reports() {
             </div>
             <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <div className="flex gap-3">
-                <span className="stem mt-1 h-5 text-indigo" aria-hidden />
+                <span className="stem mt-1.5 text-indigo" aria-hidden />
                 <div>
-                  <p className="text-[15px] font-extrabold">Colaboradores</p>
+                  <p className="text-[15px] font-bold">Colaboradores</p>
                   <p className="text-[13px] text-muted">
                     {can("employees.salary.view") ? "Ficha resumida, com o salário base vigente." : "Ficha resumida, sem dados salariais."}
                   </p>
@@ -180,7 +180,7 @@ function Reports() {
         {runs.data?.length ? (
           <Card>
             <div className="border-b border-border px-5 py-4 sm:px-6">
-              <h2 className="text-[18px] font-extrabold tracking-[-0.01em]">Mapas salariais</h2>
+              <h2 className="text-[18px] font-bold tracking-[-0.01em]">Mapas salariais</h2>
             </div>
             <ul className="divide-y divide-border">
               {runs.data.map((r) => (
@@ -191,7 +191,7 @@ function Reports() {
                     <Badge tone={RUN_STATUS[r.status]?.tone}>{RUN_STATUS[r.status]?.label ?? r.status}</Badge>
                   </span>
                   <span className="flex items-center gap-4">
-                    <span className="font-extrabold tabular">{formatMoney(r.totals?.net, company.currency)}</span>
+                    <span className="font-bold tabular">{formatMoney(r.totals?.net, company.currency)}</span>
                     <ActionButton
                       size="sm"
                       variant="soft"

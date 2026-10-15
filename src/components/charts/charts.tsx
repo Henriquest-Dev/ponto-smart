@@ -22,12 +22,12 @@ const AXIS = "#8c88a0";
 function ChartTooltip({ active, payload, label, formatLabel }: TooltipContentProps<number, string> & { formatLabel?: (l: string) => string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-[14px] bg-[#1a1530] px-3.5 py-2.5 text-xs text-white">
-      <p className="mb-1 font-extrabold">{formatLabel ? formatLabel(String(label)) : label}</p>
+    <div className="rounded-lg bg-[#1a1530] px-3.5 py-2.5 text-xs text-white">
+      <p className="mb-1 font-bold">{formatLabel ? formatLabel(String(label)) : label}</p>
       {payload.map((p) => (
         <p key={String(p.dataKey)} className="flex items-center gap-2 text-white/70">
           <span className="h-3 w-[4px] rounded-full" style={{ background: p.color === INDIGO_SOFT ? "#b7a6f7" : p.color === INDIGO ? "#ffffff" : p.color }} />
-          {p.name}: <span className="font-extrabold text-white tabular">{Number(p.value).toLocaleString("pt-PT")}</span>
+          {p.name}: <span className="font-bold text-white tabular">{Number(p.value).toLocaleString("pt-PT")}</span>
         </p>
       ))}
     </div>

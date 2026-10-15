@@ -57,7 +57,7 @@ export default function AdjustmentsPage() {
           <EmptyState title="Sem correcções registadas" />
         ) : (
           <>
-            <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border bg-background md:hidden">
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background md:hidden">
               {rows.map((a) => (
                 <li key={a.id} className="space-y-2 px-4 py-4">
                   <div className="flex items-center justify-between gap-3">
@@ -69,7 +69,7 @@ export default function AdjustmentsPage() {
                     <dd className="text-muted line-through decoration-1">{describe(a.previous)}</dd>
                     <dt className="text-muted">Depois</dt>
                     <dd className="inline-flex items-center gap-1.5 font-bold">
-                      <span className="stem h-3 text-primary" aria-hidden />
+                      <span className="stem text-primary" aria-hidden />
                       {describe(a.next)}
                     </dd>
                   </dl>
@@ -102,7 +102,7 @@ export default function AdjustmentsPage() {
                       <TD className="text-muted">{describe(a.previous)}</TD>
                       <TD>
                         <span className="inline-flex items-center gap-1.5 font-bold">
-                          <span className="stem h-3 text-primary" aria-hidden />
+                          <span className="stem text-primary" aria-hidden />
                           {describe(a.next)}
                         </span>
                       </TD>

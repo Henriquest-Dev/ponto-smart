@@ -23,7 +23,7 @@ export default function AccountPage() {
 
   return (
     <div className="min-h-dvh lg:p-3">
-      <div className="min-h-dvh bg-background lg:min-h-[calc(100dvh-24px)] lg:rounded-[22px] lg:shadow-panel">
+      <div className="min-h-dvh bg-background lg:min-h-[calc(100dvh-24px)] lg:rounded-xl lg:shadow-panel">
         <header className="flex h-16 items-center justify-between border-b border-border px-4 sm:px-8">
           <Logo />
           <Link href={homeFor(me, company)} className="inline-flex h-10 items-center rounded-full px-4 text-[13.5px] font-bold text-muted hover:bg-surface-2 hover:text-foreground">
@@ -32,7 +32,7 @@ export default function AccountPage() {
         </header>
         <main className="mx-auto max-w-2xl space-y-6 px-4 py-8 sm:px-8">
           <div>
-            <h1 className="text-[30px] leading-[1.05] font-extrabold tracking-[-0.03em]">Segurança da conta</h1>
+            <h1 className="text-[30px] leading-[1.05] font-bold tracking-[-0.02em]">Segurança da conta</h1>
             <p className="mt-2 text-[14px] text-muted">
               {me.name}, utilizador <span className="font-bold text-foreground">{me.login}</span>
             </p>
@@ -164,7 +164,7 @@ function MfaCard() {
         ) : enroll ? (
           <form onSubmit={verify} className="grid gap-4 sm:grid-cols-[180px_1fr] sm:items-start">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={enroll.qr} alt="Código QR para a aplicação de autenticação" className="size-[180px] rounded-[18px] border border-border bg-white p-2" />
+            <img src={enroll.qr} alt="Código QR para a aplicação de autenticação" className="size-[180px] rounded-lg border border-border bg-white p-2" />
             <div className="space-y-3">
               <p className="text-[13.5px] leading-relaxed text-muted">
                 Leia o código com a aplicação ou introduza a chave <span className="font-mono text-foreground break-all">{enroll.secret}</span>.

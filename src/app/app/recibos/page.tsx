@@ -27,8 +27,8 @@ export default function PayslipsPage() {
         {error ? <Notice tone="danger">{error}</Notice> : null}
         {loading && !slips ? (
           <div className="space-y-3">
-            <Skeleton className="h-44 rounded-[22px]" />
-            <Skeleton className="h-44 rounded-[22px]" />
+            <Skeleton className="h-44 rounded-xl" />
+            <Skeleton className="h-44 rounded-xl" />
           </div>
         ) : slips && slips.length === 0 ? (
           <EmptyState title="Ainda sem recibos" description="Os recibos aparecem aqui depois de o processamento ser aprovado e emitido." />
@@ -38,7 +38,7 @@ export default function PayslipsPage() {
               <Card key={s.id} className={i === 0 ? "border-2 border-primary/25 p-5 sm:p-6" : "p-5 sm:p-6"}>
                 <div className="flex flex-wrap items-end justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="flex items-center gap-2 text-[17px] font-extrabold tracking-[-0.01em]">
+                    <p className="flex items-center gap-2 text-[17px] font-bold tracking-[-0.01em]">
                       {i === 0 ? <span className="stem text-primary" aria-hidden /> : null}
                       {periodLabel(s.year, s.month)}
                     </p>
@@ -46,10 +46,10 @@ export default function PayslipsPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-[12.5px] font-bold text-muted">Líquido</p>
-                    <p className="text-[30px] leading-none font-extrabold tracking-[-0.02em] tabular">{formatMoney(s.net, s.currency)}</p>
+                    <p className="text-[30px] leading-none font-bold tracking-[-0.02em] tabular">{formatMoney(s.net, s.currency)}</p>
                   </div>
                 </div>
-                <div className="mt-5 grid grid-cols-2 gap-3 rounded-[18px] bg-surface px-4 py-3.5 text-[13.5px] sm:grid-cols-3">
+                <div className="mt-5 grid grid-cols-2 gap-3 rounded-lg bg-surface px-4 py-3.5 text-[13.5px] sm:grid-cols-3">
                   <div>
                     <p className="text-[12px] text-muted">Ilíquido</p>
                     <p className="font-bold tabular">{formatMoney(s.gross, s.currency)}</p>

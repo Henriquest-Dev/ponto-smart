@@ -142,12 +142,12 @@ export default function CompanyDashboard() {
       <>
         {header}
         <PageBody>
-          <Skeleton className="h-64 w-full rounded-[22px]" />
+          <Skeleton className="h-64 w-full rounded-xl" />
           <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-            <Skeleton className="h-72 rounded-[22px]" />
-            <Skeleton className="h-72 rounded-[22px]" />
+            <Skeleton className="h-72 rounded-xl" />
+            <Skeleton className="h-72 rounded-xl" />
           </div>
-          <Skeleton className="h-72 rounded-[22px]" />
+          <Skeleton className="h-72 rounded-xl" />
         </PageBody>
       </>
     );
@@ -269,7 +269,7 @@ export default function CompanyDashboard() {
 
         <section>
           <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-            <h2 className="text-[20px] font-extrabold tracking-[-0.02em]">Equipa hoje</h2>
+            <h2 className="text-[20px] font-bold tracking-[-0.02em]">Equipa hoje</h2>
             <span className="text-[13px] text-muted">
               <span className="font-bold text-foreground tabular">{dash.activeEmployees}</span> colaboradores activos
             </span>

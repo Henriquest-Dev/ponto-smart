@@ -102,8 +102,7 @@ export function LoginForm() {
           className="overflow-hidden"
           role="alert"
         >
-          <p className="flex gap-2.5 rounded-[16px] bg-danger-soft px-4 py-3 text-[13.5px] font-bold text-[#8e1f27]">
-            <span className="stem mt-0.5 h-4 text-danger" aria-hidden />
+          <p className="rounded-lg border-l-4 border-danger bg-danger-soft px-4 py-3 text-[13.5px] font-bold text-[#8e1f27]">
             {error}
           </p>
         </motion.div>
@@ -120,7 +119,7 @@ export function LoginForm() {
           <FloatField label="Código de verificação" name="code" inputMode="numeric" autoComplete="one-time-code" autoFocus required className="[&_input]:tracking-[0.4em]" />
         </div>
         <SubmitButton busy={busy} done={false} label="Verificar" />
-        <button type="button" onClick={() => sb().auth.signOut()} className="h-11 w-full rounded-full text-[13.5px] font-bold text-muted hover:bg-surface-2">
+        <button type="button" onClick={() => sb().auth.signOut()} className="h-10 w-full rounded-lg text-[13.5px] font-bold text-muted hover:bg-surface-2">
           Entrar com outra conta
         </button>
       </form>
@@ -167,7 +166,7 @@ export function LoginForm() {
             <button
               type="button"
               onClick={() => setShow((s) => !s)}
-              className="h-10 rounded-full px-4 text-[13px] font-bold text-primary hover:bg-primary-soft"
+              className="h-9 rounded-md px-3 text-[13px] font-bold text-muted hover:bg-surface-2 hover:text-foreground"
               aria-pressed={show}
             >
               {show ? "Ocultar" : "Mostrar"}
@@ -195,7 +194,7 @@ function Heading({ title, text }: { title: string; text: string }) {
   return (
     <div className="mb-2">
       <motion.h1
-        className="text-[32px] leading-[1.05] font-extrabold tracking-[-0.03em] sm:text-[38px]"
+        className="text-[28px] leading-[1.1] font-bold tracking-[-0.02em] sm:text-[32px]"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
@@ -221,7 +220,7 @@ function SubmitButton({ busy, done, label }: { busy: boolean; done: boolean; lab
       disabled={busy || done}
       whileTap={{ scale: 0.98 }}
       animate={{ backgroundColor: done ? "#16834f" : "#673fec" }}
-      className="relative flex h-14 w-full items-center justify-center gap-3 overflow-hidden rounded-full text-[16px] font-extrabold text-white disabled:cursor-default"
+      className="relative flex h-12 w-full items-center justify-center gap-3 overflow-hidden rounded-lg text-[15px] font-bold text-white disabled:cursor-default"
     >
       {busy && !done ? (
         <motion.span

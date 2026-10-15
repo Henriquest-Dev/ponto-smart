@@ -43,7 +43,7 @@ export function NewEmployee({ org, onCreated }: { org: OrgOptions; onCreated: ()
             {created.login ? (
               <CredentialsCard name={created.name} login={created.login} password={created.password} />
             ) : (
-              <p className="rounded-[16px] bg-surface px-4 py-3.5 text-[13.5px] text-muted">A ficha foi criada sem acesso. Pode criar as credenciais mais tarde, na ficha do colaborador.</p>
+              <p className="rounded-lg bg-surface px-4 py-3.5 text-[13.5px] text-muted">A ficha foi criada sem acesso. Pode criar as credenciais mais tarde, na ficha do colaborador.</p>
             )}
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button variant="outline" onClick={() => setCreated(null)}>
@@ -158,12 +158,12 @@ export function NewEmployee({ org, onCreated }: { org: OrgOptions; onCreated: ()
               </Field>
             ) : null}
 
-            <fieldset className="mt-2 space-y-4 rounded-[22px] bg-surface p-5 sm:col-span-2">
+            <fieldset className="mt-2 space-y-4 rounded-xl bg-surface p-5 sm:col-span-2">
               <legend className="sr-only">Acesso ao Horbit</legend>
               <div className="flex items-start gap-3">
-                <span className="stem mt-1 text-primary" aria-hidden />
+                <span className="stem mt-1.5 text-primary" aria-hidden />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[15px] font-extrabold tracking-[-0.01em]">Acesso ao Horbit</p>
+                  <p className="text-[15px] font-bold tracking-[-0.01em]">Acesso ao Horbit</p>
                   <p className="mt-0.5 text-[13px] leading-relaxed text-muted">
                     A empresa cria o utilizador e a palavra-passe e entrega-os ao colaborador. Com eles, ele marca ponto, consulta o histórico e os recibos.
                   </p>

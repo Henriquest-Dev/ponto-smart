@@ -175,7 +175,7 @@ export default function AttendancePage() {
               </Notice>
             ) : null}
             {/* Telemóvel */}
-            <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border bg-background md:hidden">
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background md:hidden">
               {rows.map((d) => {
                 const st = dailyStatus(d.status);
                 const name = d.employees?.full_name ?? "—";

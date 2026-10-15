@@ -57,7 +57,7 @@ export function LoadingBlock({ rows = 3 }: { rows?: number }) {
   return (
     <div className="space-y-3">
       {Array.from({ length: rows }).map((_, i) => (
-        <Skeleton key={i} className={i === 0 ? "h-24 w-full rounded-[22px]" : "h-14 w-full rounded-[14px]"} />
+        <Skeleton key={i} className={i === 0 ? "h-24 w-full rounded-xl" : "h-14 w-full rounded-lg"} />
       ))}
     </div>
   );

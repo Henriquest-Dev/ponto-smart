@@ -49,19 +49,19 @@ export default function PlatformOverviewPage() {
         {pending.length ? (
           <Link
             href="/admin/pedidos/"
-            className="group flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[22px] bg-primary px-5 py-4 text-primary-foreground transition-colors hover:bg-primary-hover"
+            className="group flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border border-l-4 border-l-primary bg-background px-5 py-4 transition-colors hover:bg-surface"
           >
-            <span className="text-[30px] leading-none font-extrabold tracking-[-0.02em] tabular">{pending.length}</span>
+            <span className="text-[30px] leading-none font-bold tracking-[-0.02em] tabular">{pending.length}</span>
             <span className="min-w-0 flex-1 text-[14px] leading-snug">
-              <span className="block font-extrabold">{pending.length === 1 ? "Pedido de conta" : "Pedidos de conta"} à espera de aprovação</span>
-              <span className="block text-primary-foreground/70">Mais antigo recebido {formatDateTime(pending.reduce((a, r) => (r.created_at < a ? r.created_at : a), pending[0].created_at))}</span>
+              <span className="block font-bold">{pending.length === 1 ? "Pedido de conta" : "Pedidos de conta"} à espera de aprovação</span>
+              <span className="block text-muted">Mais antigo recebido {formatDateTime(pending.reduce((a, r) => (r.created_at < a ? r.created_at : a), pending[0].created_at))}</span>
             </span>
-            <span className="rounded-full bg-background px-4 py-2 text-[13px] font-bold text-primary">Rever pedidos</span>
+            <span className="rounded-lg border border-border-strong px-4 py-2 text-[13px] font-bold">Rever pedidos</span>
           </Link>
         ) : null}
 
         {loading && !data ? (
-          <Skeleton className="h-[118px] rounded-[22px]" />
+          <Skeleton className="h-[118px] rounded-xl" />
         ) : (
           <StatRow>
             <Stat label="Empresas activas" value={active} hint={`${trial} em período experimental${suspended ? `, ${suspended} suspensas` : ""}`} />
@@ -75,7 +75,7 @@ export default function PlatformOverviewPage() {
           <Card className="min-w-0 p-5 sm:p-6">
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h2 className="text-[16px] font-extrabold tracking-[-0.01em]">Actividade da plataforma</h2>
+                <h2 className="text-[16px] font-bold tracking-[-0.01em]">Actividade da plataforma</h2>
                 <p className="mt-0.5 text-[13px] text-muted">
                   Marcações por dia nos últimos 30 dias
                   {data ? `, ${formatNumber(events30)} no total` : ""}
@@ -90,8 +90,8 @@ export default function PlatformOverviewPage() {
             )}
             {today ? (
               <p className="mt-3 text-[13px] text-muted">
-                Hoje: <span className="font-extrabold text-foreground tabular">{formatNumber(today.events)}</span> marcações em{" "}
-                <span className="font-extrabold text-foreground tabular">{today.companies}</span> {today.companies === 1 ? "empresa" : "empresas"}.
+                Hoje: <span className="font-bold text-foreground tabular">{formatNumber(today.events)}</span> marcações em{" "}
+                <span className="font-bold text-foreground tabular">{today.companies}</span> {today.companies === 1 ? "empresa" : "empresas"}.
               </p>
             ) : null}
           </Card>
@@ -99,7 +99,7 @@ export default function PlatformOverviewPage() {
           <Card className="min-w-0 p-5 sm:p-6">
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h2 className="text-[16px] font-extrabold tracking-[-0.01em]">Crescimento</h2>
+                <h2 className="text-[16px] font-bold tracking-[-0.01em]">Crescimento</h2>
                 <p className="mt-0.5 text-[13px] text-muted">Total acumulado no fim de cada mês</p>
               </div>
               <Tabs
@@ -136,7 +136,7 @@ export default function PlatformOverviewPage() {
             }
           />
           {loading && !data ? (
-            <Skeleton className="h-64 rounded-[22px]" />
+            <Skeleton className="h-64 rounded-xl" />
           ) : companies.length === 0 ? (
             <EmptyState
               title="Ainda não há empresas"

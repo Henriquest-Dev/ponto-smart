@@ -75,13 +75,13 @@ export default function HistoryPage() {
 
         {loading && !data ? (
           <div className="space-y-3">
-            <Skeleton className="h-24 rounded-[22px]" />
-            <Skeleton className="h-64 rounded-[22px]" />
+            <Skeleton className="h-24 rounded-xl" />
+            <Skeleton className="h-64 rounded-xl" />
           </div>
         ) : data && data.days.length === 0 ? (
           <EmptyState title="Sem registos neste mês" description="Quando marcar ponto, os dias aparecem aqui." />
         ) : data ? (
-          <ul className={cn("overflow-hidden rounded-[22px] border border-border bg-background transition-opacity", loading && "opacity-60")}>
+          <ul className={cn("overflow-hidden rounded-xl border border-border bg-background transition-opacity", loading && "opacity-60")}>
             {data.days.map((d) => {
               const st = dailyStatus(d.status);
               const dayEvents = data.events.filter((e) => e.work_date === d.work_date);
@@ -90,14 +90,14 @@ export default function HistoryPage() {
                 <li key={d.id} className="border-b border-border last:border-0">
                   <details className="group">
                     <summary className="flex cursor-pointer list-none items-center gap-4 px-4 py-3.5 transition-colors hover:bg-surface sm:px-5 [&::-webkit-details-marker]:hidden">
-                      <div className="flex w-12 shrink-0 flex-col items-center rounded-[14px] bg-surface-2 py-1.5 group-open:bg-primary group-open:text-white">
+                      <div className="flex w-12 shrink-0 flex-col items-center rounded-lg bg-surface-2 py-1.5 group-open:bg-primary group-open:text-white">
                         <span className="text-[11px] font-bold opacity-70 first-letter:uppercase">
                           {date.toLocaleDateString("pt-PT", { weekday: "short", timeZone: "UTC" }).replace(".", "")}
                         </span>
-                        <span className="text-[19px] leading-tight font-extrabold tabular">{date.getUTCDate()}</span>
+                        <span className="text-[19px] leading-tight font-bold tabular">{date.getUTCDate()}</span>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[15px] font-extrabold tabular">
+                        <p className="text-[15px] font-bold tabular">
                           {d.first_in ? formatTime(d.first_in, tz) : "—"}
                           <span className="mx-1.5 font-bold text-subtle">a</span>
                           {d.last_out ? formatTime(d.last_out, tz) : "—"}
@@ -123,7 +123,7 @@ export default function HistoryPage() {
                           return (
                             <li key={e.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
                               <span className="stem text-primary" aria-hidden />
-                              <span className="w-12 font-extrabold tabular">{formatTime(e.occurred_at, tz)}</span>
+                              <span className="w-12 font-bold tabular">{formatTime(e.occurred_at, tz)}</span>
                               <span className="min-w-28 font-bold">{EVENT_TYPE_LABEL[e.type]}</span>
                               <span className="text-[12.5px] text-muted">
                                 {station?.name ?? "—"}

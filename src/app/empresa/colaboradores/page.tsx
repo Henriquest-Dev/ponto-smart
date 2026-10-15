@@ -196,7 +196,7 @@ export default function EmployeesPage() {
           <EmptyState title="Nenhum colaborador encontrado" description="Ajuste os filtros ou crie um novo colaborador." />
         ) : (
           <div className={list.loading ? "opacity-60 transition-opacity" : undefined}>
-            <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border bg-background md:hidden">
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background md:hidden">
               {list.data.rows.map((e) => (
                 <li key={e.id}>
                   <Link href={`/empresa/colaboradores/ficha/?id=${e.id}`} className="flex items-center gap-3 px-4 py-3">

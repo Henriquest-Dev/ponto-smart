@@ -156,7 +156,7 @@ function Assistant() {
         <div className="grid gap-6 lg:grid-cols-[250px_1fr]">
           <aside className="min-w-0">
             <div className="flex items-center justify-between gap-3 lg:block">
-              <h2 className="text-[15px] font-extrabold tracking-[-0.01em] lg:mb-3">Conversas</h2>
+              <h2 className="text-[15px] font-bold tracking-[-0.01em] lg:mb-3">Conversas</h2>
               <Button variant="outline" size="sm" className="lg:w-full" onClick={() => open(null)} disabled={busy}>
                 Nova conversa
               </Button>
@@ -169,11 +169,11 @@ function Assistant() {
                       type="button"
                       onClick={() => open(c)}
                       className={cn(
-                        "flex max-w-56 min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-[14px] px-3 py-2 text-left text-[13px] font-medium text-muted transition-colors hover:bg-surface-2 hover:text-foreground lg:max-w-none",
+                        "flex max-w-56 min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-medium text-muted transition-colors hover:bg-surface-2 hover:text-foreground lg:max-w-none",
                         c.id === cid && "bg-surface-2 font-bold text-foreground",
                       )}
                     >
-                      <span className={cn("stem h-3.5 transition-colors", c.id === cid ? "text-primary" : "text-transparent")} aria-hidden />
+                      <span className={cn("stem transition-colors", c.id === cid ? "text-primary" : "text-transparent")} aria-hidden />
                       <span className="truncate">{c.title}</span>
                     </button>
                     <button
@@ -191,11 +191,11 @@ function Assistant() {
             )}
           </aside>
 
-          <section className="flex min-h-[calc(100dvh-16rem)] min-w-0 flex-col rounded-[22px] border border-border bg-background">
+          <section className="flex min-h-[calc(100dvh-16rem)] min-w-0 flex-col rounded-xl border border-border bg-background">
             <div className="flex-1 space-y-3 overflow-y-auto p-4 sm:p-6" aria-live="polite">
               {messages.length === 0 ? (
                 <div className="max-w-xl py-6 sm:py-10">
-                  <p className="text-[22px] leading-tight font-extrabold tracking-[-0.02em]">Em que posso ajudar?</p>
+                  <p className="text-[22px] leading-tight font-bold tracking-[-0.02em]">Em que posso ajudar?</p>
                   <p className="mt-2 text-[13.5px] leading-relaxed text-muted">
                     Consulto dados da empresa dentro das permissões do seu papel. Não aprovo, não pago e não aplico sanções.
                   </p>
@@ -218,7 +218,7 @@ function Assistant() {
                   <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
                     <div
                       className={cn(
-                        "max-w-[85%] rounded-[22px] px-4 py-3 text-[14px] leading-relaxed break-words sm:max-w-[75%]",
+                        "max-w-[85%] rounded-xl px-4 py-3 text-[14px] leading-relaxed break-words sm:max-w-[75%]",
                         m.role === "user" ? "rounded-br-[8px] bg-foreground whitespace-pre-wrap text-background" : "rounded-bl-[8px] bg-surface-2 text-foreground",
                       )}
                     >
@@ -229,7 +229,7 @@ function Assistant() {
               )}
               {busy ? (
                 <div className="flex justify-start">
-                  <div className="inline-flex items-center gap-2.5 rounded-[22px] rounded-bl-[8px] bg-surface-2 px-4 py-3 text-[13.5px] font-medium text-muted">
+                  <div className="inline-flex items-center gap-2.5 rounded-xl rounded-bl-[8px] bg-surface-2 px-4 py-3 text-[13.5px] font-medium text-muted">
                     <span className="spinner" aria-hidden /> A consultar dados
                   </div>
                 </div>
@@ -274,9 +274,9 @@ function RichText({ text }: { text: string }) {
   const inline = (line: string) =>
     line.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((part, i) =>
       part.startsWith("**") && part.endsWith("**") ? (
-        <strong key={i} className="font-extrabold">{part.slice(2, -2)}</strong>
+        <strong key={i} className="font-bold">{part.slice(2, -2)}</strong>
       ) : part.startsWith("`") && part.endsWith("`") ? (
-        <code key={i} className="rounded-[6px] bg-background px-1.5 py-0.5 font-mono text-[12px]">{part.slice(1, -1)}</code>
+        <code key={i} className="rounded-sm bg-background px-1.5 py-0.5 font-mono text-[12px]">{part.slice(1, -1)}</code>
       ) : (
         <span key={i}>{part.replace(/(^|\s)\*([^*]+)\*/g, "$1$2")}</span>
       ),
@@ -290,7 +290,7 @@ function RichText({ text }: { text: string }) {
         const heading = /^#{1,4}\s+/.test(line);
         if (!line.trim()) return <span key={i} className="block h-2" />;
         return (
-          <span key={i} className={cn("block", (bullet || numbered) && "pl-4", /^\s{2,}/.test(raw) && "pl-8", heading && "mt-1 font-extrabold")}>
+          <span key={i} className={cn("block", (bullet || numbered) && "pl-4", /^\s{2,}/.test(raw) && "pl-8", heading && "mt-1 font-bold")}>
             {bullet ? <span className="mr-2 inline-block h-1.5 w-1.5 -translate-y-px rounded-full bg-primary align-middle" aria-hidden /> : null}
             {inline(bullet ? line.replace(/^\s*[-*]\s+/, "") : heading ? line.replace(/^#{1,4}\s+/, "") : line.trim())}
           </span>

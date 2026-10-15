@@ -167,7 +167,7 @@ function Summary({
         <div className="mb-6 flex items-center gap-4 border-b border-border pb-6">
           <Avatar name={e.full_name} size={56} />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[20px] leading-tight font-extrabold tracking-[-0.02em]">{e.full_name}</p>
+            <p className="truncate text-[20px] leading-tight font-bold tracking-[-0.02em]">{e.full_name}</p>
             <p className="mt-0.5 truncate text-[13.5px] text-muted">{e.email ?? "Sem email"}</p>
           </div>
           <Badge tone={st.tone} className="shrink-0 text-[13.5px]">
@@ -201,7 +201,7 @@ function Summary({
             {shifts.error ? (
               <Notice tone="danger">{shifts.error}</Notice>
             ) : !shifts.data ? (
-              <Skeleton className="h-10 w-full rounded-[14px]" />
+              <Skeleton className="h-10 w-full rounded-lg" />
             ) : shifts.data.length ? (
               <ul className="space-y-4">
                 {shifts.data.map((s) => {
@@ -373,7 +373,7 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
           </StatRow>
           {list.length ? (
             <>
-              <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border bg-background md:hidden">
+              <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background md:hidden">
                 {list.map((d) => {
                   const st = dailyStatus(d.status);
                   return (
@@ -486,7 +486,7 @@ function SalaryTab({ employeeId }: { employeeId: string }) {
                       {formatDate(a.effective_from, tz)} {a.effective_to ? `a ${formatDate(a.effective_to, tz)}` : "até hoje"}
                     </span>
                   </span>
-                  <span className={a.effective_to ? "text-[14px] font-bold text-muted tabular" : "text-[18px] font-extrabold tracking-[-0.01em] tabular"}>{formatMoney(a.amount, a.currency || company.currency)}</span>
+                  <span className={a.effective_to ? "text-[14px] font-bold text-muted tabular" : "text-[18px] font-bold tracking-[-0.01em] tabular"}>{formatMoney(a.amount, a.currency || company.currency)}</span>
                 </li>
               ))}
             </ul>
@@ -516,7 +516,7 @@ function SalaryTab({ employeeId }: { employeeId: string }) {
                       {ec.note ? <span className="block text-[12.5px] text-subtle">{ec.note}</span> : null}
                     </span>
                     <span className="flex items-center gap-2">
-                      <span className={`text-[15px] font-extrabold tabular ${deduction ? "text-danger" : ""}`}>
+                      <span className={`text-[15px] font-bold tabular ${deduction ? "text-danger" : ""}`}>
                         {deduction ? "−" : ""}
                         {formatMoney(ec.amount, company.currency)}
                       </span>
@@ -575,7 +575,7 @@ function DevicesTab({ employeeId }: { employeeId: string }) {
 
   return (
     <>
-      <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border bg-background md:hidden">
+      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background md:hidden">
         {list.data.map((d) => (
           <li key={d.id} className="flex items-center justify-between gap-3 px-4 py-3">
             <div className="min-w-0">

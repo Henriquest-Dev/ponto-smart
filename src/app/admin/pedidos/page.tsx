@@ -49,14 +49,14 @@ export default function RequestsPage() {
         />
 
         {loading && !data ? (
-          <Skeleton className="h-80 rounded-[22px]" />
+          <Skeleton className="h-80 rounded-xl" />
         ) : rows.length === 0 ? (
           <EmptyState
             title={filter === "pending" ? "Sem pedidos por tratar" : filter === "approved" ? "Nenhum pedido aprovado" : "Nenhum pedido recusado"}
             description={filter === "pending" ? "Os pedidos feitos na página pública “Pedir conta para a empresa” aparecem aqui." : undefined}
           />
         ) : (
-          <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border">
+          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
             {rows.map((r) => {
               const st = REQUEST_STATUS[r.status];
               const [message, reason] = splitReason(r.message);
@@ -70,7 +70,7 @@ export default function RequestsPage() {
                 <li key={r.id} className="grid gap-4 px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto]">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <h2 className="text-[17px] font-extrabold tracking-[-0.01em]">{r.company_name}</h2>
+                      <h2 className="text-[17px] font-bold tracking-[-0.01em]">{r.company_name}</h2>
                       {r.status === "pending" ? null : <Badge tone={st.tone}>{st.label}</Badge>}
                     </div>
                     <p className="mt-1 text-[13.5px] break-words">

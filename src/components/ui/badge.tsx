@@ -3,6 +3,15 @@ import { cn } from "@/lib/utils";
 
 export type Tone = "neutral" | "success" | "warning" | "danger" | "info" | "primary";
 
+const chip: Record<Tone, string> = {
+  neutral: "bg-surface-2 text-muted",
+  success: "bg-success-soft text-[#13653e]",
+  warning: "bg-warning-soft text-[#7a4b00]",
+  danger: "bg-danger-soft text-[#8e1f27]",
+  info: "bg-info-soft text-info",
+  primary: "bg-primary-soft text-primary",
+};
+
 const text: Record<Tone, string> = {
   neutral: "text-muted",
   success: "text-success",
@@ -16,7 +25,7 @@ const text: Record<Tone, string> = {
 export function Badge({ tone = "neutral", className, children, ...props }: React.ComponentProps<"span"> & { tone?: Tone }) {
   return (
     <span className={cn("inline-flex items-center gap-1.5 text-[12.5px] font-bold whitespace-nowrap", text[tone], className)} {...props}>
-      <span className="stem h-3" aria-hidden />
+      <span className="stem" aria-hidden />
       {children}
     </span>
   );

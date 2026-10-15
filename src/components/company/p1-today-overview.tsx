@@ -53,17 +53,17 @@ export function TodayOverview({
   const pct = base ? Math.round((present / base) * 100) : 0;
 
   return (
-    <section aria-labelledby="hoje-titulo" className="rounded-[22px] border border-border bg-background">
+    <section aria-labelledby="hoje-titulo" className="rounded-xl border border-border bg-background">
       <div className="grid gap-8 px-5 py-6 sm:px-7 sm:py-7 lg:grid-cols-[1fr_auto] lg:items-end">
         <div className="min-w-0">
           <h2 id="hoje-titulo" className="text-[15px] font-bold text-muted">
             Hoje, {dateLabel}
           </h2>
           <p className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span className="text-[56px] leading-none font-extrabold tracking-[-0.04em] tabular sm:text-[72px]">
+            <span className="text-[56px] leading-none font-bold tracking-[-0.02em] tabular sm:text-[72px]">
               <CountUp value={present} />
             </span>
-            <span className="text-[22px] leading-tight font-extrabold tracking-[-0.02em] text-muted sm:text-[26px]">
+            <span className="text-[22px] leading-tight font-bold tracking-[-0.02em] text-muted sm:text-[26px]">
               de <span className="tabular">{base}</span> presentes
             </span>
           </p>
@@ -78,11 +78,11 @@ export function TodayOverview({
         <dl className="flex gap-8 lg:justify-end">
           <div>
             <dt className="text-[13px] font-bold text-muted">Presença</dt>
-            <dd className="mt-1 text-[28px] leading-none font-extrabold tracking-[-0.02em] tabular">{pct}%</dd>
+            <dd className="mt-1 text-[28px] leading-none font-bold tracking-[-0.02em] tabular">{pct}%</dd>
           </div>
           <div>
             <dt className="text-[13px] font-bold text-muted">Pontualidade, 30 dias</dt>
-            <dd className="mt-1 text-[28px] leading-none font-extrabold tracking-[-0.02em] tabular">{punctuality.toLocaleString("pt-PT")}%</dd>
+            <dd className="mt-1 text-[28px] leading-none font-bold tracking-[-0.02em] tabular">{punctuality.toLocaleString("pt-PT")}%</dd>
           </div>
         </dl>
       </div>
@@ -112,7 +112,7 @@ export function TodayOverview({
           {segments.map((s) => (
             <li key={s.key} className="inline-flex items-center gap-2 text-[13.5px]">
               <span className={cn("stem", s.textClass)} aria-hidden />
-              <span className="font-extrabold tabular">{s.value}</span>
+              <span className="font-bold tabular">{s.value}</span>
               <span className="text-muted">{s.label.toLowerCase()}</span>
             </li>
           ))}
@@ -127,7 +127,7 @@ export function TodayOverview({
               <li key={p.href}>
                 <Link href={p.href} className="group inline-flex items-center gap-2 py-1 text-[14px]">
                   <span className="stem text-warning" aria-hidden />
-                  <span className="font-extrabold tabular">{p.n}</span>
+                  <span className="font-bold tabular">{p.n}</span>
                   <span className="font-bold underline decoration-2 decoration-transparent underline-offset-4 transition-colors group-hover:text-primary group-hover:decoration-primary/40">
                     {p.label}
                   </span>

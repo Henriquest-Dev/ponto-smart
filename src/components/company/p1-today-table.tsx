@@ -75,7 +75,7 @@ export function TodayTable({ rows, linkable }: { rows: TodayRow[]; linkable: boo
       ) : (
         <>
           {/* Telemóvel: lista em cartões */}
-          <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border bg-background md:hidden">
+          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background md:hidden">
             {filtered.map((r) => (
               <li key={r.id}>
                 <Wrap linkable={linkable} id={r.id} className="flex items-center gap-3 px-4 py-3">
