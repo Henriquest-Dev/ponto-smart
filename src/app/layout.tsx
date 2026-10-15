@@ -32,8 +32,12 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-PT">
-      <body>
+    // translate="no": a tradução automática do navegador altera o texto da página e faz o React falhar.
+    <html lang="pt-PT" translate="no">
+      <head>
+        <meta name="google" content="notranslate" />
+      </head>
+      <body className="notranslate">
         <SessionProvider>{children}</SessionProvider>
         <Toaster position="top-center" richColors closeButton toastOptions={{ className: "font-sans" }} />
         <ServiceWorker />

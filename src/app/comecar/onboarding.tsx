@@ -47,6 +47,8 @@ export function Onboarding() {
   const last = i === SLIDES.length - 1;
 
   React.useEffect(() => {
+    // Basta ver a apresentação uma vez: o login não volta a redireccionar para aqui.
+    markSeen();
     const t = setTimeout(() => setSplash(false), 1400);
     return () => clearTimeout(t);
   }, []);
