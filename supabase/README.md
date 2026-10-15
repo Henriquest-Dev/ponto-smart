@@ -5,10 +5,10 @@ Três ficheiros para executar no **SQL Editor** do Supabase (Dashboard → SQL E
 | Ficheiro | Obrigatório | O que faz |
 |---|---|---|
 | `01_esquema.sql` | sim | Activa o PostGIS, cria as 46 tabelas, índices e triggers de integridade, bloqueia a API REST do Supabase (RLS) e insere os dados de referência (papéis, permissões, planos e regras salariais por validar). Regista as migrações para que `npm run db:migrate` funcione no futuro. |
-| `02_dados_demonstracao.sql` | não | Empresa fictícia com ~2,5 meses de marcações, justificações, salários e recibos. Contas com a palavra-passe `PontoSmart2026` — só para demonstração. |
+| `02_dados_demonstracao_parte1.sql` … `parte5.sql` | não | Empresa fictícia com ~2,5 meses de marcações, justificações, salários e recibos, em 5 partes que cabem no editor (executar todas, por ordem). Contas com a palavra-passe `PontoSmart2026` — só para demonstração. |
 | `03_super_admin.sql` | sim, em produção | Cria a sua conta de Super Admin. Altere o email, o nome e a palavra-passe no topo do ficheiro antes de executar. |
 
-Execute cada ficheiro uma única vez, numa base vazia. Se o `02` for demasiado grande para o editor (≈1,6 MB), use a linha de comandos (abaixo).
+Execute cada ficheiro uma única vez, numa base vazia, e espere pela mensagem *Success* antes de passar ao seguinte.
 
 ## Ligar a app (Netlify)
 

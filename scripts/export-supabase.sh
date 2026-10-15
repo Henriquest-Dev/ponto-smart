@@ -56,4 +56,9 @@ clean() {
   echo 'COMMIT;'
 } > "$OUT/02_dados_demonstracao.sql"
 
-echo "Gerados: $OUT/01_esquema.sql e $OUT/02_dados_demonstracao.sql"
+# Partes pequenas para caber no SQL Editor do Supabase
+rm -f "$OUT"/02_dados_demonstracao_parte*.sql
+python3 scripts/split-sql.py "$OUT/02_dados_demonstracao.sql" "$OUT/02_dados_demonstracao" 400
+rm "$OUT/02_dados_demonstracao.sql"
+
+echo "Gerados em $OUT/"
