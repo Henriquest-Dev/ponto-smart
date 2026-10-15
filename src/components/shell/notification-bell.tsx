@@ -2,15 +2,12 @@
 
 import { Bell } from "lucide-react";
 import Link from "next/link";
-import { useTransition } from "react";
 import { Dropdown, DropdownContent, DropdownTrigger } from "@/components/ui/dropdown";
-import { markNotificationsReadAction } from "@/app/(auth)/actions";
 import { cn } from "@/lib/utils";
 
 export type NotificationView = { id: string; title: string; body: string | null; link: string | null; when: string; unread: boolean };
 
-export function NotificationBell({ items, unread }: { items: NotificationView[]; unread: number }) {
-  const [pending, start] = useTransition();
+export function NotificationBell({ items, unread, onMarkRead }: { items: NotificationView[]; unread: number; onMarkRead: () => void }) {
   return (
     <Dropdown>
       <DropdownTrigger asChild>
@@ -31,8 +28,7 @@ export function NotificationBell({ items, unread }: { items: NotificationView[];
           <p className="text-sm font-semibold">Notificações</p>
           {unread ? (
             <button
-              disabled={pending}
-              onClick={() => start(() => markNotificationsReadAction())}
+              onClick={onMarkRead}
               className="text-xs font-medium text-primary disabled:opacity-50"
             >
               Marcar como lidas

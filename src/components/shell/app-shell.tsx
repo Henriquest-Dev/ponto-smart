@@ -10,7 +10,7 @@ import { NAV_ICONS } from "./icons";
 import { LogoMark } from "./logo";
 import type { NavItem, NavSection } from "./nav-types";
 import { NotificationBell, type NotificationView } from "./notification-bell";
-import { SidebarNav } from "./sidebar";
+import { isActive, SidebarNav } from "./sidebar";
 import { UserMenu, type UserMenuProps } from "./user-menu";
 
 type Props = {
@@ -18,7 +18,7 @@ type Props = {
   root: string;
   subtitle?: string;
   user: UserMenuProps;
-  notifications: { items: NotificationView[]; unread: number };
+  notifications: { items: NotificationView[]; unread: number; onMarkRead: () => void };
   /** Atalhos da barra inferior no telemóvel (máx. 4; o 5.º é "Menu"). */
   mobileTabs: NavItem[];
   searchHref?: string;
@@ -125,7 +125,7 @@ export function AppShell({ sections, root, subtitle, user, notifications, mobile
 
 function TabLink({ item, root, pathname }: { item: NavItem; root: string; pathname: string }) {
   const Icon = NAV_ICONS[item.icon];
-  const active = item.href === root ? pathname === root : pathname.startsWith(item.href);
+  const active = isActive(pathname, item.href, root);
   return (
     <li>
       <Link

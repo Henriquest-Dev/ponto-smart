@@ -3,10 +3,10 @@
 import { Loader2 } from "lucide-react";
 import { useTransition } from "react";
 import { toast } from "sonner";
-import type { ActionResult } from "@/lib/action";
+import type { ActionResult } from "@/lib/result";
 import { Button, type ButtonProps } from "./button";
 
-/** Botão que executa uma server action (já ligada aos argumentos) com confirmação opcional. */
+/** Botão que executa uma operação assíncrona com confirmação opcional. */
 export function ActionButton({ action, confirm, children, ...props }: Omit<ButtonProps, "onClick" | "action"> & { action: () => Promise<ActionResult>; confirm?: string }) {
   const [pending, start] = useTransition();
   return (

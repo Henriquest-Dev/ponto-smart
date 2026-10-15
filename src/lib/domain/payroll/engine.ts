@@ -8,9 +8,18 @@
  * - NÃO aplica multas por atraso. Faltas injustificadas validadas por um
  *   responsável geram apenas "ausência não remunerada".
  */
-import { createHash } from "node:crypto";
-import type { RuleParams } from "@/lib/db/schema";
+import { sha256Hex } from "@/lib/sha256";
 import { fromCents, mul, pct, toCents, type Cents } from "./money";
+
+export type RuleParams = {
+  /** Natureza: contribuição do trabalhador, imposto sobre o rendimento ou encargo da entidade patronal. */
+  kind: "employee_contribution" | "income_tax" | "employer_contribution";
+  /** Percentagem sobre a base (ex.: contribuição). */
+  ratePercent?: number | null;
+  /** Escalões progressivos: até `upTo` (null = sem limite), taxa em %, parcela a abater. */
+  brackets?: { upTo: number | null; ratePercent: number; deduction: number }[];
+  note?: string;
+};
 
 export const ENGINE_VERSION = "ps-payroll/1.0.0";
 
@@ -97,7 +106,7 @@ export function canonicalJson(value: unknown): string {
 }
 
 export function hashInput(input: EngineInput): string {
-  return createHash("sha256").update(`${ENGINE_VERSION}|${canonicalJson(input)}`).digest("hex");
+  return sha256Hex(`${ENGINE_VERSION}|${canonicalJson(input)}`);
 }
 
 function progressiveTax(base: Cents, brackets: NonNullable<RuleParams["brackets"]>): Cents {

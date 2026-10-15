@@ -4,7 +4,6 @@ import { ArrowLeftRight, Building2, LogOut, MoreVertical, ShieldCheck, Smartphon
 import Link from "next/link";
 import { Avatar } from "@/components/ui/misc";
 import { Dropdown, DropdownContent, DropdownItem, DropdownLabel, DropdownSeparator, DropdownTrigger } from "@/components/ui/dropdown";
-import { logoutAction, switchCompanyAction } from "@/app/(auth)/actions";
 import { cn } from "@/lib/utils";
 
 export type MenuLink = { href: string; label: string; icon: "app" | "company" | "platform" | "security" | "profile" };
@@ -16,9 +15,11 @@ export type UserMenuProps = {
   email: string;
   links: MenuLink[];
   companies: { id: string; name: string; active: boolean }[];
+  onSwitchCompany: (id: string) => void;
+  onLogout: () => void;
 };
 
-export function UserMenu({ name, email, links, companies, compact }: UserMenuProps & { compact?: boolean }) {
+export function UserMenu({ name, email, links, companies, onSwitchCompany, onLogout, compact }: UserMenuProps & { compact?: boolean }) {
   return (
     <Dropdown>
       <DropdownTrigger asChild>
@@ -61,7 +62,7 @@ export function UserMenu({ name, email, links, companies, compact }: UserMenuPro
               <DropdownItem
                 key={c.id}
                 onSelect={() => {
-                  void switchCompanyAction(c.id);
+                  onSwitchCompany(c.id);
                 }}
                 className={cn(c.active && "font-medium text-primary")}
               >
@@ -73,7 +74,7 @@ export function UserMenu({ name, email, links, companies, compact }: UserMenuPro
         <DropdownSeparator />
         <DropdownItem
           onSelect={() => {
-            void logoutAction();
+            onLogout();
           }}
           className="text-danger [&_svg]:text-danger"
         >

@@ -4,7 +4,7 @@ import { Loader2 } from "lucide-react";
 import * as React from "react";
 import { useFormStatus } from "react-dom";
 import { toast } from "sonner";
-import type { ActionResult } from "@/lib/action";
+import type { ActionResult } from "@/lib/result";
 import { Button, type ButtonProps } from "./button";
 
 export function SubmitButton({ children, pendingText, ...props }: ButtonProps & { pendingText?: string }) {
@@ -18,7 +18,7 @@ export function SubmitButton({ children, pendingText, ...props }: ButtonProps & 
 }
 
 /**
- * Formulário ligado a uma server action: mostra o resultado em toast e
+ * Formulário ligado a uma operação assíncrona (Supabase): mostra o resultado em toast e
  * chama `onSuccess` (ex.: fechar o diálogo).
  */
 export function ActionForm({

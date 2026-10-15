@@ -1,5 +1,6 @@
+"use client";
+
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import Link from "next/link";
 import { periodLabel } from "@/lib/format";
 
 export function shiftMonth(ym: string, delta: number) {
@@ -8,27 +9,26 @@ export function shiftMonth(ym: string, delta: number) {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-/** Selector de mês com setas (navegação por URL). */
-export function MonthPicker({ value, hrefFor, max }: { value: string; hrefFor: (ym: string) => string; max?: string }) {
+/** Mês corrente (YYYY-MM) no fuso indicado. */
+export function currentMonth(timeZone = "Africa/Maputo") {
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit" }).format(new Date()).slice(0, 7);
+}
+
+/** Selector de mês com setas. */
+export function MonthPicker({ value, onChange, max }: { value: string; onChange: (ym: string) => void; max?: string }) {
   const [y, m] = value.split("-").map(Number);
   const next = shiftMonth(value, 1);
   const disabledNext = max ? next > max : false;
-  const cls = "inline-flex size-9 items-center justify-center rounded-md text-muted hover:bg-surface hover:text-foreground";
+  const cls = "inline-flex size-9 cursor-pointer items-center justify-center rounded-md text-muted hover:bg-surface hover:text-foreground disabled:pointer-events-none disabled:opacity-30";
   return (
     <div className="inline-flex h-10 items-center gap-1 rounded-md border border-border-strong bg-background px-1">
-      <Link href={hrefFor(shiftMonth(value, -1))} className={cls} aria-label="Mês anterior" scroll={false}>
+      <button type="button" onClick={() => onChange(shiftMonth(value, -1))} className={cls} aria-label="Mês anterior">
         <ChevronLeft className="size-4" />
-      </Link>
+      </button>
       <span className="min-w-32 text-center text-[13px] font-medium">{periodLabel(y, m)}</span>
-      <Link
-        href={hrefFor(next)}
-        aria-disabled={disabledNext}
-        className={`${cls} ${disabledNext ? "pointer-events-none opacity-30" : ""}`}
-        aria-label="Mês seguinte"
-        scroll={false}
-      >
+      <button type="button" onClick={() => onChange(next)} disabled={disabledNext} className={cls} aria-label="Mês seguinte">
         <ChevronRight className="size-4" />
-      </Link>
+      </button>
     </div>
   );
 }

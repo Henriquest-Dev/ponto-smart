@@ -1,4 +1,3 @@
-import "server-only";
 import ExcelJS from "exceljs";
 
 export type Column = { header: string; key: string; width?: number; numFmt?: string };
@@ -28,15 +27,17 @@ export async function buildWorkbook(sheets: { name: string; title: string; colum
     ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3, column: s.columns.length } };
     ws.views = [{ state: "frozen", ySplit: 3 }];
   }
-  return Buffer.from(await wb.xlsx.writeBuffer());
+  return new Blob([await wb.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 }
 
-export function xlsxResponse(buf: Buffer, filename: string) {
-  return new Response(new Uint8Array(buf), {
-    headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="${filename}"`,
-      "Cache-Control": "private, no-store",
-    },
-  });
+/** Descarrega um ficheiro gerado no navegador. */
+export function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }

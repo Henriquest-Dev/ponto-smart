@@ -9,7 +9,12 @@ import { NAV_ICONS } from "./icons";
 import { Logo } from "./logo";
 import type { NavItem, NavSection } from "./nav-types";
 
-function isActive(pathname: string, href: string, root: string) {
+const trim = (p: string) => (p.length > 1 ? p.replace(/\/+$/, "") : p);
+
+export function isActive(rawPath: string, rawHref: string, rawRoot: string) {
+  const pathname = trim(rawPath);
+  const href = trim(rawHref.split("?")[0]);
+  const root = trim(rawRoot);
   if (href === root) return pathname === root;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
