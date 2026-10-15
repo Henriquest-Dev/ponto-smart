@@ -9,18 +9,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "preview": "npx serve out",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx scripts/migrate.ts",
-    "db:seed": "tsx --import ./scripts/server-only-hook.mjs scripts/seed.ts",
-    "db:reset": "tsx scripts/reset.ts && npm run db:migrate && npm run db:seed",
-    "supabase:sql": "bash scripts/export-supabase.sh"
+    "test:watch": "vitest"
   },
   "dependencies": {
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
     "@fontsource-variable/inter": "^5.3.0",
     "@supabase/supabase-js": "^2.117.3",
     "class-variance-authority": "^0.7.1",

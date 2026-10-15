@@ -1514,6 +1514,9 @@ BEGIN
 END $$;
 GRANT EXECUTE ON FUNCTION ps_submit_company_request(text, text, text, text, text, text, integer, text, text) TO anon;
 GRANT EXECUTE ON FUNCTION ps_login_email(text) TO anon;
+-- Funções usadas dentro das regras de acesso (devolvem falso para visitantes).
+GRANT EXECUTE ON FUNCTION ps_uid(), ps_is_platform_admin(), ps_is_member(uuid), ps_has_perm(uuid, text), ps_role(uuid),
+  ps_my_employee(uuid), ps_can_employee(uuid, uuid, text), ps_is_self_employee(uuid) TO anon;
 
 -- ---------------------------------------------------------------------
 -- 15. Anexos privados (Storage)

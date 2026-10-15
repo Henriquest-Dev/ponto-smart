@@ -1,25 +1,37 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Logo } from "@/components/shell/logo";
+"use client";
 
-export function SiteHeader({ loggedIn }: { loggedIn: boolean }) {
+import Link from "next/link";
+import { Logo } from "@/components/shell/logo";
+import { Button } from "@/components/ui/button";
+import { useSession } from "@/lib/sb/session";
+
+export function SiteHeader() {
+  const { state } = useSession();
+  const loggedIn = state.status === "ready";
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
-        <Link href="/" aria-label="PontoSmart — início"><Logo /></Link>
-        <nav className="hidden items-center gap-6 text-[14px] text-muted md:flex" aria-label="Secções">
-          <Link href="/#funcionamento" className="hover:text-foreground">Funcionamento</Link>
-          <Link href="/#funcionalidades" className="hover:text-foreground">Funcionalidades</Link>
-          <Link href="/#precos" className="hover:text-foreground">Preços</Link>
-          <Link href="/#seguranca" className="hover:text-foreground">Segurança</Link>
+    <header className="sticky top-0 z-40 border-b border-[#e7e3f1] bg-[#f6f4fb]/85 backdrop-blur">
+      <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-4 sm:px-6">
+        <Link href="/" aria-label="PontoSmart, página inicial">
+          <Logo />
+        </Link>
+        <nav className="hidden items-center gap-7 text-[14px] text-[#55586a] md:flex" aria-label="Secções">
+          <a href="#como-funciona" className="hover:text-foreground">Como funciona</a>
+          <a href="#precos" className="hover:text-foreground">Preços</a>
+          <a href="#confianca" className="hover:text-foreground">Segurança</a>
         </nav>
         <div className="ml-auto flex items-center gap-2">
           {loggedIn ? (
-            <Button asChild><Link href="/inicio">Abrir painel</Link></Button>
+            <Button asChild>
+              <Link href="/inicio/">Abrir o meu painel</Link>
+            </Button>
           ) : (
             <>
-              <Button variant="ghost" asChild><Link href="/login">Entrar</Link></Button>
-              <Button asChild className="hidden sm:inline-flex"><Link href="/registo">Pedir conta</Link></Button>
+              <Button variant="ghost" asChild>
+                <Link href="/login/">Entrar</Link>
+              </Button>
+              <Button asChild className="hidden sm:inline-flex">
+                <Link href="/registo/">Pedir conta</Link>
+              </Button>
             </>
           )}
         </div>
