@@ -285,7 +285,8 @@ GRANT UPDATE (name) ON users TO authenticated;
 CREATE POLICY ps_read ON users FOR SELECT TO authenticated USING (
   id = auth.uid() OR ps_is_platform_admin()
   OR EXISTS (SELECT 1 FROM memberships m WHERE m.user_id = users.id
-               AND (ps_has_perm(m.company_id, 'employees.view') OR ps_has_perm(m.company_id, 'users.manage'))));
+               AND (ps_has_perm(m.company_id, 'employees.view') OR ps_has_perm(m.company_id, 'users.manage')
+                    OR ps_has_perm(m.company_id, 'payroll.view') OR ps_has_perm(m.company_id, 'audit.view'))));
 CREATE POLICY ps_self_upd ON users FOR UPDATE TO authenticated USING (id = auth.uid()) WITH CHECK (id = auth.uid());
 
 GRANT SELECT ON memberships TO authenticated;
@@ -328,10 +329,14 @@ BEGIN
     EXECUTE format('CREATE POLICY ps_del ON %I FOR DELETE TO authenticated USING (ps_has_perm(company_id, %L))', spec[1], spec[2]);
   END LOOP;
 END $$;
-REVOKE UPDATE (static_token_hash) ON attendance_stations FROM authenticated;
-REVOKE SELECT ON attendance_stations FROM authenticated;
+-- Colunas protegidas: o token do QR fixo nunca é lido nem escrito pela API; o centro do local é calculado.
+REVOKE SELECT, INSERT, UPDATE ON attendance_stations FROM authenticated;
 GRANT SELECT (id, company_id, location_id, name, qr_mode, rotation_seconds, active, last_seen_at, created_at) ON attendance_stations TO authenticated;
-REVOKE UPDATE (center) ON work_locations FROM authenticated;
+GRANT INSERT (id, company_id, location_id, name, qr_mode, rotation_seconds, active) ON attendance_stations TO authenticated;
+GRANT UPDATE (location_id, name, qr_mode, rotation_seconds, active) ON attendance_stations TO authenticated;
+REVOKE INSERT, UPDATE ON work_locations FROM authenticated;
+GRANT INSERT (id, company_id, branch_id, name, center_lat, center_lng, radius_m, max_accuracy_m, active) ON work_locations TO authenticated;
+GRANT UPDATE (branch_id, name, center_lat, center_lng, radius_m, max_accuracy_m, active) ON work_locations TO authenticated;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON schedule_rules TO authenticated;
 CREATE POLICY ps_read ON schedule_rules FOR SELECT TO authenticated
@@ -391,12 +396,13 @@ CREATE POLICY ps_read ON attendance_daily FOR SELECT TO authenticated
 CREATE POLICY ps_read ON attendance_adjustments FOR SELECT TO authenticated
   USING (ps_is_self_employee(employee_id) OR ps_can_employee(company_id, employee_id, 'attendance.view'));
 
-GRANT SELECT, INSERT, UPDATE ON trusted_devices TO authenticated;
+REVOKE ALL ON trusted_devices FROM authenticated;
+GRANT SELECT ON trusted_devices TO authenticated;
+GRANT UPDATE (label) ON trusted_devices TO authenticated;
 CREATE POLICY ps_read ON trusted_devices FOR SELECT TO authenticated
   USING (ps_is_self_employee(employee_id) OR ps_has_perm(company_id, 'attendance.manage'));
 CREATE POLICY ps_upd ON trusted_devices FOR UPDATE TO authenticated
   USING (ps_is_self_employee(employee_id) OR ps_has_perm(company_id, 'attendance.manage'));
-REVOKE INSERT ON trusted_devices FROM authenticated;
 
 -- Justificações (criação e decisão pelas funções)
 GRANT SELECT ON absence_requests, absence_documents, approval_steps TO authenticated;
@@ -410,7 +416,10 @@ CREATE POLICY ps_read ON approval_steps FOR SELECT TO authenticated
 
 -- Salários
 GRANT SELECT ON payroll_periods, payroll_runs, payroll_items, payroll_lines, payslips, payslip_acknowledgements, salary_payments TO authenticated;
-CREATE POLICY ps_read ON payroll_periods FOR SELECT TO authenticated USING (ps_has_perm(company_id, 'payroll.view'));
+CREATE POLICY ps_read ON payroll_periods FOR SELECT TO authenticated
+  USING (ps_has_perm(company_id, 'payroll.view')
+         OR EXISTS (SELECT 1 FROM payroll_runs r JOIN payslips s ON s.run_id = r.id
+                     WHERE r.period_id = payroll_periods.id AND ps_is_self_employee(s.employee_id)));
 CREATE POLICY ps_read ON payroll_runs FOR SELECT TO authenticated
   USING (ps_has_perm(company_id, 'payroll.view')
          OR EXISTS (SELECT 1 FROM payslips s WHERE s.run_id = payroll_runs.id AND ps_is_self_employee(s.employee_id)));
@@ -424,7 +433,9 @@ CREATE POLICY ps_read ON payslips FOR SELECT TO authenticated
   USING (ps_is_self_employee(employee_id) OR ps_has_perm(company_id, 'payroll.view'));
 CREATE POLICY ps_read ON payslip_acknowledgements FOR SELECT TO authenticated
   USING (ps_is_self_employee(employee_id) OR ps_has_perm(company_id, 'payroll.view'));
-CREATE POLICY ps_read ON salary_payments FOR SELECT TO authenticated USING (ps_has_perm(company_id, 'payroll.view'));
+CREATE POLICY ps_read ON salary_payments FOR SELECT TO authenticated
+  USING (ps_has_perm(company_id, 'payroll.view')
+         OR EXISTS (SELECT 1 FROM payslips s WHERE s.payroll_item_id = salary_payments.payroll_item_id AND ps_is_self_employee(s.employee_id)));
 
 -- Notificações, auditoria, IA
 GRANT SELECT ON notifications TO authenticated;
@@ -519,7 +530,18 @@ DECLARE v_company uuid; v_owner uuid; v_plan uuid; v_role uuid;
 BEGIN
   PERFORM ps_require(ps_is_platform_admin(), 'Apenas o Super Admin pode criar empresas.');
   IF length(trim(COALESCE(p_name, ''))) < 2 THEN RAISE EXCEPTION 'Indique o nome da empresa.' USING ERRCODE = '22023'; END IF;
-  IF length(trim(COALESCE(p_owner_login, ''))) < 3 THEN RAISE EXCEPTION 'Indique o acesso (email ou utilizador) do responsável.' USING ERRCODE = '22023'; END IF;
+  IF length(trim(COALESCE(p_owner_login, ''))) < 3 OR lower(trim(p_owner_login)) !~ '^[a-z0-9._@+-]+$' THEN
+    RAISE EXCEPTION 'Acesso do responsável inválido: use letras, números, ponto, hífen ou um email.' USING ERRCODE = '22023';
+  END IF;
+  IF length(COALESCE(p_owner_password, '')) < 8 THEN
+    RAISE EXCEPTION 'A palavra-passe do responsável deve ter pelo menos 8 caracteres.' USING ERRCODE = '22023';
+  END IF;
+  IF EXISTS (SELECT 1 FROM users WHERE email = lower(trim(p_owner_login))) THEN
+    RAISE EXCEPTION 'O acesso "%" já existe. Escolha outro utilizador para o responsável.', lower(trim(p_owner_login)) USING ERRCODE = '23505';
+  END IF;
+  IF p_request IS NOT NULL AND NOT EXISTS (SELECT 1 FROM company_requests WHERE id = p_request AND status = 'pending') THEN
+    RAISE EXCEPTION 'Este pedido já foi tratado.' USING ERRCODE = '22023';
+  END IF;
   SELECT id INTO v_plan FROM subscription_plans WHERE code = p_plan_code;
   IF v_plan IS NULL THEN SELECT id INTO v_plan FROM subscription_plans WHERE active ORDER BY price_monthly LIMIT 1; END IF;
 
@@ -528,14 +550,9 @@ BEGIN
           CASE WHEN COALESCE(p_trial_days, 0) > 0 THEN 'trial' ELSE 'active' END::company_status)
   RETURNING id INTO v_company;
 
-  SELECT id INTO v_owner FROM users WHERE email = lower(trim(p_owner_login));
-  IF v_owner IS NULL THEN
-    INSERT INTO users (email, name, password_hash) VALUES (lower(trim(p_owner_login)), trim(p_owner_name), 'supabase-auth')
-    RETURNING id INTO v_owner;
-    PERFORM ps_auth_upsert(v_owner, p_owner_login, p_owner_password);
-  ELSIF p_owner_password IS NOT NULL AND p_owner_password <> '' THEN
-    PERFORM ps_auth_upsert(v_owner, p_owner_login, p_owner_password);
-  END IF;
+  INSERT INTO users (email, name, password_hash) VALUES (lower(trim(p_owner_login)), trim(p_owner_name), 'supabase-auth')
+  RETURNING id INTO v_owner;
+  PERFORM ps_auth_upsert(v_owner, p_owner_login, p_owner_password);
   SELECT id INTO v_role FROM roles WHERE code = 'owner';
   INSERT INTO memberships (user_id, company_id, role_id) VALUES (v_owner, v_company, v_role)
   ON CONFLICT (user_id, company_id) DO UPDATE SET role_id = EXCLUDED.role_id, active = true;
@@ -573,8 +590,30 @@ CREATE OR REPLACE FUNCTION ps_admin_set_company_status(p_company uuid, p_status 
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
   PERFORM ps_require(ps_is_platform_admin());
+  IF p_status NOT IN ('trial', 'active', 'suspended', 'cancelled') THEN RAISE EXCEPTION 'Estado inválido.' USING ERRCODE = '22023'; END IF;
   UPDATE companies SET status = p_status::company_status, updated_at = now() WHERE id = p_company;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Empresa não encontrada.' USING ERRCODE = 'P0002'; END IF;
+  UPDATE subscriptions SET status = CASE p_status WHEN 'trial' THEN 'trialing' WHEN 'active' THEN 'active'
+                                                  WHEN 'suspended' THEN 'past_due' ELSE 'cancelled' END::subscription_status
+   WHERE id = (SELECT id FROM subscriptions WHERE company_id = p_company ORDER BY created_at DESC LIMIT 1);
   PERFORM ps_audit_log(p_company, 'company.status_changed', 'company', p_company::text, NULL, jsonb_build_object('status', p_status));
+END $$;
+
+CREATE OR REPLACE FUNCTION ps_admin_set_plan(p_company uuid, p_plan_code text)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE v_plan uuid; v_sub uuid;
+BEGIN
+  PERFORM ps_require(ps_is_platform_admin());
+  SELECT id INTO v_plan FROM subscription_plans WHERE code = p_plan_code;
+  IF v_plan IS NULL THEN RAISE EXCEPTION 'Plano inexistente.' USING ERRCODE = 'P0002'; END IF;
+  SELECT id INTO v_sub FROM subscriptions WHERE company_id = p_company ORDER BY created_at DESC LIMIT 1;
+  IF v_sub IS NULL THEN
+    INSERT INTO subscriptions (company_id, plan_id, status, current_period_start, current_period_end)
+    VALUES (p_company, v_plan, 'active', current_date, current_date + 30);
+  ELSE
+    UPDATE subscriptions SET plan_id = v_plan WHERE id = v_sub;
+  END IF;
+  PERFORM ps_audit_log(p_company, 'subscription.plan_changed', 'company', p_company::text, NULL, jsonb_build_object('plan', p_plan_code));
 END $$;
 
 CREATE OR REPLACE FUNCTION ps_admin_reset_owner_password(p_company uuid, p_password text)
@@ -615,7 +654,7 @@ BEGIN
                                WHERE work_date >= current_date - 29 GROUP BY work_date) n ON n.work_date = d::date),
     'growth', (SELECT COALESCE(jsonb_agg(jsonb_build_object('month', to_char(m, 'YYYY-MM'),
                         'companies', (SELECT count(*) FROM companies c WHERE c.created_at < m + interval '1 month'),
-                        'employees', (SELECT count(*) FROM employees e WHERE e.created_at < m + interval '1 month')) ORDER BY m), '[]')
+                        'employees', (SELECT count(*) FROM employees e WHERE e.created_at < m + interval '1 month' AND e.status = 'active')) ORDER BY m), '[]')
                  FROM generate_series(date_trunc('month', current_date) - interval '5 months', date_trunc('month', current_date), interval '1 month') m)
   ) INTO v;
   RETURN v;
@@ -626,9 +665,15 @@ END $$;
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION ps_set_access(p_employee uuid, p_login text, p_password text, p_role text DEFAULT NULL)
 RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
-DECLARE v_emp employees; v_user uuid; v_role uuid; v_role_code text := COALESCE(NULLIF(p_role, ''), 'employee'); v_login text := lower(trim(p_login));
+DECLARE v_emp employees; v_user uuid; v_role uuid; v_role_code text := NULLIF(p_role, ''); v_login text := lower(trim(p_login));
 BEGIN
   SELECT * INTO v_emp FROM employees WHERE id = p_employee;
+  -- Sem papel indicado: mantém o actual (ou colaborador, se ainda não tem acesso).
+  IF v_role_code IS NULL THEN
+    SELECT r.code INTO v_role_code FROM memberships m JOIN roles r ON r.id = m.role_id
+     WHERE m.user_id = v_emp.user_id AND m.company_id = v_emp.company_id;
+    v_role_code := COALESCE(v_role_code, 'employee');
+  END IF;
   PERFORM ps_require(v_emp.id IS NOT NULL AND ps_has_perm(v_emp.company_id, 'employees.manage'));
   IF v_role_code NOT IN ('employee', 'supervisor', 'hr', 'finance', 'admin', 'owner') THEN
     RAISE EXCEPTION 'Papel inválido.' USING ERRCODE = '22023';
@@ -1071,14 +1116,28 @@ DECLARE v_emp uuid := ps_my_employee(p_company); v_id uuid; v_hash text := encod
 BEGIN
   PERFORM ps_require(v_emp IS NOT NULL);
   IF length(COALESCE(p_device_key, '')) < 16 THEN RAISE EXCEPTION 'Chave de dispositivo inválida.' USING ERRCODE = '22023'; END IF;
-  SELECT id INTO v_id FROM trusted_devices WHERE employee_id = v_emp AND credential_id = v_hash;
+  SELECT id INTO v_id FROM trusted_devices WHERE employee_id = v_emp AND credential_id = v_hash AND revoked_at IS NULL;
   IF v_id IS NOT NULL THEN RETURN v_id; END IF;
   IF (SELECT count(*) FROM trusted_devices WHERE employee_id = v_emp AND revoked_at IS NULL) >= 3 THEN
     RAISE EXCEPTION 'Limite de 3 dispositivos. Remova um no perfil.' USING ERRCODE = '54000';
   END IF;
+  -- Dispositivo antes removido: volta a ficar activo.
+  UPDATE trusted_devices SET revoked_at = NULL, label = left(COALESCE(p_label, label), 60)
+   WHERE employee_id = v_emp AND credential_id = v_hash RETURNING id INTO v_id;
+  IF v_id IS NOT NULL THEN RETURN v_id; END IF;
   INSERT INTO trusted_devices (company_id, employee_id, credential_id, label) VALUES (p_company, v_emp, v_hash, left(COALESCE(p_label, 'Telemóvel'), 60))
   RETURNING id INTO v_id;
   RETURN v_id;
+END $$;
+
+-- Revogar um dispositivo de confiança (o próprio colaborador ou quem gere a assiduidade).
+CREATE OR REPLACE FUNCTION ps_revoke_device(p_device uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE v_d trusted_devices;
+BEGIN
+  SELECT * INTO v_d FROM trusted_devices WHERE id = p_device;
+  PERFORM ps_require(v_d.id IS NOT NULL AND (ps_is_self_employee(v_d.employee_id) OR ps_has_perm(v_d.company_id, 'attendance.manage')));
+  UPDATE trusted_devices SET revoked_at = COALESCE(revoked_at, now()) WHERE id = v_d.id;
 END $$;
 
 CREATE OR REPLACE FUNCTION ps_review_event(p_event uuid, p_decision text, p_reason text)
@@ -1086,7 +1145,12 @@ RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp
 DECLARE v_ev attendance_events;
 BEGIN
   SELECT * INTO v_ev FROM attendance_events WHERE id = p_event;
-  PERFORM ps_require(v_ev.id IS NOT NULL AND ps_can_employee(v_ev.company_id, v_ev.employee_id, 'attendance.manage'));
+  -- RH/gestão, ou o supervisor da equipa do colaborador.
+  PERFORM ps_require(v_ev.id IS NOT NULL AND (ps_can_employee(v_ev.company_id, v_ev.employee_id, 'attendance.manage')
+                     OR ps_can_employee(v_ev.company_id, v_ev.employee_id, 'absence.decide.team')));
+  IF EXISTS (SELECT 1 FROM employees WHERE id = v_ev.employee_id AND user_id = auth.uid()) THEN
+    RAISE EXCEPTION 'Não pode rever as suas próprias marcações.' USING ERRCODE = '42501';
+  END IF;
   IF v_ev.status <> 'review' THEN RAISE EXCEPTION 'Esta marcação já foi revista.' USING ERRCODE = '22023'; END IF;
   IF p_decision NOT IN ('accepted', 'rejected') THEN RAISE EXCEPTION 'Decisão inválida.' USING ERRCODE = '22023'; END IF;
   IF length(trim(COALESCE(p_reason, ''))) < 3 THEN RAISE EXCEPTION 'Indique o fundamento da decisão.' USING ERRCODE = '22023'; END IF;
@@ -1365,6 +1429,25 @@ BEGIN
   PERFORM ps_audit_log(v_run.company_id, 'payroll.run_approved', 'payroll_run', v_run.id::text, NULL, jsonb_build_object('version', v_run.version));
 END $$;
 
+CREATE OR REPLACE FUNCTION ps_payroll_close_period(p_period uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE v_p payroll_periods;
+BEGIN
+  SELECT * INTO v_p FROM payroll_periods WHERE id = p_period;
+  PERFORM ps_require(v_p.id IS NOT NULL AND ps_has_perm(v_p.company_id, 'payroll.approve'));
+  IF v_p.status <> 'approved' THEN RAISE EXCEPTION 'Só é possível encerrar períodos com salários aprovados.' USING ERRCODE = '22023'; END IF;
+  UPDATE payroll_periods SET status = 'closed', closed_at = now() WHERE id = v_p.id;
+  PERFORM ps_audit_log(v_p.company_id, 'payroll.period_closed', 'payroll_period', v_p.id::text);
+END $$;
+
+-- Registo de exportações (relatórios descarregados no navegador).
+CREATE OR REPLACE FUNCTION ps_log_export(p_company uuid, p_report text, p_details jsonb DEFAULT NULL)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+  PERFORM ps_require(ps_has_perm(p_company, 'reports.export'));
+  PERFORM ps_audit_log(p_company, 'report.exported', 'report', left(p_report, 60), NULL, p_details);
+END $$;
+
 CREATE OR REPLACE FUNCTION ps_issue_payslips(p_run uuid)
 RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE v_run payroll_runs; v_p payroll_periods; r record; v_n int := 0; v_i int := 0;
@@ -1527,12 +1610,19 @@ ON CONFLICT (id) DO UPDATE SET public = false, file_size_limit = EXCLUDED.file_s
 
 DROP POLICY IF EXISTS ps_just_insert ON storage.objects;
 DROP POLICY IF EXISTS ps_just_read ON storage.objects;
+DROP POLICY IF EXISTS ps_just_delete ON storage.objects;
 -- Caminho: <empresa>/<pedido>/<ficheiro>. O colaborador só envia para os próprios pedidos.
 CREATE POLICY ps_just_insert ON storage.objects FOR INSERT TO authenticated WITH CHECK (
   bucket_id = 'justificacoes' AND EXISTS (
     SELECT 1 FROM public.absence_requests r
      WHERE r.id::text = (storage.foldername(name))[2] AND r.company_id::text = (storage.foldername(name))[1]
-       AND public.ps_is_self_employee(r.employee_id)));
+       AND r.status = 'pending' AND public.ps_is_self_employee(r.employee_id)));
+-- O colaborador pode apagar anexos dos próprios pedidos pendentes (ex.: envio falhado).
+CREATE POLICY ps_just_delete ON storage.objects FOR DELETE TO authenticated USING (
+  bucket_id = 'justificacoes' AND EXISTS (
+    SELECT 1 FROM public.absence_requests r
+     WHERE r.id::text = (storage.foldername(name))[2] AND r.company_id::text = (storage.foldername(name))[1]
+       AND r.status = 'pending' AND public.ps_is_self_employee(r.employee_id)));
 CREATE POLICY ps_just_read ON storage.objects FOR SELECT TO authenticated USING (
   bucket_id = 'justificacoes' AND EXISTS (
     SELECT 1 FROM public.absence_requests r
