@@ -1,6 +1,5 @@
 "use client";
 
-import { CalendarCheck2 } from "lucide-react";
 import { useState } from "react";
 import { AttendanceNav } from "@/components/company/p1-attendance-nav";
 import { ClassifyDayDialog } from "@/components/company/p1-employee-forms";
@@ -95,17 +94,17 @@ export default function AttendancePage() {
 
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
           <div className="grid grid-cols-2 gap-2 sm:flex">
-            <label className="flex flex-col gap-1 text-xs text-muted">
+            <label className="flex flex-col gap-1.5 text-[13px] font-bold text-foreground">
               De
               <Input type="date" value={from} max={today} onChange={(e) => e.target.value && setFrom(e.target.value)} className="sm:w-40" />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-muted">
+            <label className="flex flex-col gap-1.5 text-[13px] font-bold text-foreground">
               Até
               <Input type="date" value={to} max={today} onChange={(e) => e.target.value && setTo(e.target.value)} className="sm:w-40" />
             </label>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex">
-            <label className="flex flex-col gap-1 text-xs text-muted">
+            <label className="flex flex-col gap-1.5 text-[13px] font-bold text-foreground">
               Estado
               <Select value={estado} onChange={(e) => setEstado(e.target.value as Estado)} className="sm:w-44">
                 <option value="todos">Todos</option>
@@ -114,7 +113,7 @@ export default function AttendancePage() {
                 <option value="faltas">Faltas</option>
               </Select>
             </label>
-            <label className="flex flex-col gap-1 text-xs text-muted">
+            <label className="flex flex-col gap-1.5 text-[13px] font-bold text-foreground">
               Departamento
               <Select value={dep} onChange={(e) => setDep(e.target.value)} className="sm:w-48">
                 <option value="">Todos</option>
@@ -165,7 +164,6 @@ export default function AttendancePage() {
           <LoadingRows rows={6} />
         ) : rows.length === 0 ? (
           <EmptyState
-            icon={<CalendarCheck2 />}
             title="Sem registos para estes filtros"
             description="Os dias sem marcação passam a falta pendente quando o dia é consolidado (automaticamente ao abrir o painel)."
           />
@@ -177,7 +175,7 @@ export default function AttendancePage() {
               </Notice>
             ) : null}
             {/* Telemóvel */}
-            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border md:hidden">
+            <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border bg-background md:hidden">
               {rows.map((d) => {
                 const st = dailyStatus(d.status);
                 const name = d.employees?.full_name ?? "—";
@@ -185,10 +183,11 @@ export default function AttendancePage() {
                   <li key={d.id} className="flex items-center gap-3 px-4 py-3">
                     <Avatar name={name} size={34} />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13.5px] font-medium">{name}</p>
-                      <p className="truncate text-xs text-muted tabular">
-                        {formatDate(d.work_date, tz)} · {d.first_in ? `${formatTime(d.first_in, tz)} → ${d.last_out ? formatTime(d.last_out, tz) : "…"}` : "sem marcações"}
-                        {d.late_minutes ? ` · +${d.late_minutes} min` : ""}
+                      <p className="truncate text-[14px] font-bold">{name}</p>
+                      <p className="truncate text-[12.5px] text-muted tabular">{formatDate(d.work_date, tz)}</p>
+                      <p className="truncate text-[12.5px] text-muted tabular">
+                        {d.first_in ? `${formatTime(d.first_in, tz)}–${d.last_out ? formatTime(d.last_out, tz) : "sem saída"}` : "Sem marcações"}
+                        {d.late_minutes ? <span className="font-bold text-warning">, +{d.late_minutes} min</span> : null}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
@@ -199,10 +198,10 @@ export default function AttendancePage() {
                           name={name}
                           date={formatDate(d.work_date, tz)}
                           onDone={list.reload}
-                          trigger={<button type="button" className="text-xs font-medium text-primary">Corrigir</button>}
+                          trigger={<button type="button" className="text-[12.5px] font-bold text-primary underline decoration-2 decoration-primary/30 underline-offset-4">Corrigir</button>}
                         />
                       ) : d.locked ? (
-                        <span className="text-[11px] text-subtle">Fechado</span>
+                        <span className="text-[12px] font-bold text-subtle">Fechado</span>
                       ) : null}
                     </div>
                   </li>
@@ -234,18 +233,18 @@ export default function AttendancePage() {
                           <div className="flex items-center gap-3">
                             <Avatar name={name} size={30} />
                             <span className="min-w-0">
-                              <span className="block truncate font-medium">{name}</span>
-                              <span className="block truncate text-xs text-muted">{d.employees?.departments?.name ?? "—"}</span>
+                              <span className="block truncate text-[14px] font-bold">{name}</span>
+                              <span className="block truncate text-[12.5px] text-muted">{d.employees?.departments?.name ?? "Sem departamento"}</span>
                             </span>
                           </div>
                         </TD>
                         <TD className="text-muted tabular">{formatDate(d.work_date, tz)}</TD>
                         <TD className="tabular">{formatTime(d.first_in, tz)}</TD>
                         <TD className="tabular">{formatTime(d.last_out, tz)}</TD>
-                        <TD className="tabular">{formatMinutes(d.worked_minutes)}</TD>
-                        <TD className="text-muted tabular">{d.late_minutes ? `${d.late_minutes} min` : "—"}</TD>
+                        <TD className="font-bold tabular">{formatMinutes(d.worked_minutes)}</TD>
+                        <TD className="tabular">{d.late_minutes ? <span className="font-bold text-warning">{d.late_minutes} min</span> : <span className="text-subtle">—</span>}</TD>
                         <TD>
-                          <span className="flex items-center gap-1.5">
+                          <span className="flex items-center gap-3">
                             <Badge tone={st.tone}>{st.label}</Badge>
                             {d.locked ? <Badge>Fechado</Badge> : null}
                           </span>

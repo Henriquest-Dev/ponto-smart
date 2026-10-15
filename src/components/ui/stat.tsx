@@ -21,13 +21,13 @@ export function Stat({
   value,
   hint,
   delta,
-  icon,
   className,
 }: {
   label: string;
   value: React.ReactNode;
   hint?: React.ReactNode;
   delta?: React.ReactNode;
+  /** Ignorado: a interface não usa ícones. */
   icon?: React.ReactNode;
   className?: string;
 }) {
@@ -38,7 +38,7 @@ export function Stat({
         
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span className="text-[28px] leading-none font-extrabold tracking-[-0.02em] tabular sm:text-[34px]">{value}</span>
+        <span className="text-[clamp(22px,2.3vw,34px)] leading-none font-extrabold tracking-[-0.02em] tabular whitespace-nowrap">{value}</span>
         {delta}
       </div>
       {hint ? <div className="mt-2 truncate text-xs text-muted">{hint}</div> : null}

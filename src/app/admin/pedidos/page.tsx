@@ -1,6 +1,5 @@
 "use client";
 
-import { Inbox } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 import { CompanyDialog } from "@/components/admin/company-form";
@@ -50,83 +49,89 @@ export default function RequestsPage() {
         />
 
         {loading && !data ? (
-          <div className="grid gap-3 lg:grid-cols-2">
-            {Array.from({ length: 4 }, (_, i) => (
-              <Skeleton key={i} className="h-40 rounded-xl" />
-            ))}
-          </div>
+          <Skeleton className="h-80 rounded-[22px]" />
         ) : rows.length === 0 ? (
           <EmptyState
-            icon={<Inbox />}
             title={filter === "pending" ? "Sem pedidos por tratar" : filter === "approved" ? "Nenhum pedido aprovado" : "Nenhum pedido recusado"}
-            description={filter === "pending" ? "Os pedidos feitos em “Pedir conta” aparecem aqui." : undefined}
+            description={filter === "pending" ? "Os pedidos feitos na página pública “Pedir conta para a empresa” aparecem aqui." : undefined}
           />
         ) : (
-          <div className="grid gap-3 lg:grid-cols-2">
+          <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border">
             {rows.map((r) => {
               const st = REQUEST_STATUS[r.status];
               const [message, reason] = splitReason(r.message);
+              const facts = [
+                ["Cidade", r.city],
+                ["NUIT", r.nuit],
+                ["Colaboradores", r.employees_estimate ? formatNumber(r.employees_estimate) : null],
+                ["Plano", r.plan],
+              ].filter((f): f is [string, string] => !!f[1]);
               return (
-                <article key={r.id} className="flex flex-col rounded-xl border border-border p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-[15px] font-semibold">{r.company_name}</p>
-                      <p className="text-xs break-words text-muted">
-                        {r.contact_name} · {r.email}
-                        {r.phone ? ` · ${r.phone}` : ""}
-                      </p>
+                <li key={r.id} className="grid gap-4 px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto]">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <h2 className="text-[17px] font-extrabold tracking-[-0.01em]">{r.company_name}</h2>
+                      {r.status === "pending" ? null : <Badge tone={st.tone}>{st.label}</Badge>}
                     </div>
-                    {r.status === "pending" ? (
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="ghost" onClick={() => setRejecting(r)}>
-                          Recusar
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            setApproving(r);
-                            setApproveOpen(true);
-                          }}
-                        >
-                          Aprovar
-                        </Button>
-                      </div>
-                    ) : (
-                      <Badge tone={st.tone}>{st.label}</Badge>
-                    )}
-                  </div>
-                  <p className="mt-3 text-xs text-muted">
-                    {[
-                      r.city,
-                      r.nuit ? `NUIT ${r.nuit}` : null,
-                      r.employees_estimate ? `${formatNumber(r.employees_estimate)} colaboradores` : null,
-                      r.plan ? `Plano ${r.plan}` : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || "Sem mais detalhes"}
-                  </p>
-                  {message ? <p className="mt-2 rounded-md bg-surface px-3 py-2 text-[13px] whitespace-pre-line">{message}</p> : null}
-                  {reason !== null ? (
-                    <p className="mt-2 text-[13px] text-muted">
-                      <span className="font-medium text-foreground">Motivo da recusa:</span> {reason || "—"}
+                    <p className="mt-1 text-[13.5px] break-words">
+                      <span className="font-bold">{r.contact_name}</span>
+                      <span className="text-muted">, {r.email}</span>
+                      {r.phone ? <span className="text-muted tabular">, {r.phone}</span> : null}
                     </p>
-                  ) : null}
-                  <p className="mt-auto pt-3 text-[11px] text-subtle">
-                    Recebido {formatDateTime(r.created_at)}
-                    {r.decided_at ? ` · ${r.status === "approved" ? "aprovado" : "recusado"} ${formatDateTime(r.decided_at)}` : ""}
-                    {r.status === "approved" && r.company_id ? (
-                      <>
-                        {" · "}
-                        <Link href="/admin/empresas/" className="font-medium text-primary">
-                          {companyName(r.company_id) ?? "ver empresa"}
-                        </Link>
-                      </>
+
+                    {facts.length ? (
+                      <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
+                        {facts.map(([k, v]) => (
+                          <div key={k}>
+                            <dt className="text-[12px] text-muted">{k}</dt>
+                            <dd className="text-[13.5px] font-bold tabular">{v}</dd>
+                          </div>
+                        ))}
+                      </dl>
                     ) : null}
-                  </p>
-                </article>
+
+                    {message ? (
+                      <p className="mt-3 max-w-2xl border-l-4 border-border-strong pl-3 text-[13.5px] leading-relaxed whitespace-pre-line">{message}</p>
+                    ) : null}
+                    {reason !== null ? (
+                      <p className="mt-3 text-[13px] text-muted">
+                        <span className="font-bold text-foreground">Motivo da recusa:</span> {reason || "não indicado"}
+                      </p>
+                    ) : null}
+
+                    <p className="mt-3 text-[12px] text-subtle">
+                      Recebido {formatDateTime(r.created_at)}
+                      {r.decided_at ? `, ${r.status === "approved" ? "aprovado" : "recusado"} ${formatDateTime(r.decided_at)}` : ""}
+                      {r.status === "approved" && r.company_id ? (
+                        <>
+                          {". "}
+                          <Link href="/admin/empresas/" className="font-bold text-primary underline decoration-2 underline-offset-4 decoration-primary/30 hover:decoration-primary">
+                            {companyName(r.company_id) ?? "Ver empresa"}
+                          </Link>
+                        </>
+                      ) : null}
+                    </p>
+                  </div>
+                  {r.status === "pending" ? (
+                    <div className="flex gap-2 lg:flex-col lg:items-stretch">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setApproving(r);
+                          setApproveOpen(true);
+                        }}
+                      >
+                        Aprovar
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setRejecting(r)}>
+                        Recusar
+                      </Button>
+                    </div>
+                  ) : null}
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
       </PageBody>
 
@@ -159,7 +164,7 @@ function RejectDialog({ request, onClose, onDone }: { request: AdminRequest | nu
   return (
     <Dialog open={!!request} onOpenChange={(o) => !o && onClose()}>
       {request ? (
-        <DialogContent title={`Recusar pedido — ${request.company_name}`} description="O pedido fica registado como recusado. Não é enviado qualquer aviso automático.">
+        <DialogContent title={`Recusar o pedido de ${request.company_name}`} description="O pedido fica registado como recusado. Não é enviado qualquer aviso automático.">
           <ActionForm
             action={(_, fd) =>
               attempt(async () => {
@@ -175,7 +180,7 @@ function RejectDialog({ request, onClose, onDone }: { request: AdminRequest | nu
             className="space-y-4"
           >
             <Field label="Motivo (opcional)" hint="Fica registado no pedido e na auditoria.">
-              <Textarea name="reason" maxLength={500} placeholder="Ex.: dados incompletos, empresa duplicada…" />
+              <Textarea name="reason" maxLength={500} placeholder="Ex.: dados incompletos ou empresa duplicada" />
             </Field>
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button type="button" variant="outline" onClick={onClose}>

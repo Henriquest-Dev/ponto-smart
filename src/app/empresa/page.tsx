@@ -1,15 +1,14 @@
 "use client";
 
-import { AlertCircle, ArrowRight, CalendarClock, FileClock } from "lucide-react";
 import Link from "next/link";
 import { DailyBars, GroupedBars, Legend, SmoothArea } from "@/components/charts/charts";
 import { CHART_COLORS } from "@/components/charts/colors";
+import { TodayOverview } from "@/components/company/p1-today-overview";
 import { TodayTable, type TodayRow } from "@/components/company/p1-today-table";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { EmptyState, Notice, Skeleton } from "@/components/ui/misc";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
-import { Stat, StatRow } from "@/components/ui/stat";
 import { formatTime } from "@/lib/format";
 import { DAILY_STATUS_LABEL } from "@/lib/labels";
 import { rpc, sb } from "@/lib/sb/client";
@@ -105,7 +104,7 @@ export default function CompanyDashboard() {
   const header = (
     <PageHeader
       title="Painel"
-      description={`${company.companyName} · ${dateLabel}`}
+      description={company.companyName}
       actions={
         can("reports.view", "reports.export") ? (
           <Button variant="outline" asChild>
@@ -143,12 +142,12 @@ export default function CompanyDashboard() {
       <>
         {header}
         <PageBody>
-          <Skeleton className="h-28 w-full rounded-xl" />
+          <Skeleton className="h-64 w-full rounded-[22px]" />
           <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-            <Skeleton className="h-72 rounded-xl" />
-            <Skeleton className="h-72 rounded-xl" />
+            <Skeleton className="h-72 rounded-[22px]" />
+            <Skeleton className="h-72 rounded-[22px]" />
           </div>
-          <Skeleton className="h-72 rounded-xl" />
+          <Skeleton className="h-72 rounded-[22px]" />
         </PageBody>
       </>
     );
@@ -192,62 +191,44 @@ export default function CompanyDashboard() {
   );
   const byDept = dash.byDepartment.map((d) => ({ department: d.name, onTime: d.on_time, late: d.late }));
   const pending = { absences: dash.pendingAbsences, reviews: dash.pendingReviews, days: pendingDays };
-  const pendingTotal = pending.absences + pending.reviews + pending.days;
 
   return (
     <>
       {header}
       <PageBody>
-        <StatRow>
-          <Stat label="Presentes hoje" value={totals.present} hint={`de ${totals.scheduled} com horário hoje`} />
-          <Stat label="Atrasados" value={totals.late} hint="Após a tolerância" />
-          <Stat label="Pontualidade" value={`${punctuality.toLocaleString("pt-PT")}%`} hint="Últimos 30 dias" />
-          <Stat label="Pendências" value={pendingTotal} hint={`${pending.absences} justificações · ${pending.reviews} revisões`} />
-        </StatRow>
-
-        {pendingTotal > 0 ? (
-          <div className="grid gap-3 sm:grid-cols-3">
-            {[
-              { n: pending.absences, label: "Justificações por decidir", href: "/empresa/justificacoes/", icon: FileClock, show: can("absence.decide", "absence.decide.team") },
-              { n: pending.reviews, label: "Marcações em revisão", href: "/empresa/assiduidade/revisao/", icon: AlertCircle, show: true },
-              { n: pending.days, label: "Faltas e registos incompletos", href: "/empresa/assiduidade/?estado=pendentes", icon: CalendarClock, show: true },
-            ]
-              .filter((p) => p.show && p.n > 0)
-              .map((p) => (
-                <Link
-                  key={p.href}
-                  href={p.href}
-                  className="group flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-3.5 hover:border-primary/30 hover:bg-primary-soft/30"
-                >
-                  <span className="flex size-9 items-center justify-center rounded-lg bg-warning-soft text-warning">
-                    <p.icon className="size-[18px]" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[18px] leading-tight font-semibold tabular">{p.n}</span>
-                    <span className="block truncate text-xs text-muted">{p.label}</span>
-                  </span>
-                  <ArrowRight className="size-4 text-subtle transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
-                </Link>
-              ))}
-          </div>
-        ) : null}
+        <TodayOverview
+          scheduled={totals.scheduled}
+          present={totals.present}
+          late={totals.late}
+          dateLabel={dateLabel}
+          punctuality={punctuality}
+          pending={[
+            { n: pending.absences, label: "justificações por decidir", href: "/empresa/justificacoes/", show: can("absence.decide", "absence.decide.team") },
+            { n: pending.reviews, label: "marcações em revisão", href: "/empresa/assiduidade/revisao/", show: true },
+            { n: pending.days, label: "faltas e registos incompletos", href: "/empresa/assiduidade/?estado=pendentes", show: true },
+          ]
+            .filter((p) => p.show && p.n > 0)
+            .map(({ n, label, href }) => ({ n, label, href }))}
+        />
 
         <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-          <Card className="p-5">
+          <Card className="p-5 sm:p-6">
             <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
               <div>
-                <h2 className="text-[15px] font-semibold">Presenças por dia</h2>
-                <p className="text-xs text-muted">Últimos 30 dias · {last30.absent} faltas registadas</p>
+                <CardTitle>Presenças por dia</CardTitle>
+                <CardDescription>
+                  Últimos 30 dias, <span className="font-bold text-foreground tabular">{last30.absent}</span> faltas registadas
+                </CardDescription>
               </div>
               <Legend items={[{ label: "Presentes", color: CHART_COLORS.primary }]} />
             </div>
             <DailyBars data={series} dataKey="present" name="Presentes" />
           </Card>
-          <Card className="p-5">
+          <Card className="p-5 sm:p-6">
             <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
               <div>
-                <h2 className="text-[15px] font-semibold">Pontualidade por departamento</h2>
-                <p className="text-xs text-muted">Dias pontuais e com atraso · 30 dias</p>
+                <CardTitle>Pontualidade por departamento</CardTitle>
+                <CardDescription>Dias pontuais e com atraso, últimos 30 dias</CardDescription>
               </div>
               <Legend items={[{ label: "Pontual", color: CHART_COLORS.indigo }, { label: "Atraso", color: CHART_COLORS.indigoSoft }]} />
             </div>
@@ -266,11 +247,11 @@ export default function CompanyDashboard() {
           </Card>
         </div>
 
-        <Card className="p-5">
+        <Card className="p-5 sm:p-6">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
             <div>
-              <h2 className="text-[15px] font-semibold">Pontualidade e presença</h2>
-              <p className="text-xs text-muted">Média móvel de 7 dias · últimos 30 dias</p>
+              <CardTitle>Pontualidade e presença</CardTitle>
+              <CardDescription>Média móvel de 7 dias, últimos 30 dias</CardDescription>
             </div>
             <Legend items={[{ label: "Pontualidade", color: CHART_COLORS.primary }, { label: "Presença", color: CHART_COLORS.indigo }]} />
           </div>
@@ -287,9 +268,11 @@ export default function CompanyDashboard() {
         </Card>
 
         <section>
-          <div className="mb-3 flex items-end justify-between">
-            <h2 className="text-[17px] font-semibold tracking-tight">Hoje</h2>
-            <span className="text-xs text-muted">{dash.activeEmployees} colaboradores activos</span>
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+            <h2 className="text-[20px] font-extrabold tracking-[-0.02em]">Equipa hoje</h2>
+            <span className="text-[13px] text-muted">
+              <span className="font-bold text-foreground tabular">{dash.activeEmployees}</span> colaboradores activos
+            </span>
           </div>
           <TodayTable rows={rows} linkable={can("employees.view")} />
         </section>

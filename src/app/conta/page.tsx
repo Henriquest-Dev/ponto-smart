@@ -1,6 +1,5 @@
 "use client";
 
-import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -27,15 +26,15 @@ export default function AccountPage() {
       <div className="min-h-dvh bg-background lg:min-h-[calc(100dvh-24px)] lg:rounded-[22px] lg:shadow-panel">
         <header className="flex h-16 items-center justify-between border-b border-border px-4 sm:px-8">
           <Logo />
-          <Link href={homeFor(me, company)} className="inline-flex h-10 items-center gap-1.5 text-[13px] font-medium text-muted hover:text-foreground">
-            <ArrowLeft className="size-4" /> Voltar
+          <Link href={homeFor(me, company)} className="inline-flex h-10 items-center rounded-full px-4 text-[13.5px] font-bold text-muted hover:bg-surface-2 hover:text-foreground">
+            Voltar
           </Link>
         </header>
         <main className="mx-auto max-w-2xl space-y-6 px-4 py-8 sm:px-8">
           <div>
-            <h1 className="text-[22px] font-semibold tracking-tight">Segurança da conta</h1>
-            <p className="mt-1 text-[13px] text-muted">
-              {me.name} — utilizador <span className="font-medium text-foreground">{me.login}</span>
+            <h1 className="text-[30px] leading-[1.05] font-extrabold tracking-[-0.03em]">Segurança da conta</h1>
+            <p className="mt-2 text-[14px] text-muted">
+              {me.name}, utilizador <span className="font-bold text-foreground">{me.login}</span>
             </p>
           </div>
           <PasswordCard login={me.login} />
@@ -90,7 +89,7 @@ function PasswordCard({ login }: { login: string }) {
             <Input id="confirm" name="confirm" type="password" autoComplete="new-password" minLength={8} required />
           </Field>
           <Button type="submit" disabled={busy} className="w-fit">
-            {busy ? <Loader2 className="animate-spin" /> : null} Alterar palavra-passe
+            {busy ? <span className="spinner" /> : null} Alterar palavra-passe
           </Button>
         </form>
       </CardContent>
@@ -119,7 +118,7 @@ function MfaCard() {
     setBusy(true);
     // Remove tentativas anteriores não concluídas.
     for (const f of factors ?? []) if (f.status !== "verified") await sb().auth.mfa.unenroll({ factorId: f.id });
-    const { data, error } = await sb().auth.mfa.enroll({ factorType: "totp", friendlyName: `PontoSmart ${Date.now()}` });
+    const { data, error } = await sb().auth.mfa.enroll({ factorType: "totp", friendlyName: `Horbit ${Date.now()}` });
     setBusy(false);
     if (error || !data) return toast.error(errorMessage(error));
     setEnroll({ id: data.id, qr: data.totp.qr_code, secret: data.totp.secret });
@@ -165,16 +164,16 @@ function MfaCard() {
         ) : enroll ? (
           <form onSubmit={verify} className="grid gap-4 sm:grid-cols-[180px_1fr] sm:items-start">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={enroll.qr} alt="Código QR para a aplicação de autenticação" className="size-[180px] rounded-lg border border-border bg-white p-2" />
+            <img src={enroll.qr} alt="Código QR para a aplicação de autenticação" className="size-[180px] rounded-[18px] border border-border bg-white p-2" />
             <div className="space-y-3">
-              <p className="text-[13px] text-muted">
+              <p className="text-[13.5px] leading-relaxed text-muted">
                 Leia o código com a aplicação ou introduza a chave <span className="font-mono text-foreground break-all">{enroll.secret}</span>.
               </p>
               <Field label="Código de 6 dígitos" htmlFor="code">
                 <Input id="code" name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" required className="max-w-40" />
               </Field>
               <Button type="submit" disabled={busy}>
-                {busy ? <Loader2 className="animate-spin" /> : null} Confirmar e activar
+                {busy ? <span className="spinner" /> : null} Confirmar e activar
               </Button>
             </div>
           </form>

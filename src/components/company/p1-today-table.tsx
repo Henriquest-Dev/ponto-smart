@@ -1,6 +1,5 @@
 "use client";
 
-import { Search } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { StatusDot, type Tone } from "@/components/ui/badge";
@@ -66,9 +65,8 @@ export function TodayTable({ rows, linkable }: { rows: TodayRow[]; linkable: boo
     <div className="space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <Tabs items={FILTERS} active={filter} onChange={setFilter} />
-        <div className="relative sm:w-64">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pesquisar…" className="pl-9" aria-label="Pesquisar colaborador" />
+        <div className="sm:w-64">
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pesquisar nome ou departamento" aria-label="Pesquisar colaborador" />
         </div>
       </div>
 
@@ -77,15 +75,15 @@ export function TodayTable({ rows, linkable }: { rows: TodayRow[]; linkable: boo
       ) : (
         <>
           {/* Telemóvel: lista em cartões */}
-          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border md:hidden">
+          <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border bg-background md:hidden">
             {filtered.map((r) => (
               <li key={r.id}>
                 <Wrap linkable={linkable} id={r.id} className="flex items-center gap-3 px-4 py-3">
                   <Avatar name={r.name} size={36} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13.5px] font-medium">{r.name}</p>
-                    <p className="truncate text-xs text-muted">
-                      {r.firstIn ? `${r.firstIn}${r.lastOut ? ` → ${r.lastOut}` : ""}` : r.schedule ?? "Sem horário"}
+                    <p className="truncate text-[14px] font-bold">{r.name}</p>
+                    <p className="truncate text-[12.5px] text-muted tabular">
+                      {r.firstIn ? `${r.firstIn}${r.lastOut ? `–${r.lastOut}` : ", ainda dentro"}` : r.schedule ?? "Sem horário"}
                     </p>
                   </div>
                   <StatusDot tone={TONE[r.status] ?? "neutral"}>{r.statusLabel}</StatusDot>
@@ -113,19 +111,19 @@ export function TodayTable({ rows, linkable }: { rows: TodayRow[]; linkable: boo
                       <Wrap linkable={linkable} id={r.id} className="flex items-center gap-3">
                         <Avatar name={r.name} size={32} />
                         <span className="min-w-0">
-                          <span className="block truncate font-medium text-foreground">{r.name}</span>
-                          <span className="block truncate text-xs text-muted">{r.jobTitle ?? r.code}</span>
+                          <span className="block truncate text-[14px] font-bold text-foreground">{r.name}</span>
+                          <span className="block truncate text-[12.5px] text-muted">{r.jobTitle ?? r.code}</span>
                         </span>
                       </Wrap>
                     </TD>
                     <TD className="text-muted">{r.department ?? "—"}</TD>
                     <TD className="tabular text-muted">{r.schedule ?? "—"}</TD>
-                    <TD className="tabular">{r.firstIn ?? "—"}</TD>
-                    <TD className="tabular">{r.lastOut ?? "—"}</TD>
+                    <TD className="font-bold tabular">{r.firstIn ?? <span className="font-normal text-subtle">—</span>}</TD>
+                    <TD className="font-bold tabular">{r.lastOut ?? <span className="font-normal text-subtle">—</span>}</TD>
                     <TD>
                       <StatusDot tone={TONE[r.status] ?? "neutral"}>
                         {r.statusLabel}
-                        {r.lateMinutes ? <span className="text-xs text-muted">+{r.lateMinutes} min</span> : null}
+                        {r.lateMinutes ? <span className="text-[12px] font-bold text-warning tabular">+{r.lateMinutes} min</span> : null}
                       </StatusDot>
                     </TD>
                   </TR>

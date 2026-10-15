@@ -1,6 +1,5 @@
 "use client";
 
-import { ScrollText } from "lucide-react";
 import * as React from "react";
 import { ErrorBlock, NoAccess } from "@/components/company/p2-shared";
 import { Button } from "@/components/ui/button";
@@ -105,8 +104,8 @@ function Audit() {
         </form>
 
         {data.error ? <ErrorBlock message={data.error} /> : null}
-        {data.loading && !data.data ? <Skeleton className="h-96 w-full" /> : null}
-        {data.data && data.data.rows.length === 0 ? <EmptyState icon={<ScrollText />} title="Sem registos" /> : null}
+        {data.loading && !data.data ? <Skeleton className="h-96 w-full rounded-[22px]" /> : null}
+        {data.data && data.data.rows.length === 0 ? <EmptyState title="Sem registos" description="Nenhuma acção corresponde aos filtros escolhidos." /> : null}
         {data.data && data.data.rows.length > 0 ? (
           <TableWrap className={data.loading ? "opacity-60" : undefined}>
             <Table>
@@ -117,8 +116,8 @@ function Audit() {
                 {data.data.rows.map((a) => (
                   <TR key={a.id} className="align-top">
                     <TD className="whitespace-nowrap text-muted tabular">{formatDateTime(a.created_at, tz)}</TD>
-                    <TD className="whitespace-nowrap">{a.users?.name ?? (a.actor_id ? "Utilizador" : "Sistema")}</TD>
-                    <TD className="font-mono text-xs">{a.action}</TD>
+                    <TD className="whitespace-nowrap font-bold">{a.users?.name ?? (a.actor_id ? "Utilizador" : "Sistema")}</TD>
+                    <TD><span className="inline-flex items-center gap-2 font-mono text-xs"><span className={`stem h-3 ${actionTone(a.action)}`} aria-hidden />{a.action}</span></TD>
                     <TD className="text-xs text-muted">
                       {ENTITIES[a.entity] ?? a.entity}
                       {a.entity_id ? <span className="block font-mono text-[11px] text-subtle">{a.entity_id.slice(0, 8)}</span> : null}
@@ -136,6 +135,14 @@ function Audit() {
       </PageBody>
     </>
   );
+}
+
+/** Cor da haste conforme o tipo de acção (criação, remoção, restante). */
+function actionTone(action: string) {
+  const a = action.toLowerCase();
+  if (/(delete|remove|revoke|reject)/.test(a)) return "text-danger";
+  if (/(insert|create|approve|issue)/.test(a)) return "text-success";
+  return "text-primary";
 }
 
 /** Resumo das alterações: em actualizações mostra só os campos que mudaram. */
@@ -156,7 +163,7 @@ function Detail({ before, after }: { before: unknown; after: unknown }) {
   return (
     <details>
       <summary className="cursor-pointer truncate font-mono text-[11px] text-muted [&::-webkit-details-marker]:hidden">{text}</summary>
-      <pre className="mt-2 max-h-64 overflow-auto rounded-md bg-surface p-2 font-mono text-[11px] whitespace-pre-wrap break-all">
+      <pre className="mt-2 max-h-64 overflow-auto rounded-[14px] bg-surface p-3 font-mono text-[11px] whitespace-pre-wrap break-all">
         {JSON.stringify(shown, null, 2)}
       </pre>
     </details>

@@ -1,6 +1,5 @@
 "use client";
 
-import { AlertTriangle, Check, Download, FileText, Lock, Plus, Wallet } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 import { toast } from "sonner";
@@ -10,6 +9,7 @@ import {
   type Item, type Line, type Period, type Run, type Slip,
 } from "@/components/company/p2-payroll";
 import { ErrorBlock, LoadingBlock, NoAccess, monthBounds, todayIn } from "@/components/company/p2-shared";
+import { StepStems } from "@/components/company/p2-steps";
 import { ActionButton } from "@/components/ui/action-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -82,7 +82,7 @@ function Payroll() {
       <>
         <PageHeader title="Salários" actions={newPeriod} />
         <PageBody>
-          <EmptyState icon={<Wallet />} title="Sem períodos salariais" description="Crie o primeiro período para começar." />
+          <EmptyState title="Sem períodos salariais" description="Crie o primeiro período para começar." />
         </PageBody>
       </>
     );
@@ -92,7 +92,7 @@ function Payroll() {
     <>
       <PageHeader
         title="Salários"
-        description={`${periodLabel(period.year, period.month)} · ${PERIOD_STATUS[period.status]?.label ?? period.status}`}
+        description={`${periodLabel(period.year, period.month)}, ${(PERIOD_STATUS[period.status]?.label ?? period.status).toLowerCase()}`}
         actions={
           <>
             <Select
@@ -200,21 +200,12 @@ function PeriodView({
 
   return (
     <>
-      <ol className="grid grid-cols-5 gap-2">
-        {STEPS.map((s, i) => (
-          <li key={s}>
-            <div className={cn("h-1.5 rounded-full", i < stepIndex ? "bg-primary" : i === stepIndex ? "bg-primary/40" : "bg-surface-2")} />
-            <p className={cn("mt-2 truncate text-[11px] sm:text-xs", i <= stepIndex ? "font-medium text-foreground" : "text-subtle")}>
-              {i + 1}. {s}
-            </p>
-          </li>
-        ))}
-      </ol>
+      <StepStems steps={STEPS} current={stepIndex} />
 
       <Notice tone="warning">
         Os cálculos dependem de regras legais e fiscais que requerem validação por especialista laboral e contabilístico moçambicano.
         Retenções só são aplicadas a partir de regras marcadas como validadas em{" "}
-        <Link className="font-semibold underline" href="/empresa/salarios/rubricas/">Rubricas e regras</Link>. Nenhuma multa por atraso é aplicada.
+        <Link className="font-bold underline decoration-2 underline-offset-2" href="/empresa/salarios/rubricas/">Rubricas e regras</Link>. Nenhuma multa por atraso é aplicada.
       </Notice>
 
       {period.status === "open" ? (
@@ -236,21 +227,21 @@ function PeriodView({
                 disabled={pendings.length > 0}
                 confirm="Fechar a assiduidade bloqueia correcções neste período. Continuar?"
               >
-                <Lock /> <span className="hidden sm:inline">Fechar assiduidade</span><span className="sm:hidden">Fechar</span>
+                <span className="hidden sm:inline">Fechar assiduidade</span><span className="sm:hidden">Fechar</span>
               </ActionButton>
             ) : null}
           </CardHeader>
           <CardContent>
             {pendings.length ? (
               <>
-                <p className="mb-3 flex items-center gap-2 text-[13px] font-medium text-warning">
-                  <AlertTriangle className="size-4" /> {pendings.length}
-                  {pendings.length >= 500 ? "+" : ""} pendências
+                <p className="mb-3 flex items-center gap-2 text-[14px] font-bold text-warning">
+                  <span className="stem" aria-hidden />
+                  <span className="tabular font-extrabold">{pendings.length}{pendings.length >= 500 ? "+" : ""}</span> pendências por resolver
                 </p>
-                <ul className="max-h-72 divide-y divide-border overflow-y-auto rounded-lg border border-border">
+                <ul className="max-h-72 divide-y divide-border overflow-y-auto rounded-[16px] border border-border">
                   {pendings.map((p) => (
                     <li key={p.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[13px]">
-                      <span className="min-w-0 truncate font-medium">{p.employees?.full_name ?? "—"}</span>
+                      <span className="min-w-0 truncate font-bold">{p.employees?.full_name ?? "—"}</span>
                       <span className="flex shrink-0 items-center gap-3 text-muted">
                         {formatDate(p.work_date, tz)} <Badge tone="warning">{DAILY_STATUS_LABEL[p.status] ?? p.status}</Badge>
                       </span>
@@ -262,8 +253,8 @@ function PeriodView({
                 </Button>
               </>
             ) : (
-              <p className="flex items-center gap-2 text-[13px] text-success">
-                <Check className="size-4" /> Sem pendências. Pode fechar a assiduidade.
+              <p className="flex items-center gap-2 text-[13.5px] font-bold text-success">
+                <span className="stem" aria-hidden /> Sem pendências. Pode fechar a assiduidade.
               </p>
             )}
           </CardContent>
@@ -271,9 +262,9 @@ function PeriodView({
       ) : null}
 
       {period.status === "attendance_closed" && (!run || run.status === "superseded") ? (
-        <Card className="flex flex-wrap items-center justify-between gap-3 p-5">
+        <Card className="flex flex-wrap items-center justify-between gap-3 border-l-[6px] border-l-primary p-5 sm:p-6">
           <div>
-            <p className="text-[15px] font-semibold">Assiduidade fechada</p>
+            <p className="text-[16px] font-extrabold tracking-[-0.01em]">Assiduidade fechada</p>
             <p className="text-[13px] text-muted">Gere o pré-processamento a partir de contratos, rubricas e assiduidade.</p>
           </div>
           {can("payroll.prepare") ? (
@@ -289,12 +280,16 @@ function PeriodView({
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-[17px] font-semibold tracking-tight">Execução v{run.version}</h2>
-              <Badge tone={RUN_STATUS[run.status]?.tone}>{RUN_STATUS[run.status]?.label ?? run.status}</Badge>
-              <span className="text-xs text-muted">
-                Preparado por {run.preparer?.name ?? "—"} · {formatDateTime(run.prepared_at, tz)}
-                {run.approved_by ? ` · aprovado por ${run.approver?.name ?? "—"} em ${formatDateTime(run.approved_at, tz)}` : ""}
-              </span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h2 className="text-[20px] font-extrabold tracking-[-0.02em]">Execução v{run.version}</h2>
+                  <Badge tone={RUN_STATUS[run.status]?.tone}>{RUN_STATUS[run.status]?.label ?? run.status}</Badge>
+                </div>
+                <p className="mt-1 text-[12.5px] text-muted">
+                  Preparado por {run.preparer?.name ?? "—"} em {formatDateTime(run.prepared_at, tz)}
+                  {run.approved_by ? `, aprovado por ${run.approver?.name ?? "—"} em ${formatDateTime(run.approved_at, tz)}` : ""}
+                </p>
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               {can("reports.export") || can("payroll.view") ? (
@@ -306,7 +301,7 @@ function PeriodView({
                     })
                   }
                 >
-                  <Download /> Excel
+                  Descarregar Excel
                 </ActionButton>
               ) : null}
               {run.status === "draft" && can("payroll.prepare") ? (
@@ -329,7 +324,7 @@ function PeriodView({
                   disabled={isPreparer}
                   confirm="Aprovar torna a execução imutável. Confirma que reviu os valores?"
                 >
-                  <Check /> Aprovar
+                  Aprovar
                 </ActionButton>
               ) : null}
               {approved && !issued && can("payslips.issue") && !items.loading ? (
@@ -387,7 +382,7 @@ function PeriodView({
 
           {items.error ? <ErrorBlock message={items.error} /> : null}
           {items.loading && !items.data ? (
-            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-64 w-full rounded-[22px]" />
           ) : (
             <TableWrap>
               <Table>
@@ -412,8 +407,11 @@ function PeriodView({
                         <TD>
                           <details>
                             <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-                              <span className="block font-medium">{name}</span>
-                              <span className="block text-xs text-muted">{i.employees?.employee_code} · ver linhas</span>
+                              <span className="block font-bold">{name}</span>
+                              <span className="block text-xs text-muted">
+                                {i.employees?.employee_code ? `${i.employees.employee_code}, ` : ""}
+                                <span className="font-bold text-primary">ver linhas</span>
+                              </span>
                             </summary>
                             <table className="mt-2 w-full min-w-[420px] text-xs">
                               <tbody>
@@ -434,7 +432,7 @@ function PeriodView({
                         </TD>
                         <TD className="text-right tabular">{formatMoney(i.gross, cur)}</TD>
                         <TD className="text-right text-muted tabular">{formatMoney(i.deductions, cur)}</TD>
-                        <TD className="text-right font-semibold tabular">{formatMoney(i.net, cur)}</TD>
+                        <TD className="text-right font-extrabold tabular">{formatMoney(i.net, cur)}</TD>
                         <TD>
                           {slip ? (
                             <PayslipButton companyId={companyId} period={period} run={run} item={i} lines={itemLines} slip={slip} />
@@ -446,9 +444,8 @@ function PeriodView({
                           {pay.length ? (
                             <span className="text-xs">
                               <Badge tone="success">Pago</Badge>
-                              <span className="mt-1 block text-muted">
-                                {formatDate(pay[0].paid_at, tz)} · {PAYMENT_METHODS[pay[0].method] ?? pay[0].method}
-                              </span>
+                              <span className="mt-1 block text-muted">{formatDate(pay[0].paid_at, tz)}</span>
+                              <span className="block text-muted">{PAYMENT_METHODS[pay[0].method] ?? pay[0].method}</span>
                             </span>
                           ) : approved && can("payments.register") ? (
                             <PayItem item={i} currency={cur} onDone={items.reload} />
@@ -466,7 +463,7 @@ function PeriodView({
 
           {runs.length > 1 ? (
             <div>
-              <p className="mb-2 text-[13px] font-medium">Versões deste período</p>
+              <p className="mb-2 text-[14px] font-extrabold">Versões deste período</p>
               <div className="flex flex-wrap gap-2">
                 {runs.map((r: Run) => (
                   <button
@@ -474,18 +471,20 @@ function PeriodView({
                     type="button"
                     onClick={() => setRunId(r.id)}
                     className={cn(
-                      "cursor-pointer rounded-md border px-3 py-1.5 text-xs",
-                      r.id === run.id ? "border-primary bg-primary-soft text-primary" : "border-border text-muted hover:bg-surface",
+                      "inline-flex cursor-pointer items-center gap-2 rounded-full border-2 px-4 py-1.5 text-[12.5px] font-bold transition-colors",
+                      r.id === run.id ? "border-foreground bg-foreground text-background" : "border-border text-muted hover:border-foreground hover:text-foreground",
                     )}
                   >
-                    v{r.version} · {RUN_STATUS[r.status]?.label ?? r.status} · {formatMoney(r.totals?.net, cur)}
+                    <span className="font-extrabold">v{r.version}</span>
+                    <span>{RUN_STATUS[r.status]?.label ?? r.status}</span>
+                    <span className="tabular">{formatMoney(r.totals?.net, cur)}</span>
                   </button>
                 ))}
               </div>
             </div>
           ) : null}
           <p className="text-xs text-subtle">
-            Motor {run.engine_version} · hash de integridade dos dados de entrada <span className="font-mono">{run.input_hash.slice(0, 24)}…</span>
+            Motor {run.engine_version}. Hash de integridade dos dados de entrada <span className="font-mono">{run.input_hash.slice(0, 24)}…</span>
           </p>
         </>
       ) : null}
@@ -508,7 +507,7 @@ function PayslipButton(props: { companyId: string; period: Period; run: Run; ite
     <button
       type="button"
       disabled={busy}
-      className="inline-flex cursor-pointer items-center gap-1 text-[13px] font-medium text-primary disabled:opacity-50"
+      className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-primary-soft px-3.5 text-[12.5px] font-bold text-primary hover:bg-[#e4dbfd] disabled:opacity-50"
       onClick={async () => {
         setBusy(true);
         try {
@@ -521,7 +520,7 @@ function PayslipButton(props: { companyId: string; period: Period; run: Run; ite
         }
       }}
     >
-      <FileText className="size-3.5" /> PDF
+      {busy ? <span className="spinner" aria-hidden /> : null} Recibo PDF
     </button>
   );
 }
@@ -542,7 +541,7 @@ function NewPeriod({ onCreated }: { onCreated: (id: string) => void }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button><Plus /> Novo período</Button>
+        <Button>Novo período</Button>
       </DialogTrigger>
       <DialogContent title="Novo período salarial">
         <ActionForm

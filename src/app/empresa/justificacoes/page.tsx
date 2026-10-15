@@ -1,11 +1,9 @@
 "use client";
 
-import { FileCheck2, Paperclip } from "lucide-react";
 import { useState } from "react";
 import { ABSENCE_TYPES, LoadingRows, openSignedFile } from "@/components/company/p1-shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { ActionForm, SubmitButton } from "@/components/ui/form";
 import { Field, Textarea } from "@/components/ui/input";
@@ -67,7 +65,7 @@ export default function CompanyAbsences() {
 
   return (
     <>
-      <PageHeader title="Justificações" description="Pedido do colaborador → análise do supervisor/RH → decisão fundamentada → recálculo da assiduidade." />
+      <PageHeader title="Justificações" description="O colaborador pede, o supervisor ou o RH analisa e decide com fundamento, e a assiduidade é recalculada." />
       <PageBody>
         <Tabs
           active={view}
@@ -84,9 +82,11 @@ export default function CompanyAbsences() {
         ) : list.loading && !list.data ? (
           <LoadingRows rows={3} />
         ) : requests.length === 0 ? (
-          <EmptyState icon={<FileCheck2 />} title={view === "pendentes" ? "Sem justificações por decidir" : "Sem decisões registadas"} />
+          <EmptyState title={view === "pendentes" ? "Sem justificações por decidir" : "Sem decisões registadas"} />
         ) : (
-          <div className={`grid gap-3 xl:grid-cols-2 ${list.loading ? "opacity-60 transition-opacity" : ""}`}>
+          <ul
+            className={`divide-y divide-border overflow-hidden rounded-[22px] border border-border bg-background ${list.loading ? "opacity-60 transition-opacity" : ""}`}
+          >
             {requests.map((r) => {
               const name = r.employees?.full_name ?? "—";
               const steps = [...(r.approval_steps ?? [])].sort((a, b) => a.step_order - b.step_order);
@@ -96,76 +96,92 @@ export default function CompanyAbsences() {
               const nDays = daysBetween(r.start_date, r.end_date).length;
               const docs = r.absence_documents ?? [];
               return (
-                <Card key={r.id} className="flex flex-col p-5">
-                  <div className="flex items-start gap-3">
-                    <Avatar name={name} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[14px] font-semibold">{name}</p>
-                      <p className="truncate text-xs text-muted">
-                        {r.employees?.job_title ?? "—"} · {r.employees?.departments?.name ?? "Sem departamento"}
-                      </p>
+                <li key={r.id} className="grid gap-5 px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:gap-10">
+                  <div className="min-w-0">
+                    <div className="flex items-start gap-3">
+                      <Avatar name={name} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[15px] font-extrabold tracking-[-0.01em]">{name}</p>
+                        <p className="truncate text-[12.5px] text-muted">
+                          {[r.employees?.job_title, r.employees?.departments?.name ?? "Sem departamento"].filter(Boolean).join(", ")}
+                        </p>
+                      </div>
+                      <Badge tone={st.tone} className="lg:hidden">
+                        {st.label}
+                      </Badge>
                     </div>
-                    <Badge tone={st.tone}>{st.label}</Badge>
+                    <dl className="mt-4 flex flex-wrap gap-x-8 gap-y-3">
+                      <div>
+                        <dt className="text-[12px] text-muted">Tipo</dt>
+                        <dd className="mt-0.5 text-[14px] font-bold">{ABSENCE_TYPES[r.type] ?? r.type}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-[12px] text-muted">Período</dt>
+                        <dd className="mt-0.5 text-[14px] font-bold tabular">
+                          {r.start_date === r.end_date ? formatDate(r.start_date, tz) : `${formatDate(r.start_date, tz)} a ${formatDate(r.end_date, tz)}`}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-[12px] text-muted">Duração</dt>
+                        <dd className="mt-0.5 text-[14px] font-extrabold tabular">
+                          {nDays} {nDays === 1 ? "dia" : "dias"}
+                        </dd>
+                      </div>
+                    </dl>
+                    <p className="mt-4 border-l-[3px] border-border-strong pl-3 text-[13.5px] leading-relaxed break-words">{r.reason}</p>
+                    {docs.length ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {docs.map((d) => (
+                          <button
+                            key={d.id}
+                            type="button"
+                            onClick={() => void openSignedFile("justificacoes", d.storage_key)}
+                            className="inline-flex h-9 max-w-full cursor-pointer items-center gap-2 rounded-full bg-surface-2 px-4 text-[12.5px] font-bold hover:bg-primary-soft hover:text-primary"
+                            title={`Abrir ${d.file_name}`}
+                          >
+                            <span className="truncate">{d.file_name}</span>
+                            <span className="shrink-0 text-primary">Abrir</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-[12.5px] text-subtle">Sem anexos.</p>
+                    )}
                   </div>
-                  <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-surface/70 px-4 py-3 text-[13px]">
-                    <div>
-                      <p className="text-xs text-muted">Tipo</p>
-                      <p className="font-medium">{ABSENCE_TYPES[r.type] ?? r.type}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted">Período</p>
-                      <p className="font-medium tabular">
-                        {r.start_date === r.end_date ? formatDate(r.start_date, tz) : `${formatDate(r.start_date, tz)} – ${formatDate(r.end_date, tz)}`}
-                        <span className="text-muted">
-                          {" "}
-                          ({nDays} {nDays === 1 ? "dia" : "dias"})
-                        </span>
-                      </p>
+
+                  <div className="flex min-w-0 flex-col gap-4 lg:border-l lg:border-border lg:pl-10">
+                    <Badge tone={st.tone} className="hidden text-[13.5px] lg:inline-flex">
+                      {st.label}
+                    </Badge>
+                    <ol className="space-y-3">
+                      {steps.map((s) => {
+                        const d = STEP_DECISION[s.decision] ?? { label: s.decision, tone: "neutral" as const };
+                        return (
+                          <li key={s.id} className="text-[13px]">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="font-bold">{s.approver_role === "supervisor" ? "Supervisor" : "Recursos humanos"}</span>
+                              <Badge tone={d.tone}>{d.label}</Badge>
+                            </div>
+                            {s.users?.name ? <p className="text-[12.5px] text-muted">Por {s.users.name}</p> : null}
+                            {s.reason && s.decision !== "pending" ? <p className="mt-0.5 text-[12.5px] text-muted">“{s.reason}”</p> : null}
+                          </li>
+                        );
+                      })}
+                    </ol>
+                    <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
+                      <span className="text-[12px] text-subtle">
+                        {r.status === "pending" || !r.decided_at ? `Submetido ${formatDateTime(r.created_at, tz)}` : `Decidido ${formatDateTime(r.decided_at, tz)}`}
+                      </span>
+                      {canDecide ? <DecideAbsence requestId={r.id} name={name} onDone={list.reload} /> : null}
+                      {r.status === "pending" && !canDecide && current?.approver_role === "hr" && !isHr ? (
+                        <span className="text-[12.5px] font-bold text-muted">Aguarda o RH</span>
+                      ) : null}
                     </div>
                   </div>
-                  <p className="mt-3 text-[13px] leading-relaxed break-words">{r.reason}</p>
-                  {docs.length ? (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {docs.map((d) => (
-                        <button
-                          key={d.id}
-                          type="button"
-                          onClick={() => void openSignedFile("justificacoes", d.storage_key)}
-                          className="inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs hover:bg-surface"
-                        >
-                          <Paperclip className="size-3.5 shrink-0" /> <span className="truncate">{d.file_name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="mt-3 text-xs text-subtle">Sem anexos.</p>
-                  )}
-                  <ol className="mt-4 space-y-1.5 border-t border-border pt-3">
-                    {steps.map((s) => {
-                      const d = STEP_DECISION[s.decision] ?? { label: s.decision, tone: "neutral" as const };
-                      return (
-                        <li key={s.id} className="flex flex-wrap items-center gap-2 text-xs">
-                          <span className="w-28 text-muted">{s.approver_role === "supervisor" ? "Supervisor" : "Recursos Humanos"}</span>
-                          <Badge tone={d.tone}>{d.label}</Badge>
-                          {s.users?.name ? <span className="text-muted">por {s.users.name}</span> : null}
-                          {s.reason && s.decision !== "pending" ? <span className="w-full text-muted sm:w-auto">“{s.reason}”</span> : null}
-                        </li>
-                      );
-                    })}
-                  </ol>
-                  <div className="mt-auto flex items-center justify-between gap-2 pt-4">
-                    <span className="text-xs text-subtle">
-                      {r.status === "pending" || !r.decided_at ? `Submetido ${formatDateTime(r.created_at, tz)}` : `Decidido ${formatDateTime(r.decided_at, tz)}`}
-                    </span>
-                    {canDecide ? <DecideAbsence requestId={r.id} name={name} onDone={list.reload} /> : null}
-                    {r.status === "pending" && !canDecide && current?.approver_role === "hr" && !isHr ? (
-                      <span className="text-xs text-muted">Aguarda o RH</span>
-                    ) : null}
-                  </div>
-                </Card>
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
       </PageBody>
     </>
@@ -204,12 +220,12 @@ function DecideAbsence({ requestId, name, onDone }: { requestId: string; name: s
                 type="button"
                 onClick={() => setDecision(d)}
                 aria-pressed={decision === d}
-                className={`h-11 cursor-pointer rounded-md border text-[13px] font-medium ${
+                className={`h-11 cursor-pointer rounded-full border-2 text-[14px] font-bold transition-colors ${
                   decision === d
                     ? d === "approved"
                       ? "border-success bg-success-soft text-success"
                       : "border-danger bg-danger-soft text-danger"
-                    : "border-border-strong text-muted"
+                    : "border-border-strong text-muted hover:border-foreground hover:text-foreground"
                 }`}
               >
                 {d === "approved" ? "Aprovar" : "Recusar"}

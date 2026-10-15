@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 import { Button, type ButtonProps } from "@/components/ui/button";
@@ -52,7 +51,7 @@ export function PendingButton({ children, pendingText, ...props }: ButtonProps &
   const pending = React.useContext(PendingContext);
   return (
     <Button type="submit" {...props} disabled={pending || props.disabled}>
-      {pending ? <Loader2 className="animate-spin" /> : null}
+      {pending ? <span className="spinner" aria-hidden /> : null}
       {pending && pendingText ? pendingText : children}
     </Button>
   );

@@ -1,6 +1,5 @@
 "use client";
 
-import { ScrollText, Search } from "lucide-react";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -97,10 +96,14 @@ export default function PlatformAuditPage() {
               setPage(1);
             }}
           >
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Acção ou entidade (ex.: company, payroll)" className="pl-9" aria-label="Filtrar por acção" />
-            </div>
+            <Input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Acção ou entidade (ex.: company, payroll)"
+              className="min-w-0 flex-1"
+              aria-label="Filtrar por acção"
+            />
             <Button type="submit" variant="soft">
               Filtrar
             </Button>
@@ -129,24 +132,26 @@ export default function PlatformAuditPage() {
         {loading && !data ? (
           <div className="space-y-2">
             {Array.from({ length: 8 }, (_, i) => (
-              <Skeleton key={i} className="h-12 rounded-lg" />
+              <Skeleton key={i} className="h-12 rounded-[14px]" />
             ))}
           </div>
         ) : !data?.rows.length ? (
-          <EmptyState icon={<ScrollText />} title="Sem registos" description={term || company !== "all" ? "Nenhum registo corresponde aos filtros." : undefined} />
+          <EmptyState title="Sem registos" description={term || company !== "all" ? "Nenhum registo corresponde aos filtros." : undefined} />
         ) : (
           <div className={loading ? "opacity-60 transition-opacity" : "transition-opacity"}>
-            <p className="mb-2 text-xs text-muted">{formatNumber(data.total)} registos</p>
+            <p className="mb-3 text-[13px] text-muted">
+              <span className="text-[15px] font-extrabold text-foreground tabular">{formatNumber(data.total)}</span> registos
+            </p>
 
-            <ul className="divide-y divide-border rounded-xl border border-border md:hidden">
+            <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border md:hidden">
               {data.rows.map((r) => (
                 <li key={r.id}>
                   <button type="button" onClick={() => setDetail(r)} className="w-full px-4 py-3 text-left hover:bg-surface/60">
-                    <p className="text-[13px] font-medium">{ACTION_LABEL[r.action] ?? r.action}</p>
-                    <p className="mt-0.5 text-xs text-muted">
-                      {r.companies?.name ?? "Plataforma"} · {r.users?.name ?? "Sistema"}
+                    <p className="text-[14px] font-bold">{ACTION_LABEL[r.action] ?? r.action}</p>
+                    <p className="mt-0.5 text-[12.5px] text-muted">{r.companies?.name ?? "Plataforma"}</p>
+                    <p className="text-[12.5px] text-muted">
+                      {r.users?.name ?? "Sistema"}, <span className="tabular">{formatDateTime(r.created_at)}</span>
                     </p>
-                    <p className="mt-0.5 text-[11px] text-subtle tabular">{formatDateTime(r.created_at)}</p>
                   </button>
                 </li>
               ))}
@@ -175,19 +180,19 @@ export default function PlatformAuditPage() {
                         {r.users ? (
                           <>
                             <span className="block">{r.users.name}</span>
-                            <span className="block text-xs text-muted">{r.users.email}</span>
+                            <span className="block text-[12px] text-muted">{r.users.email}</span>
                           </>
                         ) : (
                           <span className="text-muted">Sistema</span>
                         )}
                       </TD>
                       <TD>
-                        <span className="block">{ACTION_LABEL[r.action] ?? r.action}</span>
+                        <span className="block font-bold">{ACTION_LABEL[r.action] ?? r.action}</span>
                         <span className="block font-mono text-[11px] text-subtle">{r.action}</span>
                       </TD>
-                      <TD className="text-xs text-muted">
-                        {r.entity}
-                        {r.entity_id ? ` · ${r.entity_id.slice(0, 8)}` : ""}
+                      <TD className="text-[12.5px] text-muted">
+                        <span className="block">{r.entity}</span>
+                        {r.entity_id ? <span className="block font-mono text-[11px] text-subtle">{r.entity_id.slice(0, 8)}</span> : null}
                       </TD>
                       <TD className="text-right">
                         <Button size="sm" variant="ghost" onClick={() => setDetail(r)}>
@@ -208,27 +213,29 @@ export default function PlatformAuditPage() {
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
         {detail ? (
           <DialogContent wide title={ACTION_LABEL[detail.action] ?? detail.action} description={formatDateTime(detail.created_at)}>
-            <dl className="grid gap-x-6 gap-y-3 text-[13px] sm:grid-cols-2">
+            <dl className="grid gap-x-6 gap-y-4 text-[13.5px] sm:grid-cols-2">
               {(
                 [
                   ["Empresa", detail.companies?.name ?? "Plataforma"],
                   ["Utilizador", detail.users ? `${detail.users.name} (${detail.users.email})` : "Sistema"],
                   ["Acção", detail.action],
-                  ["Entidade", `${detail.entity}${detail.entity_id ? ` · ${detail.entity_id}` : ""}`],
+                  ["Entidade", `${detail.entity}${detail.entity_id ? `, ${detail.entity_id}` : ""}`],
                   ["IP", detail.ip ?? "—"],
                 ] as [string, string][]
               ).map(([k, v]) => (
                 <div key={k} className="min-w-0">
-                  <dt className="text-xs text-muted">{k}</dt>
-                  <dd className="mt-0.5 break-words">{v}</dd>
+                  <dt className="text-[12px] text-muted">{k}</dt>
+                  <dd className="mt-0.5 font-bold break-words">{v}</dd>
                 </div>
               ))}
             </dl>
             {(["before", "after"] as const).map((k) =>
               detail[k] ? (
                 <div key={k} className="mt-4">
-                  <p className="mb-1 text-xs font-medium text-muted">{k === "before" ? "Antes" : "Depois"}</p>
-                  <pre className="max-h-64 overflow-auto rounded-lg bg-surface px-3 py-2 font-mono text-[12px] leading-relaxed">{JSON.stringify(detail[k], null, 2)}</pre>
+                  <p className="mb-1.5 flex items-center gap-2 text-[13px] font-extrabold">
+                    <span className="stem h-3 text-primary" aria-hidden />
+                    {k === "before" ? "Antes" : "Depois"}</p>
+                  <pre className="max-h-64 overflow-auto rounded-[14px] bg-surface px-4 py-3 font-mono text-[12px] leading-relaxed">{JSON.stringify(detail[k], null, 2)}</pre>
                 </div>
               ) : null,
             )}

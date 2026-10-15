@@ -1,4 +1,4 @@
-// PontoSmart — Edge Function "assistente" (Supabase).
+// Horbit — Edge Function "assistente" (Supabase).
 // Responde a perguntas do RH/gestão com base num resumo dos dados da empresa.
 // Os dados vêm de ps_ai_context com o login do próprio utilizador (as regras de
 // acesso aplicam-se). A chave do Gemini fica no segredo GEMINI_API_KEY.
@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
   if (error) return json({ error: error.message }, 403);
 
   const system = [
-    "És o assistente administrativo do PontoSmart, um sistema de ponto, assiduidade e salários em Moçambique.",
+    "És o assistente administrativo do Horbit, um sistema de ponto, assiduidade e salários em Moçambique.",
     "Responde em português de Portugal, de forma curta e objectiva, em texto simples (listas com hífen quando ajudar).",
     "Usa apenas os dados do contexto JSON abaixo. Se a informação não estiver lá, diz que não tens esse dado e indica onde o utilizador pode ver no painel.",
     "Não tomas decisões: não aprovas faltas, não aplicas sanções nem calculas taxas legais. Valores em MZN.",

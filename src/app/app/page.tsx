@@ -1,20 +1,19 @@
 "use client";
 
-import { ArrowRight, CalendarClock, Coffee, FileWarning, LogIn, LogOut, Receipt } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
-import { LiveDuration } from "@/components/attendance/live-duration";
+import { LiveTimer, ThickBar } from "@/components/collab/motion";
 import { DAILY_COLS, clockState, loadMonthDays, loadMyPayslips, loadPendingDays, summarize, useTitle, type DailyRow, type EventStatus, type MyStatus } from "@/components/collab/shared";
-import { Badge, StatusDot } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Card, SectionTitle } from "@/components/ui/card";
 import { Notice, Skeleton } from "@/components/ui/misc";
-import { Stat, StatRow } from "@/components/ui/stat";
 import type { EventType } from "@/lib/domain/attendance-rules";
 import { formatMinutes, formatMoney, formatTime, periodLabel } from "@/lib/format";
 import { EVENT_STATUS, EVENT_TYPE_LABEL, dailyStatus } from "@/lib/labels";
 import { must, rpc, sb } from "@/lib/sb/client";
 import { useCompany } from "@/lib/sb/session";
 import { useData } from "@/lib/sb/use-data";
+import { cn } from "@/lib/utils";
 import { isoWeekday, localDate } from "@/lib/time";
 
 function greeting(timeZone: string) {
@@ -83,51 +82,54 @@ export default function EmployeeHome() {
     return summarize(await loadMonthDays(companyId, employeeId, ym));
   }, [companyId, employeeId, tz]);
 
+
   const dateLabel = new Intl.DateTimeFormat("pt-PT", { timeZone: tz, weekday: "long", day: "numeric", month: "long" }).format(new Date());
   const o = overview.data;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5 px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
+    <div className="mx-auto max-w-5xl space-y-7 px-4 py-6 sm:px-6 lg:px-8 lg:py-9">
       <div>
-        <p className="text-[13px] text-muted first-letter:uppercase">{dateLabel}</p>
-        <h1 className="mt-0.5 text-[22px] font-semibold tracking-tight lg:text-[26px]">
+        <p className="text-[14px] font-bold text-muted first-letter:uppercase">{dateLabel}</p>
+        <h1 className="mt-1 text-[30px] leading-[1.05] font-extrabold tracking-[-0.03em] lg:text-[38px]">
           {greeting(tz)}
-          {o ? `, ${o.firstName}` : ""}
+          {o ? <span className="text-primary">, {o.firstName}</span> : null}
         </h1>
       </div>
 
       {overview.error ? <Notice tone="danger">{overview.error}</Notice> : null}
 
-      <div className="grid gap-5 lg:grid-cols-[1.25fr_1fr]">
-        {o ? <TodayCard o={o} tz={tz} /> : <Skeleton className="h-72 rounded-xl" />}
+      <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
+        {o ? <TodayCard o={o} tz={tz} /> : <Skeleton className="h-[380px] rounded-[28px]" />}
 
-        <div className="space-y-5">
+        <div className="space-y-4">
           {side.error ? <Notice tone="danger">{side.error}</Notice> : null}
-          {side.data ? <SideCards latest={side.data.latest} pendingDays={side.data.pendingDays} /> : side.loading ? <Skeleton className="h-32 rounded-xl" /> : null}
+          {side.data ? (
+            <SideCards latest={side.data.latest} pendingDays={side.data.pendingDays} />
+          ) : side.loading ? (
+            <Skeleton className="h-40 rounded-[22px]" />
+          ) : null}
         </div>
       </div>
 
       <section>
-        <h2 className="mb-3 text-[17px] font-semibold tracking-tight">Este mês</h2>
+        <SectionTitle title="Este mês" />
         {month.error ? <Notice tone="danger">{month.error}</Notice> : null}
-        {month.data ? (
-          <StatRow>
-            <Stat label="Dias trabalhados" value={month.data.workedDays} hint={`${month.data.scheduledDays} dias com horário`} />
-            <Stat
-              label="Pontualidade"
-              value={month.data.punctuality === null ? "—" : `${month.data.punctuality.toLocaleString("pt-PT")}%`}
-              hint={`${month.data.late} ${month.data.late === 1 ? "atraso" : "atrasos"}`}
-            />
-            <Stat label="Horas trabalhadas" value={formatMinutes(month.data.workedMinutes)} hint="Excluindo intervalos" />
-            <Stat label="Horas extra" value={formatMinutes(month.data.overtimeMinutes)} hint="Sujeitas a validação" />
-          </StatRow>
-        ) : month.loading ? (
-          <Skeleton className="h-28 rounded-xl" />
-        ) : null}
+        {month.data ? <MonthBlock m={month.data} /> : month.loading ? <Skeleton className="h-40 rounded-[22px]" /> : null}
       </section>
     </div>
   );
 }
+
+/** Minutos desde a meia-noite, no fuso da empresa. */
+function nowMinutes(tz: string) {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  return get("hour") * 60 + get("minute");
+}
+const toMinutes = (hhmm: string) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+};
 
 function TodayCard({
   o,
@@ -136,76 +138,122 @@ function TodayCard({
   o: { state: "off" | "working" | "break"; events: DayEvent[]; daily: DailyRow | null; schedule: { start: string; end: string } | null };
   tz: string;
 }) {
+  const reduce = useReducedMotion();
   const validEvents = o.events.filter((e) => e.status !== "rejected");
   const openIn = [...validEvents].reverse().find((e) => e.type === "in");
   const stateInfo = {
-    off: { label: "Fora de serviço", tone: "neutral" as const },
-    working: { label: "Em serviço", tone: "success" as const },
-    break: { label: "Em intervalo", tone: "warning" as const },
+    off: { label: "Fora de serviço", color: "text-white/45" },
+    working: { label: "Em serviço", color: "text-[#5fe0a0]" },
+    break: { label: "Em intervalo", color: "text-[#ffc56b]" },
   }[o.state];
 
+  // Progresso do turno previsto (só quando há horário e não é um turno nocturno).
+  let shiftPct: number | null = null;
+  if (o.schedule) {
+    const a = toMinutes(o.schedule.start);
+    const b = toMinutes(o.schedule.end);
+    if (b > a) shiftPct = Math.max(0, Math.min(100, ((nowMinutes(tz) - a) / (b - a)) * 100));
+  }
+
+  const subline = [
+    openIn ? `Entrada às ${formatTime(openIn.occurred_at, tz)}` : o.daily?.first_in ? `Entrada às ${formatTime(o.daily.first_in, tz)}` : "Ainda sem marcações hoje",
+    o.daily?.last_out && o.state === "off" ? `saída às ${formatTime(o.daily.last_out, tz)}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
   return (
-    <Card className="overflow-hidden">
-      <div className="p-5 sm:p-6">
-        <div className="flex items-center justify-between">
-          <StatusDot tone={stateInfo.tone}>{stateInfo.label}</StatusDot>
-          {o.schedule ? (
-            <span className="inline-flex items-center gap-1.5 text-xs text-muted">
-              <CalendarClock className="size-3.5" />
-              {o.schedule.start}–{o.schedule.end}
-            </span>
+    <motion.div
+      initial={reduce ? false : { opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="overflow-hidden rounded-[28px] bg-foreground text-white"
+    >
+      <div className="p-6 sm:p-7">
+        <div className="flex items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-2 text-[14px] font-bold">
+            <motion.span
+              className={cn("stem h-4", stateInfo.color)}
+              aria-hidden
+              animate={o.state === "working" && !reduce ? { scaleY: [1, 1.5, 1] } : undefined}
+              transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+            />
+            {stateInfo.label}
+          </span>
+          <span className="text-[13px] font-bold text-white/60 tabular">
+            {o.schedule ? `${o.schedule.start}–${o.schedule.end}` : "Sem horário hoje"}
+          </span>
+        </div>
+
+        <p className="mt-7 text-[14px] font-bold text-white/60">Tempo trabalhado</p>
+        <p className="mt-1 text-[64px] leading-none font-extrabold tracking-[-0.04em] sm:text-[76px]">
+          {o.state === "working" && openIn ? (
+            <LiveTimer since={openIn.occurred_at} baseMinutes={-(o.daily?.break_minutes ?? 0)} />
           ) : (
-            <span className="text-xs text-muted">Sem horário hoje</span>
+            <span className="tabular">{formatMinutes(o.daily?.worked_minutes ?? 0)}</span>
           )}
-        </div>
-        <div className="mt-5">
-          <p className="text-[13px] text-muted">Tempo trabalhado</p>
-          <p className="mt-1 text-[44px] leading-none font-semibold tracking-tight">
-            {o.state === "working" && openIn ? (
-              <LiveDuration since={openIn.occurred_at} baseMinutes={-(o.daily?.break_minutes ?? 0)} />
-            ) : (
-              <span className="tabular">{formatMinutes(o.daily?.worked_minutes ?? 0)}</span>
-            )}
-          </p>
-          <p className="mt-2 text-[13px] text-muted">
-            {openIn
-              ? `Entrada às ${formatTime(openIn.occurred_at, tz)}`
-              : o.daily?.first_in
-                ? `Entrada às ${formatTime(o.daily.first_in, tz)}`
-                : "Ainda sem marcações hoje"}
-            {o.daily?.last_out && o.state === "off" ? ` · Saída às ${formatTime(o.daily.last_out, tz)}` : ""}
-          </p>
-        </div>
-        <div className="mt-6 grid gap-2 sm:grid-cols-2">
-          <Button size="lg" asChild className="w-full">
-            <Link href="/app/marcar/">
-              {o.state === "off" ? <LogIn /> : <LogOut />}
+        </p>
+        <p className="mt-3 text-[14px] text-white/70">{subline}</p>
+
+        {shiftPct !== null ? (
+          <div className="mt-6">
+            <div className="h-2.5 overflow-hidden rounded-full bg-white/12">
+              <motion.div
+                className="h-full rounded-full bg-primary"
+                initial={{ width: reduce ? `${shiftPct}%` : "0%" }}
+                animate={{ width: `${shiftPct}%` }}
+                transition={reduce ? { duration: 0 } : { duration: 0.9, delay: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
+              />
+            </div>
+            <div className="mt-2 flex justify-between text-[12px] font-bold text-white/50 tabular">
+              <span>{o.schedule!.start}</span>
+              <span>{Math.round(shiftPct)}% do turno</span>
+              <span>{o.schedule!.end}</span>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="mt-7 grid gap-2 sm:grid-cols-2">
+          <motion.div whileTap={reduce ? undefined : { scale: 0.98 }} className={cn(o.state !== "working" && "sm:col-span-2")}>
+            <Link
+              href="/app/marcar/"
+              className="flex h-14 w-full items-center justify-center rounded-full bg-primary text-[16px] font-extrabold text-white transition-colors hover:bg-primary-hover"
+            >
               {o.state === "off" ? "Marcar entrada" : o.state === "break" ? "Terminar intervalo" : "Marcar saída"}
             </Link>
-          </Button>
+          </motion.div>
           {o.state === "working" ? (
-            <Button size="lg" variant="outline" asChild className="w-full">
-              <Link href="/app/marcar/?tipo=intervalo">
-                <Coffee /> Iniciar intervalo
-              </Link>
-            </Button>
+            <Link
+              href="/app/marcar/?tipo=intervalo"
+              className="flex h-14 w-full items-center justify-center rounded-full border-2 border-white/20 text-[15px] font-bold text-white transition-colors hover:border-white/50"
+            >
+              Iniciar intervalo
+            </Link>
           ) : null}
         </div>
       </div>
+
       {o.events.length ? (
-        <ul className="divide-y divide-border border-t border-border bg-surface/40">
-          {o.events.map((e) => (
-            <li key={e.id} className="flex items-center justify-between gap-3 px-5 py-3 sm:px-6">
-              <span className="text-[13px]">{EVENT_TYPE_LABEL[e.type]}</span>
-              <span className="flex items-center gap-3">
-                {e.status !== "accepted" ? <Badge tone={EVENT_STATUS[e.status].tone}>{EVENT_STATUS[e.status].label}</Badge> : null}
-                <span className="text-[13px] font-medium tabular">{formatTime(e.occurred_at, tz)}</span>
-              </span>
-            </li>
+        <ol className="space-y-0 border-t border-white/10 px-6 py-4 sm:px-7">
+          {o.events.map((e, i) => (
+            <motion.li
+              key={e.id}
+              initial={reduce ? false : { opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 + i * 0.06 }}
+              className="flex items-center gap-3 py-2"
+            >
+              <span className={cn("stem h-5", e.status === "rejected" ? "text-white/25" : e.type === "in" || e.type === "break_end" ? "text-primary" : "text-white/60")} aria-hidden />
+              <span className="flex-1 text-[14px] font-bold">{EVENT_TYPE_LABEL[e.type]}</span>
+              {e.status !== "accepted" ? (
+                <span className={cn("text-[12.5px] font-bold", e.status === "review" ? "text-[#ffc56b]" : "text-[#ff8a92]")}>{EVENT_STATUS[e.status].label}</span>
+              ) : null}
+              <span className="text-[15px] font-extrabold tabular">{formatTime(e.occurred_at, tz)}</span>
+            </motion.li>
           ))}
-        </ul>
+        </ol>
       ) : null}
-    </Card>
+    </motion.div>
   );
 }
 
@@ -220,48 +268,45 @@ function SideCards({
   return (
     <>
       {absenceDays.length ? (
-        <Notice tone="warning" title={`${absenceDays.length} ${absenceDays.length === 1 ? "falta por justificar" : "faltas por justificar"}`}>
-          <span>Submeta a justificação com documento, se aplicável. </span>
-          <Link href="/app/justificacoes/" className="font-semibold underline underline-offset-2">
+        <Link href="/app/justificacoes/" className="group block rounded-[22px] bg-warning-soft p-5 transition-colors hover:bg-[#fbe8c6]">
+          <p className="flex items-baseline gap-2.5 text-[#6f4100]">
+            <span className="text-[34px] leading-none font-extrabold tabular">{absenceDays.length}</span>
+            <span className="text-[15px] font-extrabold">{absenceDays.length === 1 ? "falta por justificar" : "faltas por justificar"}</span>
+          </p>
+          <p className="mt-2 text-[13.5px] text-[#6f4100]/80">Submeta a justificação com documento, se aplicável.</p>
+          <span className="mt-3 inline-block text-[13.5px] font-extrabold text-[#6f4100] underline decoration-2 underline-offset-4 decoration-[#6f4100]/30 group-hover:decoration-[#6f4100]">
             Justificar agora
-          </Link>
-        </Notice>
+          </span>
+        </Link>
       ) : null}
 
-      <Card className="p-5">
+      <Card className="p-5 sm:p-6">
         <div className="flex items-center justify-between">
-          <p className="text-[15px] font-semibold">Último recibo</p>
-          <Link href="/app/recibos/" className="inline-flex items-center gap-1 text-[13px] font-medium text-primary">
-            Ver todos <ArrowRight className="size-3.5" />
+          <p className="text-[16px] font-extrabold tracking-[-0.01em]">Último recibo</p>
+          <Link href="/app/recibos/" className="text-[13px] font-bold text-primary hover:underline">
+            Ver todos
           </Link>
         </div>
         {latest ? (
-          <div className="mt-4 flex items-center gap-4">
-            <span className="flex size-11 items-center justify-center rounded-xl bg-primary-soft text-primary">
-              <Receipt className="size-5" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-[13px] text-muted">{periodLabel(latest.year, latest.month)}</p>
-              <p className="text-[20px] font-semibold tracking-tight tabular">{formatMoney(latest.net, latest.currency)}</p>
-            </div>
-            {latest.acknowledgedAt ? <Badge tone="success">Recebido</Badge> : <Badge tone="warning">Por confirmar</Badge>}
+          <div className="mt-4">
+            <p className="text-[13px] font-bold text-muted">{periodLabel(latest.year, latest.month)}</p>
+            <p className="mt-1 text-[30px] leading-none font-extrabold tracking-[-0.02em] tabular">{formatMoney(latest.net, latest.currency)}</p>
+            <div className="mt-3">{latest.acknowledgedAt ? <Badge tone="success">Recebido</Badge> : <Badge tone="warning">Por confirmar</Badge>}</div>
           </div>
         ) : (
-          <p className="mt-3 text-[13px] text-muted">Ainda não há recibos emitidos.</p>
+          <p className="mt-3 text-[13.5px] text-muted">Ainda não há recibos emitidos.</p>
         )}
       </Card>
 
       {pendingDays.length ? (
-        <Card className="p-5">
-          <p className="flex items-center gap-2 text-[15px] font-semibold">
-            <FileWarning className="size-4 text-warning" /> Ocorrências recentes
-          </p>
+        <div className="rounded-[22px] bg-surface p-5 sm:p-6">
+          <p className="text-[16px] font-extrabold tracking-[-0.01em]">Ocorrências recentes</p>
           <ul className="mt-3 space-y-2.5">
             {pendingDays.slice(0, 4).map((d) => {
               const s = dailyStatus(d.status);
               return (
-                <li key={d.id} className="flex items-center justify-between text-[13px]">
-                  <span className="text-muted tabular">
+                <li key={d.id} className="flex items-center justify-between text-[13.5px]">
+                  <span className="font-bold tabular">
                     {new Date(`${d.work_date}T12:00:00Z`).toLocaleDateString("pt-PT", { day: "2-digit", month: "short", timeZone: "UTC" })}
                   </span>
                   <Badge tone={s.tone}>{s.label}</Badge>
@@ -269,8 +314,52 @@ function SideCards({
               );
             })}
           </ul>
-        </Card>
+        </div>
       ) : null}
     </>
+  );
+}
+
+function MonthBlock({ m }: { m: ReturnType<typeof summarize> }) {
+  const workedPct = m.scheduledDays ? (m.workedDays / m.scheduledDays) * 100 : 0;
+  return (
+    <div className="grid gap-4 md:grid-cols-[1.2fr_1fr]">
+      <Card className="p-5 sm:p-6">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="text-[13px] font-bold text-muted">Horas trabalhadas</p>
+            <p className="mt-1 text-[44px] leading-none font-extrabold tracking-[-0.03em] tabular">{formatMinutes(m.workedMinutes)}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[13px] font-bold text-muted">Horas extra</p>
+            <p className="mt-1 text-[22px] leading-none font-extrabold text-primary tabular">{formatMinutes(m.overtimeMinutes)}</p>
+          </div>
+        </div>
+        <p className="mt-2 text-[12.5px] text-muted">Excluindo intervalos. As horas extra estão sujeitas a validação.</p>
+        <div className="mt-6">
+          <div className="mb-2 flex items-baseline justify-between text-[13px]">
+            <span className="font-bold">Dias trabalhados</span>
+            <span className="text-muted tabular">
+              <span className="font-extrabold text-foreground">{m.workedDays}</span> de {m.scheduledDays} com horário
+            </span>
+          </div>
+          <ThickBar value={workedPct} />
+        </div>
+      </Card>
+
+      <div className="rounded-[22px] bg-surface p-5 sm:p-6">
+        <p className="text-[13px] font-bold text-muted">Pontualidade</p>
+        <p className="mt-1 text-[44px] leading-none font-extrabold tracking-[-0.03em] tabular">
+          {m.punctuality === null ? "—" : `${m.punctuality.toLocaleString("pt-PT")}%`}
+        </p>
+        <div className="mt-5">
+          <ThickBar value={m.punctuality ?? 0} tone={m.punctuality !== null && m.punctuality < 80 ? "warning" : "success"} />
+        </div>
+        <p className="mt-3 flex items-center gap-2 text-[13px] text-muted">
+          <span className={cn("stem", m.late ? "text-warning" : "text-success")} aria-hidden />
+          {m.late} {m.late === 1 ? "atraso" : "atrasos"} este mês
+        </p>
+      </div>
+    </div>
   );
 }

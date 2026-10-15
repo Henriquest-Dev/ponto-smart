@@ -1,4 +1,4 @@
--- PontoSmart, script 4, parte 3 de 5: empresas, colaboradores e assiduidade
+-- Horbit, script 4, parte 3 de 5: empresas, colaboradores e assiduidade
 BEGIN;
 CREATE OR REPLACE FUNCTION ps_admin_create_company(
   p_name text, p_plan_code text, p_owner_name text, p_owner_login text, p_owner_password text,

@@ -1,6 +1,5 @@
 "use client";
 
-import { Check, Download, Loader2 } from "lucide-react";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { one, type MyPayslip, type One } from "@/components/collab/shared";
@@ -23,7 +22,7 @@ export function AcknowledgeButton({ id, onDone }: { id: string; onDone: () => vo
         })
       }
     >
-      <Check /> Confirmar recepção
+      Confirmar recepção
     </ActionButton>
   );
 }
@@ -97,7 +96,8 @@ export function DownloadPayslip({ slip, companyId, employeeId }: { slip: MyPaysl
         })
       }
     >
-      {pending ? <Loader2 className="animate-spin" /> : <Download />} PDF
+      {pending ? <span className="spinner" /> : null}
+      {pending ? "A gerar PDF" : "Descarregar PDF"}
     </Button>
   );
 }

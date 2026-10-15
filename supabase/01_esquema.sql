@@ -1,4 +1,4 @@
--- PontoSmart — tabelas para o Supabase (colar no SQL Editor e clicar Run, uma única vez)
+-- Horbit — tabelas para o Supabase (colar no SQL Editor e clicar Run, uma única vez)
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS postgis;

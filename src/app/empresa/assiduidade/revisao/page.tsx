@@ -1,6 +1,5 @@
 "use client";
 
-import { ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { AttendanceNav } from "@/components/company/p1-attendance-nav";
 import { LoadingRows } from "@/components/company/p1-shared";
@@ -41,11 +40,13 @@ function Location({ v }: { v: Validation | undefined }) {
   return (
     <>
       <Badge tone={GEO_TONE[v.geofence_result] ?? "neutral"}>{GEOFENCE_LABEL[v.geofence_result] ?? v.geofence_result}</Badge>
-      <span className="mt-1 block text-xs text-muted tabular">
-        {acc ? `±${Math.round(acc)} m` : "sem precisão"}
-        {dist ? ` · ${Math.round(dist)} m do centro` : ""}
+      <span className="mt-1 block text-[12.5px] text-muted tabular">
+        {acc ? `Precisão ±${Math.round(acc)} m` : "Sem precisão"}
+        {dist ? `, a ${Math.round(dist)} m do centro` : ""}
       </span>
-      {DEVICE_LABEL[v.device_result] && v.device_result !== "trusted" ? <span className="block text-xs text-warning">{DEVICE_LABEL[v.device_result]}</span> : null}
+      {DEVICE_LABEL[v.device_result] && v.device_result !== "trusted" ? (
+        <span className="mt-0.5 block text-[12.5px] font-bold text-warning">{DEVICE_LABEL[v.device_result]}</span>
+      ) : null}
     </>
   );
 }
@@ -79,28 +80,28 @@ export default function ReviewPage() {
         ) : list.loading && !list.data ? (
           <LoadingRows rows={4} />
         ) : rows.length === 0 ? (
-          <EmptyState icon={<ShieldCheck />} title="Nada por rever" description="Todas as marcações foram validadas." />
+          <EmptyState title="Nada por rever" description="Todas as marcações foram validadas." />
         ) : (
           <>
-            <ul className="space-y-3 md:hidden">
+            <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border bg-background md:hidden">
               {rows.map((ev) => {
                 const name = ev.employees?.full_name ?? "—";
                 return (
-                  <li key={ev.id} className="rounded-xl border border-border p-4">
+                  <li key={ev.id} className="px-4 py-4">
                     <div className="flex items-center gap-3">
                       <Avatar name={name} size={34} />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13.5px] font-medium">{name}</p>
-                        <p className="text-xs text-muted tabular">
-                          {EVENT_TYPE_LABEL[ev.type]} · {formatDateTime(ev.occurred_at, tz)}
+                        <p className="truncate text-[14px] font-bold">{name}</p>
+                        <p className="text-[12.5px] text-muted tabular">
+                          {EVENT_TYPE_LABEL[ev.type]}, {formatDateTime(ev.occurred_at, tz)}
                         </p>
                       </div>
                     </div>
                     <div className="mt-3 text-[13px]">
                       <Location v={ev.attendance_validations?.[0]} />
                     </div>
-                    {ev.attendance_stations?.name ? <p className="mt-2 text-xs text-muted">Estação: {ev.attendance_stations.name}</p> : null}
-                    {ev.reason ? <p className="mt-2 text-xs text-muted">{ev.reason}</p> : null}
+                    {ev.attendance_stations?.name ? <p className="mt-2 text-[12.5px] text-muted">Estação: {ev.attendance_stations.name}</p> : null}
+                    {ev.reason ? <p className="mt-2 text-[13px]">{ev.reason}</p> : null}
                     {canReview ? (
                       <div className="mt-3 flex justify-end">
                         <ReviewEvent eventId={ev.id} name={name} onDone={list.reload} />
@@ -130,18 +131,18 @@ export default function ReviewPage() {
                         <TD>
                           <div className="flex items-center gap-3">
                             <Avatar name={name} size={30} />
-                            <span className="font-medium">{name}</span>
+                            <span className="text-[14px] font-bold">{name}</span>
                           </div>
                         </TD>
                         <TD>
-                          <span className="block">{EVENT_TYPE_LABEL[ev.type]}</span>
-                          <span className="block text-xs text-muted tabular">{formatDateTime(ev.occurred_at, tz)}</span>
+                          <span className="block font-bold">{EVENT_TYPE_LABEL[ev.type]}</span>
+                          <span className="block text-[12.5px] text-muted tabular">{formatDateTime(ev.occurred_at, tz)}</span>
                         </TD>
                         <TD className="text-muted">{ev.attendance_stations?.name ?? "—"}</TD>
                         <TD>
                           <Location v={ev.attendance_validations?.[0]} />
                         </TD>
-                        <TD className="max-w-xs text-xs text-muted">{ev.reason ?? "—"}</TD>
+                        <TD className="max-w-xs text-[12.5px] leading-snug text-muted">{ev.reason ?? "—"}</TD>
                         {canReview ? (
                           <TD className="text-right">
                             <ReviewEvent eventId={ev.id} name={name} onDone={list.reload} />

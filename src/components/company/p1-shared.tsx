@@ -1,11 +1,10 @@
 "use client";
 
-import { Check, Copy, RefreshCw } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/input";
-import { Notice, Skeleton } from "@/components/ui/misc";
+import { Skeleton } from "@/components/ui/misc";
 import type { Tone } from "@/components/ui/badge";
 import { must, sb } from "@/lib/sb/client";
 import { useData, withBase } from "@/lib/sb/use-data";
@@ -19,7 +18,7 @@ export const ABSENCE_TYPES: Record<string, string> = {
   falecimento: "Falecimento de familiar",
   casamento: "Casamento",
   parentalidade: "Parentalidade",
-  formacao: "Formação / exames",
+  formacao: "Formação ou exames",
   servico: "Serviço externo",
   outro: "Outro motivo",
 };
@@ -131,7 +130,7 @@ export function CredentialFields({
   return (
     <>
       {showLogin ? (
-        <Field label="Utilizador" hint="Letras, números, ponto ou hífen (ex.: ana.sitoe) — ou um email.">
+        <Field label="Utilizador" hint="Letras, números, ponto ou hífen (ex.: ana.sitoe), ou um email.">
           <div className="flex gap-2">
             <Input
               name="login"
@@ -163,7 +162,7 @@ export function CredentialFields({
       ) : null}
       <Field
         label="Palavra-passe"
-        hint={passwordRequired ? "Mínimo 8 caracteres. Não poderá ser consultada depois — anote-a ao guardar." : "Deixe em branco para manter a actual."}
+        hint={passwordRequired ? "Mínimo 8 caracteres. Não poderá ser consultada depois, anote-a ao guardar." : "Deixe em branco para manter a actual."}
       >
         <div className="flex gap-2">
           <Input
@@ -177,7 +176,7 @@ export function CredentialFields({
             className="font-mono"
           />
           <Button type="button" variant="outline" onClick={() => setPassword(generatePassword())}>
-            <RefreshCw /> Gerar
+            Gerar
           </Button>
         </div>
       </Field>
@@ -205,49 +204,70 @@ export function RoleSelect({ defaultValue = "employee", name = "role" }: { defau
 export function CredentialsCard({ name, login, password }: { name: string; login: string; password: string | null }) {
   const [copied, setCopied] = React.useState(false);
   const url = typeof window !== "undefined" ? `${window.location.origin}${withBase("/login/")}` : "";
-  const text = [`PontoSmart — acesso de ${name}`, `Endereço: ${url}`, `Utilizador: ${login}`, password ? `Palavra-passe: ${password}` : null]
+  const text = [`Horbit — acesso de ${name}`, `Endereço: ${url}`, `Utilizador: ${login}`, password ? `Palavra-passe: ${password}` : null]
     .filter(Boolean)
     .join("\n");
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      toast.success("Credenciais copiadas.");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Não foi possível copiar. Seleccione e copie manualmente.");
+    }
+  };
   return (
-    <div className="space-y-4">
-      <Notice tone="warning" title={password ? "Entregue estas credenciais ao colaborador" : "Acesso actualizado"}>
-        {password
-          ? "A palavra-passe só é mostrada agora. Copie-a e entregue-a por um canal seguro; se a perder, terá de definir uma nova."
-          : "O utilizador mantém a palavra-passe actual."}
-      </Notice>
-      <dl className="divide-y divide-border overflow-hidden rounded-lg border border-border">
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <dt className="text-xs text-muted">Endereço</dt>
-          <dd className="truncate text-[13px] font-medium">{url}</dd>
-        </div>
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <dt className="text-xs text-muted">Utilizador</dt>
-          <dd className="font-mono text-[14px] font-semibold break-all">{login}</dd>
-        </div>
-        {password ? (
-          <div className="flex items-center justify-between gap-3 px-4 py-3">
-            <dt className="text-xs text-muted">Palavra-passe</dt>
-            <dd className="font-mono text-[14px] font-semibold break-all">{password}</dd>
+    <div className="space-y-5">
+      <div className="overflow-hidden rounded-[22px] border-2 border-foreground/90">
+        <div className="flex items-end justify-between gap-3 bg-foreground px-5 py-4 text-background sm:px-6">
+          <div className="min-w-0">
+            <p className="text-[18px] leading-none font-extrabold tracking-[-0.02em]">Horbit</p>
+            <p className="mt-1.5 truncate text-[13px] opacity-75">Credenciais de acesso de {name}</p>
           </div>
-        ) : null}
-      </dl>
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full"
-        onClick={async () => {
-          try {
-            await navigator.clipboard.writeText(text);
-            setCopied(true);
-            toast.success("Credenciais copiadas.");
-            setTimeout(() => setCopied(false), 2000);
-          } catch {
-            toast.error("Não foi possível copiar. Seleccione e copie manualmente.");
-          }
-        }}
-      >
-        {copied ? <Check /> : <Copy />} Copiar credenciais
+          <span className="inline-flex shrink-0 items-center gap-1.5 text-[12.5px] font-bold">
+            <span className="stem h-3 text-primary-soft" aria-hidden />
+            {password ? "Pessoal e intransmissível" : "Acesso actualizado"}
+          </span>
+        </div>
+        <dl className="divide-y divide-border bg-background">
+          <CredentialLine label="Endereço" value={url} />
+          <CredentialLine label="Utilizador" value={login} mono strong />
+          {password ? <CredentialLine label="Palavra-passe" value={password} mono strong /> : null}
+        </dl>
+      </div>
+
+      <p className="text-[13px] leading-relaxed text-muted">
+        {password ? (
+          <>
+            <span className="font-bold text-foreground">A palavra-passe só é mostrada agora.</span> Entregue-a ao colaborador por um canal
+            seguro. Se a perder, terá de definir uma nova na ficha.
+          </>
+        ) : (
+          "O utilizador mantém a palavra-passe actual."
+        )}
+      </p>
+
+      <Button type="button" size="lg" className="w-full" onClick={copy}>
+        {copied ? "Copiado" : "Copiar credenciais"}
       </Button>
+    </div>
+  );
+}
+
+function CredentialLine({ label, value, mono, strong }: { label: string; value: string; mono?: boolean; strong?: boolean }) {
+  return (
+    <div className="grid gap-1 px-5 py-4 sm:grid-cols-[130px_1fr] sm:items-baseline sm:gap-4 sm:px-6">
+      <dt className="text-[13px] font-bold text-muted">{label}</dt>
+      <dd
+        className={
+          strong
+            ? `select-all text-[20px] leading-tight font-extrabold tracking-[-0.01em] break-all ${mono ? "font-mono" : ""}`
+            : "select-all text-[14px] font-bold break-all"
+        }
+      >
+        {value}
+      </dd>
     </div>
   );
 }
@@ -257,7 +277,7 @@ export function LoadingRows({ rows = 5 }: { rows?: number }) {
   return (
     <div className="space-y-2">
       {Array.from({ length: rows }).map((_, i) => (
-        <Skeleton key={i} className="h-14 w-full" />
+        <Skeleton key={i} className="h-14 w-full rounded-[14px]" />
       ))}
     </div>
   );

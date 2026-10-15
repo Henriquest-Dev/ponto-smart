@@ -1,6 +1,5 @@
 "use client";
 
-import { Building2, Plus, Search } from "lucide-react";
 import * as React from "react";
 import { CompanyActions } from "@/components/admin/company-actions";
 import { CompanyDialog } from "@/components/admin/company-form";
@@ -40,7 +39,7 @@ export default function CompaniesPage() {
         description="Contas de clientes, planos e estado de acesso."
         actions={
           <Button onClick={() => setCreating(true)} disabled={!data}>
-            <Plus /> Nova empresa
+            Nova empresa
           </Button>
         }
       />
@@ -61,27 +60,30 @@ export default function CompaniesPage() {
             active={filter}
             onChange={setFilter}
           />
-          <div className="relative w-full lg:w-72">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Procurar nome, NUIT, acesso…" className="pl-9" aria-label="Procurar empresas" />
-          </div>
+          <Input
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Procurar nome, NUIT ou acesso"
+            className="w-full lg:w-72"
+            aria-label="Procurar empresas"
+          />
         </div>
 
         {loading && !data ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }, (_, i) => (
-              <Skeleton key={i} className="h-16 rounded-xl" />
+              <Skeleton key={i} className="h-16 rounded-[22px]" />
             ))}
           </div>
         ) : rows.length === 0 ? (
           <EmptyState
-            icon={<Building2 />}
             title={companies.length ? "Nenhuma empresa corresponde ao filtro" : "Ainda não há empresas"}
             description={companies.length ? "Altere a pesquisa ou o estado." : "Crie a primeira empresa cliente ou aprove um pedido de conta."}
             action={
               companies.length ? null : (
                 <Button onClick={() => setCreating(true)}>
-                  <Plus /> Nova empresa
+                  Nova empresa
                 </Button>
               )
             }
@@ -89,36 +91,36 @@ export default function CompaniesPage() {
         ) : (
           <>
             {/* Telemóvel: cartões */}
-            <ul className="space-y-3 lg:hidden">
+            <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border lg:hidden">
               {rows.map((c) => (
-                <li key={c.id} className="rounded-xl border border-border p-4">
+                <li key={c.id} className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-[15px] font-semibold">{c.name}</p>
-                      <p className="truncate text-xs text-muted">Responsável: {c.owner_login ?? "—"}</p>
+                      <p className="truncate text-[16px] font-extrabold tracking-[-0.01em]">{c.name}</p>
+                      <p className="truncate font-mono text-[12px] text-muted">{c.owner_login ?? "Sem responsável"}</p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <Badge tone={companyStatus(c.status).tone}>{companyStatus(c.status).label}</Badge>
-                      <CompanyActions company={c} plans={plans} onChanged={reload} />
-                    </div>
+                    <CompanyActions company={c} plans={plans} onChanged={reload} />
                   </div>
-                  <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[13px]">
+                  <Badge tone={companyStatus(c.status).tone} className="mt-2">
+                    {companyStatus(c.status).label}
+                  </Badge>
+                  <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5 text-[13px]">
                     <div>
-                      <dt className="text-xs text-muted">Plano</dt>
-                      <dd>{c.plan ?? "—"}</dd>
+                      <dt className="text-[12px] text-muted">Plano</dt>
+                      <dd className="font-bold">{c.plan ?? "—"}</dd>
                     </div>
                     <div>
-                      <dt className="text-xs text-muted">Colaboradores</dt>
+                      <dt className="text-[12px] text-muted">Colaboradores</dt>
                       <dd className="tabular">
                         <Employees c={c} plans={plans} />
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-xs text-muted">NUIT</dt>
+                      <dt className="text-[12px] text-muted">NUIT</dt>
                       <dd className="tabular">{c.nuit ?? "—"}</dd>
                     </div>
                     <div>
-                      <dt className="text-xs text-muted">Última marcação</dt>
+                      <dt className="text-[12px] text-muted">Última marcação</dt>
                       <dd>{c.last_activity ? formatDateTime(c.last_activity) : "—"}</dd>
                     </div>
                   </dl>
@@ -138,7 +140,7 @@ export default function CompaniesPage() {
                     <TH>Última marcação</TH>
                     <TH>Desde</TH>
                     <TH>Estado</TH>
-                    <TH className="w-12">
+                    <TH className="w-24">
                       <span className="sr-only">Acções</span>
                     </TH>
                   </tr>
@@ -150,22 +152,21 @@ export default function CompaniesPage() {
                     return (
                       <TR key={c.id}>
                         <TD>
-                          <span className="block font-medium">{c.name}</span>
-                          <span className="block text-xs text-muted">
-                            {[c.nuit ? `NUIT ${c.nuit}` : null, c.email].filter(Boolean).join(" · ") || "—"}
-                          </span>
+                          <span className="block font-bold">{c.name}</span>
+                          {c.nuit ? <span className="block text-[12px] text-muted tabular">NUIT {c.nuit}</span> : null}
+                          {c.email ? <span className="block text-[12px] text-muted">{c.email}</span> : null}
                         </TD>
                         <TD className="font-mono text-[12.5px] text-muted">{c.owner_login ?? "—"}</TD>
                         <TD>
                           {c.plan ? (
                             <span className="flex flex-col gap-0.5">
-                              <span className="flex items-center gap-2">
+                              <span className="flex items-center gap-2 font-bold">
                                 {c.plan}
                                 {sub ? <Badge tone={sub.tone}>{sub.label}</Badge> : null}
                               </span>
-                              <span className="text-xs text-muted">
-                                {formatMoney(c.price_monthly ?? 0)}/mês
-                                {c.current_period_end ? ` · até ${formatDate(c.current_period_end)}` : ""}
+                              <span className="text-[12px] text-muted tabular">
+                                {formatMoney(c.price_monthly ?? 0)} por mês
+                                {c.current_period_end ? `, até ${formatDate(c.current_period_end)}` : ""}
                               </span>
                             </span>
                           ) : (
@@ -202,9 +203,9 @@ function Employees({ c, plans }: { c: AdminCompany; plans: Plan[] }) {
   const max = plans.find((p) => p.code === c.plan_code)?.max_employees;
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
-      <span>
+      <span className="font-bold tabular">
         {c.employees}
-        {max ? <span className="text-muted"> / {max}</span> : null}
+        {max ? <span className="font-normal text-muted"> de {max}</span> : null}
       </span>
       {max && c.employees > max ? <Badge tone="warning">Acima do limite</Badge> : null}
     </span>

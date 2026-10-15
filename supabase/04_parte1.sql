@@ -1,4 +1,4 @@
--- PontoSmart, script 4, parte 1 de 5: contas e regras base
+-- Horbit, script 4, parte 1 de 5: contas e regras base
 BEGIN;
 CREATE SCHEMA IF NOT EXISTS extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;

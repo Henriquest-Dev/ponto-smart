@@ -1,6 +1,5 @@
 "use client";
 
-import { FileText } from "lucide-react";
 import { ABSENCE_TYPES, loadPendingDays, useTitle } from "@/components/collab/shared";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -59,36 +58,46 @@ export default function AbsencesPage() {
         {error ? <Notice tone="danger">{error}</Notice> : null}
 
         {data?.open.length ? (
-          <Notice tone="warning" title="Dias por justificar">
-            {data.open.map((d) => formatDate(d.work_date, tz)).join(" · ")}
-          </Notice>
+          <div className="rounded-[22px] bg-warning-soft p-5 text-[#6f4100]">
+            <p className="flex items-baseline gap-2.5">
+              <span className="text-[34px] leading-none font-extrabold tabular">{data.open.length}</span>
+              <span className="text-[15px] font-extrabold">{data.open.length === 1 ? "dia por justificar" : "dias por justificar"}</span>
+            </p>
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {data.open.map((d) => (
+                <li key={d.id} className="rounded-full bg-white/70 px-3 py-1 text-[13px] font-bold tabular">
+                  {formatDate(d.work_date, tz)}
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
 
         {loading && !data ? (
           <div className="space-y-3">
-            <Skeleton className="h-40 rounded-xl" />
-            <Skeleton className="h-40 rounded-xl" />
+            <Skeleton className="h-40 rounded-[22px]" />
+            <Skeleton className="h-40 rounded-[22px]" />
           </div>
         ) : data && data.requests.length === 0 ? (
-          <EmptyState icon={<FileText />} title="Sem pedidos" description="Quando submeter uma justificação, poderá acompanhar aqui o estado da aprovação." />
+          <EmptyState title="Sem pedidos" description="Quando submeter uma justificação, poderá acompanhar aqui o estado da aprovação." />
         ) : data ? (
           <div className="space-y-3">
             {data.requests.map((r) => {
               const st = ABSENCE_STATUS[r.status] ?? { label: r.status, tone: "neutral" as const };
               const steps = [...r.approval_steps].sort((a, b) => a.step_order - b.step_order);
               return (
-                <Card key={r.id} className="p-4 sm:p-5">
+                <Card key={r.id} className="p-5 sm:p-6">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[15px] font-semibold">{ABSENCE_TYPES[r.type] ?? r.type}</p>
-                      <p className="mt-0.5 text-[13px] text-muted tabular">
-                        {r.start_date === r.end_date ? formatDate(r.start_date, tz) : `${formatDate(r.start_date, tz)} – ${formatDate(r.end_date, tz)}`}
-                        {" · "}submetido {formatDateTime(r.created_at, tz)}
+                      <p className="text-[17px] font-extrabold tracking-[-0.01em]">{ABSENCE_TYPES[r.type] ?? r.type}</p>
+                      <p className="mt-1 text-[14px] font-bold tabular">
+                        {r.start_date === r.end_date ? formatDate(r.start_date, tz) : `${formatDate(r.start_date, tz)} a ${formatDate(r.end_date, tz)}`}
                       </p>
+                      <p className="mt-0.5 text-[12.5px] text-muted tabular">Submetido {formatDateTime(r.created_at, tz)}</p>
                     </div>
                     <Badge tone={st.tone}>{st.label}</Badge>
                   </div>
-                  <p className="mt-3 text-[13px] leading-relaxed break-words">{r.reason}</p>
+                  <p className="mt-3 text-[14px] leading-relaxed break-words">{r.reason}</p>
                   {r.absence_documents.length ? (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {r.absence_documents.map((d) => (
@@ -97,19 +106,24 @@ export default function AbsencesPage() {
                     </div>
                   ) : null}
                   {steps.length ? (
-                    <ol className="mt-4 flex flex-wrap gap-x-5 gap-y-2 border-t border-border pt-3">
+                    <ol className="mt-5 grid gap-3" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }} aria-label="Aprovação">
                       {steps.map((s) => {
                         const dec = STEP_DECISION[s.decision] ?? { label: s.decision, tone: "neutral" as const };
+                        const fill =
+                          dec.tone === "success" ? "bg-success" : dec.tone === "danger" ? "bg-danger" : dec.tone === "warning" ? "bg-warning/50" : "bg-surface-2";
                         return (
-                          <li key={s.id} className="flex items-center gap-2 text-xs">
-                            <span className="text-muted">{s.approver_role === "supervisor" ? "Supervisor" : "Recursos Humanos"}</span>
-                            <Badge tone={dec.tone}>{dec.label}</Badge>
+                          <li key={s.id} className="min-w-0">
+                            <span className={`block h-2 rounded-full ${fill}`} aria-hidden />
+                            <p className="mt-2 truncate text-[12.5px] font-bold">{s.approver_role === "supervisor" ? "Supervisor" : "Recursos Humanos"}</p>
+                            <Badge tone={dec.tone} className="mt-0.5">
+                              {dec.label}
+                            </Badge>
                           </li>
                         );
                       })}
                     </ol>
                   ) : null}
-                  {r.decision_reason ? <p className="mt-3 rounded-md bg-surface px-3 py-2 text-xs text-muted">Fundamento: {r.decision_reason}</p> : null}
+                  {r.decision_reason ? <p className="mt-4 rounded-[14px] bg-surface px-4 py-2.5 text-[13px] text-muted"><span className="font-bold text-foreground">Fundamento:</span> {r.decision_reason}</p> : null}
                   {r.status === "pending" ? (
                     <div className="mt-3 flex justify-end">
                       <CancelAbsence id={r.id} onDone={reload} />

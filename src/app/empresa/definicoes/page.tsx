@@ -1,6 +1,5 @@
 "use client";
 
-import { Pencil, Plus, Trash2 } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 import { ErrorBlock, LoadingBlock, NoAccess } from "@/components/company/p2-shared";
@@ -189,7 +188,7 @@ function CompanyTab() {
         <CardHeader>
           <div>
             <CardTitle>Subscrição</CardTitle>
-            <CardDescription>Para mudar de plano, contacte o suporte do PontoSmart.</CardDescription>
+            <CardDescription>Para mudar de plano, contacte o suporte do Horbit.</CardDescription>
           </div>
           {sub ? <Badge tone={SUB_STATUS[sub.status]?.tone}>{SUB_STATUS[sub.status]?.label ?? sub.status}</Badge> : null}
         </CardHeader>
@@ -277,7 +276,7 @@ function UsersTab() {
                       <div className="flex items-center gap-3">
                         <Avatar name={m.users?.name ?? "?"} size={30} />
                         <span className="min-w-0">
-                          <span className="block font-medium">
+                          <span className="block font-bold">
                             {m.users?.name ?? "—"}
                             {m.user_id === me.id ? <span className="ml-1.5 text-xs font-normal text-muted">(você)</span> : null}
                           </span>
@@ -309,11 +308,14 @@ function UsersTab() {
           </div>
         </CardHeader>
         <CardContent>
-          <ul className="grid gap-3 md:grid-cols-2">
-            {ROLE_INFO.map((r) => (
-              <li key={r.code} className="rounded-lg border border-border p-3">
-                <p className="text-[13px] font-semibold">{ROLE_LABEL[r.code]}</p>
-                <p className="text-xs text-muted">{r.description}</p>
+          <ul className="grid gap-x-10 md:grid-cols-2">
+            {ROLE_INFO.map((r, i) => (
+              <li key={r.code} className="flex gap-3 border-t border-border py-3.5 md:[&:nth-child(-n+2)]:border-t-0 max-md:first:border-t-0">
+                <span className={`stem mt-0.5 h-4 ${i < 2 ? "text-primary" : i < 4 ? "text-indigo" : "text-border-strong"}`} aria-hidden />
+                <span>
+                  <span className="block text-[14px] font-extrabold">{ROLE_LABEL[r.code]}</span>
+                  <span className="mt-0.5 block text-[13px] leading-relaxed text-muted">{r.description}</span>
+                </span>
               </li>
             ))}
           </ul>
@@ -370,9 +372,9 @@ function OrgTab() {
           ) : (
             <ul className="divide-y divide-border">
               {branches.map((x) => (
-                <li key={x.id} className="flex items-center justify-between gap-3 py-3 text-[13px]">
+                <li key={x.id} className="flex items-center justify-between gap-3 py-3 text-[13.5px]">
                   <span className="min-w-0">
-                    <span className="font-medium">{x.name}</span>
+                    <span className="font-bold">{x.name}</span>
                     <span className="block text-xs text-muted">{[x.address, x.city].filter(Boolean).join(", ") || "—"}</span>
                   </span>
                   <span className="flex shrink-0 items-center">
@@ -399,9 +401,9 @@ function OrgTab() {
           ) : (
             <ul className="divide-y divide-border">
               {departments.map((x) => (
-                <li key={x.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-[13px]">
+                <li key={x.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-[13.5px]">
                   <span className="min-w-0">
-                    <span className="font-medium">{x.name}</span>
+                    <span className="font-bold">{x.name}</span>
                     <span className="block text-xs text-muted">{branches.find((y) => y.id === x.branch_id)?.name ?? "Sem filial"}</span>
                   </span>
                   <span className="flex items-center gap-1">
@@ -421,7 +423,7 @@ function OrgTab() {
                     >
                       <option value="">Sem supervisor</option>
                       {managers.map((m) => (
-                        <option key={m.id} value={m.id}>{m.name}{m.role ? ` · ${ROLE_LABEL[m.role] ?? m.role}` : ""}</option>
+                        <option key={m.id} value={m.id}>{m.name}{m.role ? ` (${ROLE_LABEL[m.role] ?? m.role})` : ""}</option>
                       ))}
                     </Select>
                     <DepartmentEditor department={x} branches={branches} managers={managers} onDone={data.reload} />
@@ -441,9 +443,9 @@ function DeleteButton({ label, onDelete, onDone }: { label: string; onDelete: ()
   const [busy, setBusy] = React.useState(false);
   return (
     <Button
-      size="icon-sm"
+      size="sm"
       variant="ghost"
-      aria-label="Remover"
+      className="hover:text-danger"
       disabled={busy}
       onClick={async () => {
         if (!window.confirm(label)) return;
@@ -459,7 +461,8 @@ function DeleteButton({ label, onDelete, onDone }: { label: string; onDelete: ()
         }
       }}
     >
-      <Trash2 />
+      {busy ? <span className="spinner" aria-hidden /> : null}
+      Remover
     </Button>
   );
 }
@@ -471,9 +474,9 @@ function BranchEditor({ branch, onDone }: { branch?: Branch; onDone: () => void 
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {branch ? (
-          <Button size="icon-sm" variant="ghost" aria-label="Editar filial"><Pencil /></Button>
+          <Button size="sm" variant="ghost">Editar</Button>
         ) : (
-          <Button size="sm" variant="soft"><Plus /> Filial</Button>
+          <Button size="sm" variant="soft">Nova filial</Button>
         )}
       </DialogTrigger>
       <DialogContent title={branch ? "Editar filial" : "Nova filial"}>
@@ -510,9 +513,9 @@ function DepartmentEditor({ department, branches, managers, onDone }: { departme
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {department ? (
-          <Button size="icon-sm" variant="ghost" aria-label="Editar departamento"><Pencil /></Button>
+          <Button size="sm" variant="ghost">Editar</Button>
         ) : (
-          <Button size="sm" variant="soft"><Plus /> Departamento</Button>
+          <Button size="sm" variant="soft">Novo departamento</Button>
         )}
       </DialogTrigger>
       <DialogContent title={department ? "Editar departamento" : "Novo departamento"}>

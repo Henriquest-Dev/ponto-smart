@@ -1,21 +1,23 @@
 "use client";
 
-import { Loader2, Maximize, WifiOff } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
-import { LogoMark } from "@/components/shell/logo";
+import { Wordmark } from "@/components/shell/logo";
 import { Button } from "@/components/ui/button";
 import { errorMessage, rpc, sb } from "@/lib/sb/client";
 import { useSession } from "@/lib/sb/session";
 
 type QrResponse = { token: string; expiresAt: string; ttl: number; station: string; location: string | null };
 type QrState = { svg: string; ttl: number; refreshIn: number; issuedAt: number; station: string; location: string | null };
+const STEPS = ["Abra o Horbit e toque em Marcar ponto.", "Aponte a câmara a este código.", "Aguarde a confirmação no telemóvel."];
+
 type StationRow = { id: string; company_id: string; name: string; qr_mode: "dynamic" | "static"; active: boolean };
 
 export default function StationPage() {
   return (
-    <React.Suspense fallback={<Centered><Loader2 className="size-6 animate-spin text-primary" aria-label="A carregar" /></Centered>}>
+    <React.Suspense fallback={<Centered><span className="spinner text-[28px] text-primary" role="status" aria-label="A carregar" /></Centered>}>
       <StationGate />
     </React.Suspense>
   );
@@ -29,9 +31,9 @@ function Problem({ title, message }: { title: string; message: string }) {
   return (
     <Centered>
       <div className="max-w-sm space-y-4">
-        <LogoMark className="mx-auto size-10" />
-        <p className="text-[15px] font-semibold">{title}</p>
-        <p className="text-[13px] text-muted">{message}</p>
+        <Wordmark className="mx-auto mb-8 h-9" />
+        <p className="text-[22px] leading-tight font-extrabold tracking-[-0.02em]">{title}</p>
+        <p className="text-[14px] leading-relaxed text-muted">{message}</p>
         <Button asChild variant="outline">
           <Link href="/empresa/locais/">Voltar aos locais</Link>
         </Button>
@@ -75,14 +77,14 @@ function StationGate() {
   }, [state.status, id]);
 
   React.useEffect(() => {
-    document.title = station ? `${station.name} · Estação · PontoSmart` : "Estação de marcação · PontoSmart";
+    document.title = station ? `${station.name}, estação de marcação | Horbit` : "Estação de marcação | Horbit";
   }, [station]);
 
   if (state.status === "error") return <Problem title="Não foi possível abrir a sua conta" message={state.message} />;
-  if (state.status !== "ready" || !me) return <Centered><Loader2 className="size-6 animate-spin text-primary" aria-label="A carregar" /></Centered>;
+  if (state.status !== "ready" || !me) return <Centered><span className="spinner text-[28px] text-primary" role="status" aria-label="A carregar" /></Centered>;
   if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return <Problem title="Estação inválida" message="Abra o ecrã a partir de Locais e estações." />;
   if (loadError) return <Problem title="Não foi possível carregar a estação" message={loadError} />;
-  if (station === undefined) return <Centered><Loader2 className="size-6 animate-spin text-primary" aria-label="A carregar" /></Centered>;
+  if (station === undefined) return <Centered><span className="spinner text-[28px] text-primary" role="status" aria-label="A carregar" /></Centered>;
   if (station === null) return <Problem title="Estação não encontrada" message="A estação não existe ou não pertence a nenhuma das suas empresas." />;
   if (!station.active) return <Problem title="Estação inactiva" message="Active a estação em Locais e estações para mostrar o código." />;
   if (station.qr_mode !== "dynamic") return <Problem title="Estação com QR fixo" message="Esta estação usa um QR impresso. Gere-o em Locais e estações." />;
@@ -100,6 +102,14 @@ function StationDisplay({ stationId, company, timeZone }: { stationId: string; c
   const [now, setNow] = React.useState(() => Date.now());
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const alive = React.useRef(true);
+  const reduce = useReducedMotion();
+  const [fullscreen, setFullscreen] = React.useState(false);
+
+  React.useEffect(() => {
+    const onChange = () => setFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
 
   const load = React.useCallback(async () => {
     if (timer.current) clearTimeout(timer.current);
@@ -156,62 +166,122 @@ function StationDisplay({ stationId, company, timeZone }: { stationId: string; c
   const date = new Intl.DateTimeFormat("pt-PT", { timeZone, weekday: "long", day: "numeric", month: "long" }).format(new Date(now));
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background p-5 sm:p-10">
-      <header className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <LogoMark className="size-10 shrink-0" />
-          <div className="min-w-0">
-            <p className="truncate text-[17px] font-semibold">{company}</p>
-            <p className="truncate text-sm text-muted">{qr ? [qr.station, qr.location].filter(Boolean).join(" · ") : "Estação de marcação"}</p>
+    <div className="flex min-h-dvh flex-col bg-foreground px-5 py-6 text-background sm:px-10 sm:py-8 lg:px-14">
+      <header className="flex items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-5">
+          <Wordmark color="var(--background)" className="h-8 shrink-0 sm:h-10" />
+          <span className="hidden h-9 w-[3px] shrink-0 rounded-full bg-background/20 sm:block" aria-hidden />
+          <div className="hidden min-w-0 sm:block">
+            <p className="truncate text-[17px] font-extrabold tracking-[-0.01em]">{company}</p>
+            <p className="truncate text-[14px] font-medium text-background/60">
+              {qr ? [qr.station, qr.location].filter(Boolean).join(", ") : "Estação de marcação"}
+            </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => document.documentElement.requestFullscreen?.().catch(() => {})}
-          className="cursor-pointer rounded-md p-2 text-muted hover:bg-surface"
-          aria-label="Ecrã inteiro"
-        >
-          <Maximize className="size-5" />
-        </button>
+        {!fullscreen ? (
+          <button
+            type="button"
+            onClick={() => document.documentElement.requestFullscreen?.().catch(() => {})}
+            className="h-10 shrink-0 cursor-pointer rounded-full border-2 border-background/20 px-4 text-[13px] font-bold text-background/80 transition-colors hover:border-background/60 hover:text-background"
+          >
+            Ecrã inteiro
+          </button>
+        ) : null}
       </header>
+      <div className="mt-3 min-w-0 sm:hidden">
+        <p className="truncate text-[16px] font-extrabold">{company}</p>
+        <p className="truncate text-[13px] text-background/60">{qr ? [qr.station, qr.location].filter(Boolean).join(", ") : "Estação de marcação"}</p>
+      </div>
 
-      <main className="flex flex-1 flex-col items-center justify-center gap-8 py-8 lg:flex-row lg:gap-20">
-        <div className="relative">
-          <div className="rounded-[28px] border border-border bg-white p-5 shadow-panel sm:p-7">
-            {qr ? (
-              <div className="size-[min(72vw,420px)] [&_svg]:size-full" dangerouslySetInnerHTML={{ __html: qr.svg }} aria-label="QR Code de marcação de ponto" role="img" />
-            ) : (
-              <div className="size-[min(72vw,420px)] animate-pulse rounded-xl bg-surface-2" />
-            )}
-          </div>
-          <div className="mx-auto mt-5 h-1.5 w-2/3 overflow-hidden rounded-full bg-surface-2">
-            <div className="h-full rounded-full bg-primary transition-[width] duration-200 ease-linear" style={{ width: `${progress * 100}%` }} />
-          </div>
-          <p className="mt-2 text-center text-xs text-muted tabular">{qr ? `Novo código em ${Math.ceil(remaining)} s` : "A gerar código…"}</p>
-        </div>
-
-        <div className="max-w-sm text-center lg:text-left">
-          <p className="text-[64px] leading-none font-semibold tracking-tight tabular sm:text-[88px]">
+      <main className="flex flex-1 flex-col items-center justify-center gap-10 py-8 lg:flex-row lg:justify-between lg:gap-16">
+        <div className="w-full max-w-xl text-center lg:text-left">
+          <p className="text-[clamp(76px,13vw,176px)] leading-[0.9] font-extrabold tracking-[-0.045em] tabular">
             {time.slice(0, 5)}
-            <span className="text-[0.45em] text-subtle">{time.slice(5)}</span>
+            <span className="ml-1 text-[0.38em] tracking-[-0.02em] text-background/35">{time.slice(5)}</span>
           </p>
-          <p className="mt-2 text-lg text-muted first-letter:uppercase">{date}</p>
-          <ol className="mt-8 space-y-3 text-left text-[15px]">
-            {["Abra o PontoSmart no telemóvel e toque em Marcar ponto.", "Aponte a câmara para este código.", "Autorize a localização e aguarde a confirmação."].map((s, i) => (
-              <li key={i} className="flex gap-3">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-soft text-sm font-semibold text-primary">{i + 1}</span>
-                <span className="pt-0.5">{s}</span>
+          <p className="mt-4 text-[clamp(18px,2.2vw,26px)] font-bold text-background/70 first-letter:uppercase">{date}</p>
+
+          <ol className="mx-auto mt-10 max-w-md space-y-4 text-left lg:mx-0">
+            {STEPS.map((s, i) => (
+              <li key={s} className="flex items-center gap-4">
+                <span className="stem h-9 w-[6px] text-primary" aria-hidden />
+                <span className="w-6 shrink-0 text-[26px] leading-none font-extrabold text-background/40 tabular">{i + 1}</span>
+                <span className="text-[clamp(16px,1.8vw,21px)] font-bold">{s}</span>
               </li>
             ))}
           </ol>
+
           {error ? (
-            <p className="mt-6 inline-flex items-center gap-2 rounded-lg bg-danger-soft px-3 py-2 text-left text-sm text-danger">
-              <WifiOff className="size-4 shrink-0" /> {error}
+            <p role="alert" className="mx-auto mt-8 inline-flex items-center gap-3 rounded-full bg-danger px-5 py-3 text-left text-[15px] font-bold text-white lg:mx-0">
+              <span className="stem h-4" aria-hidden />
+              {error}
             </p>
           ) : null}
         </div>
+
+        <div className="flex shrink-0 flex-col items-center">
+          <div className="rounded-[32px] bg-background p-5 text-foreground sm:p-7">
+            <div className="relative size-[min(78vw,46vh,560px)] lg:size-[min(40vw,64vh,600px)]">
+              <AnimatePresence initial={false}>
+                {qr ? (
+                  <motion.div
+                    key={qr.issuedAt}
+                    className="absolute inset-0 [&_svg]:size-full"
+                    initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 1.03 }}
+                    transition={{ duration: reduce ? 0.15 : 0.45, ease: [0.22, 1, 0.36, 1] }}
+                    dangerouslySetInnerHTML={{ __html: qr.svg }}
+                    aria-label="QR Code de marcação de ponto"
+                    role="img"
+                  />
+                ) : (
+                  <motion.div
+                    key="loading"
+                    className="absolute inset-0 flex items-center justify-center rounded-[20px] bg-surface-2"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    <span className="spinner text-[32px] text-primary" aria-hidden />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          <div className="mt-6 w-full">
+            <div className="h-3.5 w-full overflow-hidden rounded-full bg-background/15" aria-hidden>
+              {qr ? (
+                reduce ? (
+                  <div className="h-full rounded-full bg-primary" style={{ width: `${progress * 100}%` }} />
+                ) : (
+                  <motion.div
+                    key={qr.issuedAt}
+                    className="h-full origin-left rounded-full bg-primary"
+                    initial={{ scaleX: progress }}
+                    animate={{ scaleX: 0 }}
+                    transition={{ duration: remaining, ease: "linear" }}
+                  />
+                )
+              ) : null}
+            </div>
+            <p className="mt-3 text-center text-[15px] font-bold text-background/70 tabular" aria-live="off">
+              {qr ? (
+                <>
+                  Novo código em <span className="text-background">{Math.ceil(remaining)} s</span>
+                </>
+              ) : (
+                "A gerar código"
+              )}
+            </p>
+          </div>
+        </div>
       </main>
-      <footer className="text-center text-xs text-subtle">A hora de marcação é a do servidor. O código só é válido por poucos segundos.</footer>
+
+      <footer className="text-center text-[13px] font-medium text-background/45 lg:text-left">
+        A hora de marcação é a do servidor. Cada código só é válido durante poucos segundos.
+      </footer>
     </div>
   );
 }

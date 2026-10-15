@@ -1,6 +1,5 @@
 "use client";
 
-import { Layers, Plus } from "lucide-react";
 import * as React from "react";
 import { ErrorBlock, LoadingBlock, NoAccess, todayIn } from "@/components/company/p2-shared";
 import { ActionButton } from "@/components/ui/action-button";
@@ -93,7 +92,7 @@ function Components() {
                 action={canEdit ? <NewComponent onDone={data.reload} /> : null}
               />
               {data.data.components.length === 0 ? (
-                <EmptyState icon={<Layers />} title="Sem rubricas" description="Crie subsídios, adiantamentos ou descontos autorizados." />
+                <EmptyState title="Sem rubricas" description="Crie subsídios, adiantamentos ou descontos autorizados." />
               ) : (
                 <TableWrap>
                   <Table>
@@ -106,7 +105,7 @@ function Components() {
                       {data.data.components.map((c) => (
                         <TR key={c.id}>
                           <TD className="font-mono text-xs">{c.code}</TD>
-                          <TD className="font-medium">{c.name}</TD>
+                          <TD className="font-bold">{c.name}</TD>
                           <TD>{c.nature === "earning" ? <Badge tone="success">Abono</Badge> : <Badge tone="danger">Desconto</Badge>}</TD>
                           <TD className="text-muted">{CALC[c.calc_type]}</TD>
                           <TD className="tabular">
@@ -125,6 +124,8 @@ function Components() {
                           </TD>
                           <TD>
                             {canEdit ? (
+                              <span className="flex items-center gap-2">
+                              <Badge tone={c.active ? "success" : "neutral"}>{c.active ? "Activa" : "Inactiva"}</Badge>
                               <ActionButton
                                 size="sm"
                                 variant="ghost"
@@ -136,8 +137,9 @@ function Components() {
                                   })
                                 }
                               >
-                                {c.active ? "Activa · desactivar" : "Inactiva · activar"}
+                                {c.active ? "Desactivar" : "Activar"}
                               </ActionButton>
+                              </span>
                             ) : (
                               <Badge tone={c.active ? "success" : "neutral"}>{c.active ? "Activa" : "Inactiva"}</Badge>
                             )}
@@ -154,7 +156,7 @@ function Components() {
               <SectionTitle title="Regras legais e fiscais" description="Versões imutáveis. O motor só aplica a versão mais recente marcada como validada." />
               <div className="mb-3 space-y-3">
                 <Notice tone="warning">
-                  O PontoSmart não inclui taxas de INSS ou tabelas de IRPS pré-definidas. As regras são registadas pelo suporte da plataforma após verificação por
+                  O Horbit não inclui taxas de INSS ou tabelas de IRPS pré-definidas. As regras são registadas pelo suporte da plataforma após verificação por
                   especialista laboral/contabilístico, com indicação de quem validou e da fonte legal.
                 </Notice>
                 {pending.length ? (
@@ -177,7 +179,7 @@ function Components() {
                       {data.data.rules.map((r) => (
                         <TR key={r.id}>
                           <TD>
-                            <span className="block font-medium">{r.name}</span>
+                            <span className="block font-bold">{r.name}</span>
                             <span className="font-mono text-xs text-muted">{r.rule_code}</span>
                             {r.source_reference ? <span className="block text-xs text-subtle">{r.source_reference}</span> : null}
                           </TD>
@@ -222,7 +224,7 @@ function NewComponent({ onDone }: { onDone: () => void }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm"><Plus /> Nova rubrica</Button>
+        <Button size="sm">Nova rubrica</Button>
       </DialogTrigger>
       <DialogContent title="Nova rubrica">
         <ActionForm

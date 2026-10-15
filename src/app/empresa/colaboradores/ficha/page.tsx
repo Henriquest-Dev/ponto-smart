@@ -1,6 +1,5 @@
 "use client";
 
-import { ArrowLeft, UserX } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import {
@@ -68,9 +67,7 @@ export default function EmployeeDetailPage() {
 
   const back = (
     <Button variant="ghost" size="sm" asChild>
-      <Link href="/empresa/colaboradores/">
-        <ArrowLeft /> Colaboradores
-      </Link>
+      <Link href="/empresa/colaboradores/">Voltar à lista</Link>
     </Button>
   );
 
@@ -79,7 +76,7 @@ export default function EmployeeDetailPage() {
       <>
         <PageHeader title="Colaborador" actions={back} />
         <PageBody>
-          <EmptyState icon={<UserX />} title="Colaborador não encontrado" description="O registo não existe ou não pertence à sua equipa." />
+          <EmptyState title="Colaborador não encontrado" description="O registo não existe ou não pertence à sua equipa." />
         </PageBody>
       </>
     );
@@ -97,9 +94,9 @@ export default function EmployeeDetailPage() {
   if (!main.data) {
     return (
       <>
-        <div className="border-b border-border px-4 py-5 sm:px-6 lg:px-8">
-          <Skeleton className="h-7 w-64" />
-          <Skeleton className="mt-2 h-4 w-80 max-w-full" />
+        <div className="px-4 pt-6 pb-2 sm:px-6 lg:px-10 lg:pt-9">
+          <Skeleton className="h-8 w-64 rounded-full" />
+          <Skeleton className="mt-2 h-4 w-80 max-w-full rounded-full" />
         </div>
         <PageBody>
           <LoadingRows rows={4} />
@@ -122,7 +119,7 @@ export default function EmployeeDetailPage() {
     <>
       <PageHeader
         title={e.full_name}
-        description={`${e.employee_code} · ${e.job_title ?? "Sem função"} · ${e.departments?.name ?? "Sem departamento"}`}
+        description={[`Nº ${e.employee_code}`, e.job_title ?? "Sem função", e.departments?.name ?? "Sem departamento"].join(", ")}
         actions={
           <>
             {back}
@@ -166,14 +163,14 @@ function Summary({
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
-      <Card className="p-5">
-        <div className="mb-5 flex items-center gap-4">
-          <Avatar name={e.full_name} size={52} />
-          <div className="min-w-0">
-            <p className="truncate text-[17px] font-semibold">{e.full_name}</p>
-            <p className="truncate text-[13px] text-muted">{e.email ?? "Sem email"}</p>
+      <Card className="p-5 sm:p-6">
+        <div className="mb-6 flex items-center gap-4 border-b border-border pb-6">
+          <Avatar name={e.full_name} size={56} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[20px] leading-tight font-extrabold tracking-[-0.02em]">{e.full_name}</p>
+            <p className="mt-0.5 truncate text-[13.5px] text-muted">{e.email ?? "Sem email"}</p>
           </div>
-          <Badge tone={st.tone} className="ml-auto">
+          <Badge tone={st.tone} className="shrink-0 text-[13.5px]">
             {st.label}
           </Badge>
         </div>
@@ -186,7 +183,7 @@ function Summary({
             ["Telefone", e.phone ?? "—"],
             ["NUIT", e.nuit ?? "—"],
             ["Admissão", formatDate(e.hire_date, tz)],
-            ["Contrato", contract ? `${CONTRACT_LABEL[contract.type] ?? contract.type} · ${contract.weekly_hours}h/semana` : "—"],
+            ["Contrato", contract ? `${CONTRACT_LABEL[contract.type] ?? contract.type}, ${contract.weekly_hours} h por semana` : "—"],
             ["Conta bancária", e.bank_account ?? "—"],
           ]}
         />
@@ -204,17 +201,17 @@ function Summary({
             {shifts.error ? (
               <Notice tone="danger">{shifts.error}</Notice>
             ) : !shifts.data ? (
-              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full rounded-[14px]" />
             ) : shifts.data.length ? (
-              <ul className="space-y-3">
+              <ul className="space-y-4">
                 {shifts.data.map((s) => {
                   const current = s.valid_from <= today && (!s.valid_to || s.valid_to >= today);
                   return (
-                    <li key={s.id} className="flex items-center justify-between gap-3 text-[13px]">
+                    <li key={s.id} className="flex items-center justify-between gap-3">
                       <span>
-                        <span className="font-medium">{s.work_schedules?.name ?? "Horário"}</span>
-                        <span className="block text-xs text-muted">
-                          desde {formatDate(s.valid_from, tz)}
+                        <span className="block text-[14px] font-bold">{s.work_schedules?.name ?? "Horário"}</span>
+                        <span className="block text-[12.5px] text-muted">
+                          Desde {formatDate(s.valid_from, tz)}
                           {s.valid_to ? ` até ${formatDate(s.valid_to, tz)}` : ""}
                         </span>
                       </span>
@@ -224,7 +221,7 @@ function Summary({
                 })}
               </ul>
             ) : (
-              <p className="text-[13px] text-muted">Sem horário atribuído — as faltas não são calculadas.</p>
+              <p className="text-[13px] text-muted">Sem horário atribuído, as faltas não são calculadas.</p>
             )}
           </CardContent>
         </Card>
@@ -258,7 +255,7 @@ function AccessCard({
     <Card>
       <CardHeader>
         <div>
-          <CardTitle>Acesso ao PontoSmart</CardTitle>
+          <CardTitle>Acesso ao Horbit</CardTitle>
           <CardDescription>Credenciais criadas pela empresa para o colaborador entrar.</CardDescription>
         </div>
         {account ? active ? <Badge tone="success">Activo</Badge> : <Badge tone="danger">Desactivado</Badge> : <Badge>Sem acesso</Badge>}
@@ -293,7 +290,7 @@ function AccessCard({
                     <ActionButton
                       size="sm"
                       variant="danger-outline"
-                      confirm={`Remover o acesso de ${e.full_name}? Deixa de conseguir entrar no PontoSmart.`}
+                      confirm={`Remover o acesso de ${e.full_name}? Deixa de conseguir entrar no Horbit.`}
                       action={() =>
                         attempt(async () => {
                           await rpc("ps_remove_access", { p_employee: e.id });
@@ -309,7 +306,7 @@ function AccessCard({
               ) : e.status === "active" ? (
                 <AccessDialog mode="reactivate" employee={e} currentLogin={account.email} currentRole={role} onDone={reload} />
               ) : (
-                <p className="text-xs text-muted">O acesso está bloqueado porque o colaborador não está activo.</p>
+                <p className="text-[13px] text-muted">O acesso está bloqueado porque o colaborador não está activo.</p>
               )}
             </div>
           )
@@ -376,16 +373,16 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
           </StatRow>
           {list.length ? (
             <>
-              <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border md:hidden">
+              <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border bg-background md:hidden">
                 {list.map((d) => {
                   const st = dailyStatus(d.status);
                   return (
                     <li key={d.id} className="flex items-center justify-between gap-3 px-4 py-3">
                       <div className="min-w-0">
-                        <p className="text-[13.5px] font-medium tabular">{formatDate(d.work_date, tz)}</p>
-                        <p className="text-xs text-muted tabular">
-                          {d.first_in ? `${formatTime(d.first_in, tz)} → ${d.last_out ? formatTime(d.last_out, tz) : "…"}` : "Sem marcações"}
-                          {d.worked_minutes ? ` · ${formatMinutes(d.worked_minutes)}` : ""}
+                        <p className="text-[14px] font-bold tabular">{formatDate(d.work_date, tz)}</p>
+                        <p className="text-[12.5px] text-muted tabular">
+                          {d.first_in ? `${formatTime(d.first_in, tz)}–${d.last_out ? formatTime(d.last_out, tz) : "sem saída"}` : "Sem marcações"}
+                          {d.worked_minutes ? `, ${formatMinutes(d.worked_minutes)}` : ""}
                         </p>
                       </div>
                       <Badge tone={st.tone}>{st.label}</Badge>
@@ -410,11 +407,11 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
                       const st = dailyStatus(d.status);
                       return (
                         <TR key={d.id}>
-                          <TD className="tabular">{formatDate(d.work_date, tz)}</TD>
+                          <TD className="font-bold tabular">{formatDate(d.work_date, tz)}</TD>
                           <TD className="tabular">{formatTime(d.first_in, tz)}</TD>
                           <TD className="tabular">{formatTime(d.last_out, tz)}</TD>
-                          <TD className="tabular">{formatMinutes(d.worked_minutes)}</TD>
-                          <TD className="tabular text-muted">{d.late_minutes ? `${d.late_minutes} min` : "—"}</TD>
+                          <TD className="font-bold tabular">{formatMinutes(d.worked_minutes)}</TD>
+                          <TD className="tabular">{d.late_minutes ? <span className="font-bold text-warning">{d.late_minutes} min</span> : <span className="text-subtle">—</span>}</TD>
                           <TD>
                             <Badge tone={st.tone}>{st.label}</Badge>
                           </TD>
@@ -482,11 +479,14 @@ function SalaryTab({ employeeId }: { employeeId: string }) {
           {agreements.length ? (
             <ul className="divide-y divide-border">
               {agreements.map((a) => (
-                <li key={a.id} className="flex items-center justify-between gap-3 py-3 text-[13px]">
-                  <span className="text-muted">
-                    {formatDate(a.effective_from, tz)} {a.effective_to ? `– ${formatDate(a.effective_to, tz)}` : "– actual"}
+                <li key={a.id} className="flex items-center justify-between gap-3 py-3.5 first:pt-0 last:pb-0">
+                  <span className="inline-flex items-center gap-2 text-[13px] text-muted">
+                    {!a.effective_to ? <span className="stem text-primary" aria-hidden /> : null}
+                    <span className={a.effective_to ? "tabular" : "font-bold text-foreground tabular"}>
+                      {formatDate(a.effective_from, tz)} {a.effective_to ? `a ${formatDate(a.effective_to, tz)}` : "até hoje"}
+                    </span>
                   </span>
-                  <span className="font-semibold tabular">{formatMoney(a.amount, a.currency || company.currency)}</span>
+                  <span className={a.effective_to ? "text-[14px] font-bold text-muted tabular" : "text-[18px] font-extrabold tracking-[-0.01em] tabular"}>{formatMoney(a.amount, a.currency || company.currency)}</span>
                 </li>
               ))}
             </ul>
@@ -506,17 +506,17 @@ function SalaryTab({ employeeId }: { employeeId: string }) {
               {comps.map((ec) => {
                 const deduction = ec.payroll_components?.nature === "deduction";
                 return (
-                  <li key={ec.id} className="flex items-center justify-between gap-3 py-3 text-[13px]">
+                  <li key={ec.id} className="flex items-center justify-between gap-3 py-3.5 first:pt-0 last:pb-0">
                     <span className="min-w-0">
-                      <span className="block font-medium">{ec.payroll_components?.name ?? "Rubrica"}</span>
-                      <span className="block text-xs text-muted">
-                        {deduction ? "Desconto" : "Abono"} · desde {formatDate(ec.effective_from, tz)}
+                      <span className="block text-[14px] font-bold">{ec.payroll_components?.name ?? "Rubrica"}</span>
+                      <span className="block text-[12.5px] text-muted">
+                        {deduction ? "Desconto" : "Abono"}, desde {formatDate(ec.effective_from, tz)}
                         {ec.effective_to ? ` até ${formatDate(ec.effective_to, tz)}` : ""}
-                        {ec.note ? ` · ${ec.note}` : ""}
                       </span>
+                      {ec.note ? <span className="block text-[12.5px] text-subtle">{ec.note}</span> : null}
                     </span>
                     <span className="flex items-center gap-2">
-                      <span className={`font-semibold tabular ${deduction ? "text-danger" : ""}`}>
+                      <span className={`text-[15px] font-extrabold tabular ${deduction ? "text-danger" : ""}`}>
                         {deduction ? "−" : ""}
                         {formatMoney(ec.amount, company.currency)}
                       </span>
@@ -575,12 +575,12 @@ function DevicesTab({ employeeId }: { employeeId: string }) {
 
   return (
     <>
-      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border md:hidden">
+      <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border bg-background md:hidden">
         {list.data.map((d) => (
           <li key={d.id} className="flex items-center justify-between gap-3 px-4 py-3">
             <div className="min-w-0">
-              <p className="truncate text-[13.5px] font-medium">{d.label}</p>
-              <p className="text-xs text-muted">Última marcação: {d.last_used_at ? formatDateTime(d.last_used_at, tz) : "—"}</p>
+              <p className="truncate text-[14px] font-bold">{d.label}</p>
+              <p className="text-[12.5px] text-muted">Última marcação: {d.last_used_at ? formatDateTime(d.last_used_at, tz) : "nenhuma"}</p>
             </div>
             {d.revoked_at ? (
               <Badge tone="danger">Revogado</Badge>
@@ -608,7 +608,7 @@ function DevicesTab({ employeeId }: { employeeId: string }) {
           <tbody>
             {list.data.map((d) => (
               <TR key={d.id}>
-                <TD className="font-medium">{d.label}</TD>
+                <TD className="text-[14px] font-bold">{d.label}</TD>
                 <TD className="text-muted">{formatDate(d.created_at, tz)}</TD>
                 <TD className="text-muted">{d.last_used_at ? formatDateTime(d.last_used_at, tz) : "—"}</TD>
                 <TD>{d.revoked_at ? <Badge tone="danger">Revogado</Badge> : <Badge tone="success">Activo</Badge>}</TD>

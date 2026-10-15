@@ -1,6 +1,5 @@
 "use client";
 
-import { KeyRound, Pencil, Plus, UserCog } from "lucide-react";
 import * as React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -37,9 +36,7 @@ export function EditEmployee({ employee: e, org, onSaved }: { employee: Employee
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">
-          <Pencil /> Editar ficha
-        </Button>
+        <Button variant="outline">Editar ficha</Button>
       </DialogTrigger>
       <DialogContent title="Editar ficha" wide>
         <ActionForm
@@ -88,7 +85,7 @@ export function EditEmployee({ employee: e, org, onSaved }: { employee: Employee
           </Field>
           <Field label="Departamento">
             <Select name="departmentId" defaultValue={e.department_id ?? ""}>
-              <option value="">—</option>
+              <option value="">Nenhum</option>
               {org.departments.map((d) => (
                 <option key={d.id} value={d.id}>{d.name}</option>
               ))}
@@ -96,7 +93,7 @@ export function EditEmployee({ employee: e, org, onSaved }: { employee: Employee
           </Field>
           <Field label="Filial">
             <Select name="branchId" defaultValue={e.branch_id ?? ""}>
-              <option value="">—</option>
+              <option value="">Nenhuma</option>
               {org.branches.map((d) => (
                 <option key={d.id} value={d.id}>{d.name}</option>
               ))}
@@ -105,10 +102,10 @@ export function EditEmployee({ employee: e, org, onSaved }: { employee: Employee
           <Field label="Data de admissão">
             <Input name="hireDate" type="date" defaultValue={e.hire_date ?? ""} />
           </Field>
-          <Field label="Conta bancária / NIB">
+          <Field label="Conta bancária ou NIB">
             <Input name="bankAccount" defaultValue={e.bank_account ?? ""} />
           </Field>
-          <Field label="Estado" hint="Inactivo ou cessado bloqueia o acesso ao PontoSmart.">
+          <Field label="Estado" hint="Inactivo ou cessado bloqueia o acesso ao Horbit.">
             <Select name="status" defaultValue={e.status}>
               <option value="active">Activo</option>
               <option value="inactive">Inactivo</option>
@@ -144,7 +141,7 @@ function SmallDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="soft">
-          <Plus /> {label}
+          {label}
         </Button>
       </DialogTrigger>
       <DialogContent title={title} description={description}>
@@ -288,7 +285,7 @@ export function AssignComponent({
           <Input name="effectiveTo" type="date" />
         </Field>
       </div>
-      <Field label="Nota / autorização">
+      <Field label="Nota ou autorização">
         <Input name="note" maxLength={200} />
       </Field>
     </SmallDialog>
@@ -312,10 +309,10 @@ export function AccessDialog({
   const [open, setOpen] = useState(false);
   const [result, setResult] = useState<{ login: string; password: string | null } | null>(null);
   const meta = {
-    create: { button: "Criar acesso", title: "Criar acesso ao PontoSmart", variant: "primary" as const, icon: <KeyRound /> },
-    reset: { button: "Repor palavra-passe", title: "Repor palavra-passe", variant: "outline" as const, icon: <KeyRound /> },
-    edit: { button: "Alterar utilizador ou papel", title: "Alterar utilizador ou papel", variant: "outline" as const, icon: <UserCog /> },
-    reactivate: { button: "Reactivar acesso", title: "Reactivar acesso", variant: "primary" as const, icon: <KeyRound /> },
+    create: { button: "Criar acesso", title: "Criar acesso ao Horbit", variant: "primary" as const },
+    reset: { button: "Repor palavra-passe", title: "Repor palavra-passe", variant: "outline" as const },
+    edit: { button: "Alterar utilizador ou papel", title: "Alterar utilizador ou papel", variant: "outline" as const },
+    reactivate: { button: "Reactivar acesso", title: "Reactivar acesso", variant: "primary" as const },
   }[mode];
   const description = {
     create: "Defina o utilizador e a palavra-passe que vai entregar ao colaborador.",
@@ -334,14 +331,14 @@ export function AccessDialog({
     <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : close())}>
       <DialogTrigger asChild>
         <Button size="sm" variant={meta.variant}>
-          {meta.icon} {meta.button}
+          {meta.button}
         </Button>
       </DialogTrigger>
       <DialogContent title={result ? "Credenciais do colaborador" : meta.title} description={result ? employee.full_name : description}>
         {result ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <CredentialsCard name={employee.full_name} login={result.login} password={result.password} />
-            <Button className="w-full" onClick={close}>
+            <Button variant="ghost" className="w-full" onClick={close}>
               Concluído
             </Button>
           </div>
@@ -409,7 +406,7 @@ export function ClassifyDayDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent title="Corrigir registo" description={`${name} · ${date}. A versão anterior fica guardada no histórico de correcções.`}>
+      <DialogContent title="Corrigir registo" description={`${name}, ${date}. A versão anterior fica guardada no histórico de correcções.`}>
         <ActionForm
           action={(_p, fd) =>
             attempt(async () => {
@@ -432,7 +429,7 @@ export function ClassifyDayDialog({
               <option value="present">Presente (sem horário)</option>
             </Select>
           </Field>
-          <Field label="Motivo" hint="Obrigatório — fica no trilho de auditoria.">
+          <Field label="Motivo" hint="Obrigatório, fica no trilho de auditoria.">
             <Textarea name="reason" required minLength={3} />
           </Field>
           <SubmitButton className="w-full">Guardar correcção</SubmitButton>

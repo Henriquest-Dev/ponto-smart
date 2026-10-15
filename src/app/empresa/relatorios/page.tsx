@@ -1,6 +1,5 @@
 "use client";
 
-import { Download, FileSpreadsheet } from "lucide-react";
 import * as React from "react";
 import { Legend, SmoothArea } from "@/components/charts/charts";
 import { CHART_COLORS } from "@/components/charts/colors";
@@ -91,7 +90,7 @@ function Reports() {
       <PageBody>
         {stats.error ? <ErrorBlock message={stats.error} /> : null}
         {stats.loading && !stats.data ? (
-          <Skeleton className="h-28 w-full" />
+          <Skeleton className="h-28 w-full rounded-[22px]" />
         ) : (
           <StatRow>
             <Stat label="Pontualidade (mês)" value={`${(cur?.pontualidade ?? 0).toLocaleString("pt-PT")}%`} />
@@ -101,11 +100,11 @@ function Reports() {
           </StatRow>
         )}
 
-        <Card className="p-5">
+        <Card className="p-5 sm:p-6">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-[15px] font-semibold">Evolução mensal</h2>
-              <p className="text-xs text-muted">Últimos 6 meses</p>
+              <h2 className="text-[18px] font-extrabold tracking-[-0.01em]">Evolução mensal</h2>
+              <p className="mt-0.5 text-[13px] text-muted">Últimos 6 meses</p>
             </div>
             <Legend items={[{ label: "Pontualidade", color: CHART_COLORS.primary }, { label: "Presença", color: CHART_COLORS.indigo }]} />
           </div>
@@ -118,17 +117,26 @@ function Reports() {
               series={[{ key: "pontualidade", name: "Pontualidade %" }, { key: "presenca", name: "Presença %" }]}
             />
           ) : (
-            <Skeleton className="h-60 w-full" />
+            <Skeleton className="h-60 w-full rounded-[16px]" />
           )}
         </Card>
 
         {exp ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card className="p-5">
-              <FileSpreadsheet className="size-6 text-primary" />
-              <p className="mt-3 text-[15px] font-semibold">Assiduidade mensal</p>
-              <p className="text-[13px] text-muted">Resumo por colaborador e detalhe diário.</p>
-              <div className="mt-4 flex flex-wrap gap-2">
+          <Card>
+            <div className="px-5 pt-5 sm:px-6 sm:pt-6">
+              <h2 className="text-[18px] font-extrabold tracking-[-0.01em]">Exportações</h2>
+              <p className="mt-0.5 text-[13px] text-muted">Ficheiros Excel prontos para a contabilidade.</p>
+            </div>
+            <div className="mt-3 divide-y divide-border">
+            <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <div className="flex gap-3">
+                <span className="stem mt-1 h-5 text-primary" aria-hidden />
+                <div>
+                  <p className="text-[15px] font-extrabold">Assiduidade mensal</p>
+                  <p className="text-[13px] text-muted">Resumo por colaborador e detalhe diário.</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
                 <MonthPicker value={month} onChange={setMonth} max={thisMonth} />
                 <ActionButton
                   variant="outline"
@@ -139,50 +147,54 @@ function Reports() {
                     })
                   }
                 >
-                  <Download /> Excel
+                  Descarregar
                 </ActionButton>
               </div>
-            </Card>
-            <Card className="p-5">
-              <FileSpreadsheet className="size-6 text-primary" />
-              <p className="mt-3 text-[15px] font-semibold">Colaboradores</p>
-              <p className="text-[13px] text-muted">
-                {can("employees.salary.view") ? "Ficha resumida, com o salário base vigente." : "Ficha resumida, sem dados salariais."}
-              </p>
+            </div>
+            <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <div className="flex gap-3">
+                <span className="stem mt-1 h-5 text-indigo" aria-hidden />
+                <div>
+                  <p className="text-[15px] font-extrabold">Colaboradores</p>
+                  <p className="text-[13px] text-muted">
+                    {can("employees.salary.view") ? "Ficha resumida, com o salário base vigente." : "Ficha resumida, sem dados salariais."}
+                  </p>
+                </div>
+              </div>
               <ActionButton
                 variant="outline"
-                className="mt-4"
+                className="self-start sm:self-auto"
                 action={() =>
                   attempt(async () => {
                     await exportEmployees(companyId, company.companyName, can("employees.salary.view"), today);
                   })
                 }
               >
-                <Download /> Excel
+                Descarregar
               </ActionButton>
-            </Card>
-          </div>
+            </div>
+            </div>
+          </Card>
         ) : null}
 
         {runs.data?.length ? (
           <Card>
-            <div className="border-b border-border px-5 py-4">
-              <h2 className="text-[15px] font-semibold">Mapas salariais</h2>
+            <div className="border-b border-border px-5 py-4 sm:px-6">
+              <h2 className="text-[18px] font-extrabold tracking-[-0.01em]">Mapas salariais</h2>
             </div>
             <ul className="divide-y divide-border">
               {runs.data.map((r) => (
-                <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-[13px]">
-                  <span className="flex items-center gap-2 font-medium">
+                <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-[13.5px] sm:px-6">
+                  <span className="flex items-center gap-3 font-bold">
                     {r.payroll_periods ? `${MONTHS_PT[r.payroll_periods.month - 1]} ${r.payroll_periods.year}` : "—"}
-                    <span className="text-muted">· v{r.version}</span>
+                    <span className="text-[12px] text-muted">v{r.version}</span>
                     <Badge tone={RUN_STATUS[r.status]?.tone}>{RUN_STATUS[r.status]?.label ?? r.status}</Badge>
                   </span>
                   <span className="flex items-center gap-4">
-                    <span className="tabular">{formatMoney(r.totals?.net, company.currency)}</span>
+                    <span className="font-extrabold tabular">{formatMoney(r.totals?.net, company.currency)}</span>
                     <ActionButton
                       size="sm"
-                      variant="ghost"
-                      className="text-primary"
+                      variant="soft"
                       action={() =>
                         attempt(async () => {
                           await exportPayrollRun(r.id, company.companyName);

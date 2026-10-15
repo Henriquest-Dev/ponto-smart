@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2, Paperclip, Plus, Upload } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ABSENCE_TYPES } from "@/components/collab/shared";
@@ -86,9 +85,7 @@ export function NewAbsence({ companyId, suggestions, onDone }: { companyId: stri
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus /> Nova justificação
-        </Button>
+        <Button>Nova justificação</Button>
       </DialogTrigger>
       <DialogContent title="Nova justificação" description="O pedido segue para o supervisor e/ou RH. Anexe documento comprovativo se existir.">
         <ActionForm
@@ -124,8 +121,8 @@ export function NewAbsence({ companyId, suggestions, onDone }: { companyId: stri
             <Textarea id="reason" name="reason" required minLength={5} maxLength={1000} placeholder="Descreva brevemente a situação." />
           </Field>
           <Field label="Anexos (opcional)" hint="PDF ou imagem (JPEG, PNG, WEBP); até 5 MB cada (máx. 3).">
-            <label className="flex cursor-pointer items-center gap-3 rounded-md border border-dashed border-border-strong px-3 py-3 text-[13px] text-muted hover:bg-surface">
-              <Upload className="size-4 shrink-0" />
+            <label className="flex cursor-pointer items-center gap-3 rounded-[14px] border-2 border-dashed border-border-strong px-4 py-3.5 text-[13.5px] font-bold text-muted transition-colors hover:border-primary hover:text-foreground">
+              <span className="stem text-primary" aria-hidden />
               <span className="truncate">{files.length ? files.join(", ") : "Escolher ficheiros ou tirar fotografia"}</span>
               <input
                 type="file"
@@ -196,9 +193,9 @@ export function DocumentLink({ path, name }: { path: string; name: string }) {
           else window.location.href = data.signedUrl;
         });
       }}
-      className="inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs hover:bg-surface disabled:opacity-60"
+      className="inline-flex h-9 max-w-full cursor-pointer items-center gap-2 rounded-full bg-surface-2 px-4 text-[13px] font-bold transition-colors hover:bg-primary-soft hover:text-primary disabled:opacity-60"
     >
-      {pending ? <Loader2 className="size-3.5 shrink-0 animate-spin" /> : <Paperclip className="size-3.5 shrink-0" />}
+      {pending ? <span className="spinner" /> : <span className="stem h-3 text-primary" aria-hidden />}
       <span className="truncate">{name}</span>
     </button>
   );

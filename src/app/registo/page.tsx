@@ -1,62 +1,69 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Logo } from "@/components/shell/logo";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/misc";
+import { Wordmark } from "@/components/shell/logo";
 import { RequestForm } from "./request-form";
 
-export const metadata: Metadata = { title: "Pedir conta" };
+export const metadata: Metadata = { title: "Pedir conta para a empresa" };
 
 const STEPS = [
-  ["Envie o pedido", "Dados da empresa e do responsável."],
-  ["Validação", "Confirmamos o plano e o período experimental."],
-  ["Acesso do responsável", "Recebe o utilizador e a palavra-passe do painel da empresa."],
-  ["Acessos da equipa", "No painel, crie os acessos dos colaboradores, RH, financeiro e supervisores."],
+  ["Envie o pedido", "Dados da empresa, do responsável e o plano pretendido."],
+  ["Validamos os dados", "Confirmamos o plano e o período experimental."],
+  ["Recebe o acesso do responsável", "Utilizador e palavra-passe do painel da empresa."],
+  ["Cria os acessos da equipa", "Colaboradores, RH, financeiro e supervisores, a partir do painel."],
 ];
 
 export default function RegisterPage() {
   return (
-    <div className="min-h-dvh bg-surface">
-      <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
-          <Link href="/" aria-label="PontoSmart — início">
-            <Logo />
+    <div className="min-h-dvh bg-canvas lg:grid lg:grid-cols-[minmax(480px,1.15fr)_0.85fr] lg:gap-3 lg:p-3">
+      {/* Formulário */}
+      <section className="flex flex-col bg-background px-5 pt-6 pb-8 sm:px-10 lg:rounded-[32px] lg:px-14 lg:py-12">
+        <div className="flex items-center justify-between gap-4">
+          <Link href="/" aria-label="Horbit, página inicial" className="w-fit">
+            <Wordmark className="h-7 lg:h-8" />
           </Link>
-          <div className="ml-auto">
-            <Button variant="ghost" asChild>
-              <Link href="/login/">Entrar</Link>
-            </Button>
+          <Link
+            href="/login/"
+            className="text-[13.5px] font-bold text-primary underline decoration-2 underline-offset-4 decoration-primary/30 hover:decoration-primary"
+          >
+            Já tenho conta
+          </Link>
+        </div>
+        <div className="flex flex-1 py-8 lg:py-12">
+          <div className="mx-auto w-full max-w-[560px]">
+            <Suspense fallback={<div className="h-[720px]" />}>
+              <RequestForm />
+            </Suspense>
           </div>
         </div>
-      </header>
+        <p className="text-center text-[12.5px] text-muted lg:text-left">
+          Respondemos pelo email ou telefone indicados no pedido.
+        </p>
+      </section>
 
-      <main className="mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_1.3fr] lg:py-16">
-        <div>
-          <p className="text-[13px] font-medium text-primary">Pedir conta</p>
-          <h1 className="mt-2 text-[28px] leading-tight font-semibold tracking-tight sm:text-[30px]">Crie a conta da sua empresa</h1>
-          <p className="mt-3 text-[14px] leading-relaxed text-muted">
-            A equipa PontoSmart valida o pedido e cria a conta da empresa com o acesso do responsável. A partir daí, é a sua
-            empresa que cria os acessos dos colaboradores, RH, financeiro e supervisores.
-          </p>
-          <ol className="mt-8 space-y-4 text-[14px]">
+      {/* Como funciona */}
+      <aside className="bg-[#1a1530] px-5 py-10 text-white sm:px-10 lg:sticky lg:top-3 lg:flex lg:h-[calc(100dvh-24px)] lg:flex-col lg:justify-between lg:rounded-[32px] lg:px-12 lg:py-12">
+        <p className="text-[13px] font-bold text-white/60">Ponto, assiduidade e salários</p>
+        <div className="mt-8 lg:mt-0">
+          <h2 className="max-w-sm text-[26px] leading-[1.15] font-extrabold tracking-[-0.02em]">
+            A sua empresa no Horbit em quatro passos.
+          </h2>
+          <ol className="mt-8 space-y-6">
             {STEPS.map(([t, d], i) => (
-              <li key={t} className="flex gap-3">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[13px] font-semibold text-primary">{i + 1}</span>
+              <li key={t} className="grid grid-cols-[32px_1fr] gap-3">
+                <span className="text-[22px] leading-none font-extrabold text-primary-soft tabular">{i + 1}</span>
                 <span>
-                  <span className="block font-medium">{t}</span>
-                  <span className="text-[13px] text-muted">{d}</span>
+                  <span className="block text-[15px] font-extrabold">{t}</span>
+                  <span className="mt-0.5 block text-[13.5px] leading-relaxed text-white/60">{d}</span>
                 </span>
               </li>
             ))}
           </ol>
         </div>
-        <div className="rounded-2xl border border-border bg-background p-5 shadow-panel sm:p-8">
-          <Suspense fallback={<Skeleton className="h-[520px]" />}>
-            <RequestForm />
-          </Suspense>
-        </div>
-      </main>
+        <p className="mt-10 max-w-sm text-[13px] leading-relaxed text-white/50 lg:mt-0">
+          A equipa Horbit cria a conta e o acesso do responsável. Depois disso, a gestão de utilizadores fica com a sua empresa.
+        </p>
+      </aside>
     </div>
   );
 }

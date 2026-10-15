@@ -1,4 +1,4 @@
--- PontoSmart, script 4, parte 2 de 5: permissões (RLS) e pedidos de conta
+-- Horbit, script 4, parte 2 de 5: permissões (RLS) e pedidos de conta
 BEGIN;
 DO $$
 DECLARE r record;

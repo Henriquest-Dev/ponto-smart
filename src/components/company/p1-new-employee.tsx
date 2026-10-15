@@ -1,6 +1,5 @@
 "use client";
 
-import { KeyRound, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -32,21 +31,19 @@ export function NewEmployee({ org, onCreated }: { org: OrgOptions; onCreated: ()
       }}
     >
       <DialogTrigger asChild>
-        <Button>
-          <Plus /> Novo colaborador
-        </Button>
+        <Button>Novo colaborador</Button>
       </DialogTrigger>
       <DialogContent
         title={created ? "Colaborador criado" : "Novo colaborador"}
-        description={created ? created.name : "Ficha, contrato, horário e credenciais de acesso ao PontoSmart."}
+        description={created ? `A ficha de ${created.name} está pronta.` : "Ficha, contrato, horário e credenciais de acesso ao Horbit."}
         wide
       >
         {created ? (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {created.login ? (
               <CredentialsCard name={created.name} login={created.login} password={created.password} />
             ) : (
-              <p className="text-[13px] text-muted">A ficha foi criada sem acesso. Pode criar as credenciais mais tarde, na ficha do colaborador.</p>
+              <p className="rounded-[16px] bg-surface px-4 py-3.5 text-[13.5px] text-muted">A ficha foi criada sem acesso. Pode criar as credenciais mais tarde, na ficha do colaborador.</p>
             )}
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button variant="outline" onClick={() => setCreated(null)}>
@@ -116,7 +113,7 @@ export function NewEmployee({ org, onCreated }: { org: OrgOptions; onCreated: ()
             </Field>
             <Field label="Departamento">
               <Select name="departmentId" defaultValue="">
-                <option value="">—</option>
+                <option value="">Nenhum</option>
                 {org.departments.map((d) => (
                   <option key={d.id} value={d.id}>{d.name}</option>
                 ))}
@@ -124,7 +121,7 @@ export function NewEmployee({ org, onCreated }: { org: OrgOptions; onCreated: ()
             </Field>
             <Field label="Filial">
               <Select name="branchId" defaultValue="">
-                <option value="">—</option>
+                <option value="">Nenhuma</option>
                 {org.branches.map((d) => (
                   <option key={d.id} value={d.id}>{d.name}</option>
                 ))}
@@ -161,20 +158,18 @@ export function NewEmployee({ org, onCreated }: { org: OrgOptions; onCreated: ()
               </Field>
             ) : null}
 
-            <fieldset className="space-y-4 rounded-xl border border-border bg-surface/50 p-4 sm:col-span-2">
-              <legend className="sr-only">Acesso ao PontoSmart</legend>
+            <fieldset className="mt-2 space-y-4 rounded-[22px] bg-surface p-5 sm:col-span-2">
+              <legend className="sr-only">Acesso ao Horbit</legend>
               <div className="flex items-start gap-3">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary">
-                  <KeyRound className="size-4" />
-                </span>
+                <span className="stem mt-1 text-primary" aria-hidden />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[14px] font-semibold">Acesso ao PontoSmart</p>
-                  <p className="text-xs text-muted">
+                  <p className="text-[15px] font-extrabold tracking-[-0.01em]">Acesso ao Horbit</p>
+                  <p className="mt-0.5 text-[13px] leading-relaxed text-muted">
                     A empresa cria o utilizador e a palavra-passe e entrega-os ao colaborador. Com eles, ele marca ponto, consulta o histórico e os recibos.
                   </p>
                 </div>
               </div>
-              <label className="flex items-center gap-2.5 text-[13px]">
+              <label className="flex items-center gap-2.5 text-[13.5px] font-bold">
                 <Checkbox name="withAccess" checked={withAccess} onChange={(e) => setWithAccess(e.target.checked)} /> Criar acesso agora
               </label>
               {withAccess ? (
@@ -183,7 +178,7 @@ export function NewEmployee({ org, onCreated }: { org: OrgOptions; onCreated: ()
                   <RoleSelect />
                 </div>
               ) : (
-                <p className="text-xs text-muted">Pode criar o acesso mais tarde na ficha do colaborador.</p>
+                <p className="text-[13px] text-muted">Pode criar o acesso mais tarde na ficha do colaborador.</p>
               )}
             </fieldset>
 

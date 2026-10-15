@@ -1,6 +1,5 @@
 "use client";
 
-import { Download, Search, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -145,7 +144,7 @@ export default function EmployeesPage() {
           <>
             {can("reports.export") ? (
               <Button variant="outline" onClick={exportXlsx}>
-                <Download /> Exportar
+                Exportar Excel
               </Button>
             ) : null}
             {can("employees.manage") && org.data ? <NewEmployee org={org.data} onCreated={list.reload} /> : null}
@@ -154,9 +153,8 @@ export default function EmployeesPage() {
       />
       <PageBody>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="relative flex-1 sm:max-w-xs">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nome, número ou email" className="pl-9" aria-label="Pesquisar" />
+          <div className="flex-1 sm:max-w-xs">
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pesquisar nome, número ou email" aria-label="Pesquisar" />
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex">
             <Select
@@ -195,23 +193,23 @@ export default function EmployeesPage() {
         ) : list.loading && !list.data ? (
           <LoadingRows rows={6} />
         ) : !list.data?.rows.length ? (
-          <EmptyState icon={<Users />} title="Nenhum colaborador encontrado" description="Ajuste os filtros ou crie um novo colaborador." />
+          <EmptyState title="Nenhum colaborador encontrado" description="Ajuste os filtros ou crie um novo colaborador." />
         ) : (
           <div className={list.loading ? "opacity-60 transition-opacity" : undefined}>
-            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border md:hidden">
+            <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border bg-background md:hidden">
               {list.data.rows.map((e) => (
                 <li key={e.id}>
                   <Link href={`/empresa/colaboradores/ficha/?id=${e.id}`} className="flex items-center gap-3 px-4 py-3">
                     <Avatar name={e.full_name} />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13.5px] font-medium">{e.full_name}</p>
-                      <p className="truncate text-xs text-muted">
-                        {e.job_title ?? "—"} · {e.departments?.name ?? "Sem departamento"}
+                      <p className="truncate text-[14px] font-bold">{e.full_name}</p>
+                      <p className="truncate text-[12.5px] text-muted">
+                        {[e.job_title, e.departments?.name ?? "Sem departamento"].filter(Boolean).join(", ")}
                       </p>
                     </div>
                     <span className="flex flex-col items-end gap-1">
-                      <span className="text-xs text-subtle tabular">{e.employee_code}</span>
-                      {!e.user_id ? <span className="text-[11px] text-subtle">Sem acesso</span> : null}
+                      <span className="text-[12px] font-bold text-muted tabular">{e.employee_code}</span>
+                      {!e.user_id ? <Badge className="text-[11.5px]">Sem acesso</Badge> : null}
                     </span>
                   </Link>
                 </li>
@@ -240,12 +238,12 @@ export default function EmployeesPage() {
                           <Link href={`/empresa/colaboradores/ficha/?id=${e.id}`} className="flex items-center gap-3">
                             <Avatar name={e.full_name} size={32} />
                             <span className="min-w-0">
-                              <span className="block truncate font-medium">{e.full_name}</span>
-                              <span className="block truncate text-xs text-muted">{e.job_title ?? "—"}</span>
+                              <span className="block truncate text-[14px] font-bold">{e.full_name}</span>
+                              <span className="block truncate text-[12.5px] text-muted">{e.job_title ?? "Sem função definida"}</span>
                             </span>
                           </Link>
                         </TD>
-                        <TD className="text-muted tabular">{e.employee_code}</TD>
+                        <TD className="font-bold text-muted tabular">{e.employee_code}</TD>
                         <TD>{e.departments?.name ?? "—"}</TD>
                         <TD className="text-muted">{e.branches?.name ?? "—"}</TD>
                         <TD className="text-muted tabular">{formatDate(e.hire_date, tz)}</TD>

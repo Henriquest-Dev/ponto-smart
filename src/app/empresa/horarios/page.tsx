@@ -1,6 +1,5 @@
 "use client";
 
-import { CalendarClock, Pencil, Plus } from "lucide-react";
 import * as React from "react";
 import { ErrorBlock, LoadingBlock, NoAccess } from "@/components/company/p2-shared";
 import { ActionButton } from "@/components/ui/action-button";
@@ -81,38 +80,42 @@ function Schedules() {
         {data.data ? (
           <>
             {data.data.schedules.length === 0 ? (
-              <EmptyState icon={<CalendarClock />} title="Sem horários" description="Crie o primeiro horário e atribua-o aos colaboradores na respectiva ficha." />
+              <EmptyState title="Sem horários" description="Crie o primeiro horário e atribua-o aos colaboradores na respectiva ficha." />
             ) : (
-              <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-                {data.data.schedules.map((s) => (
-                  <Card key={s.id} className="flex flex-col p-5">
-                    <div className="flex items-start justify-between gap-3">
+              <Card>
+                <ul className="divide-y divide-border">
+                  {data.data.schedules.map((s) => (
+                    <li key={s.id} className="grid gap-4 px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,240px)_1fr_auto] lg:items-center lg:gap-8">
                       <div className="min-w-0">
-                        <p className="truncate text-[15px] font-semibold">{s.name}</p>
-                        <p className="text-xs text-muted">
-                          Tolerância {s.toleranceMinutes} min · {s.usage} {s.usage === 1 ? "atribuição" : "atribuições"}
+                        <p className="truncate text-[16px] font-extrabold tracking-[-0.01em]">{s.name}</p>
+                        <p className="mt-0.5 text-[12.5px] text-muted">
+                          Tolerância de <span className="font-bold text-foreground tabular">{s.toleranceMinutes} min</span>
                         </p>
+                        <p className="text-[12.5px] text-muted">
+                          <span className="font-bold text-foreground tabular">{s.usage}</span> {s.usage === 1 ? "atribuição" : "atribuições"}
+                        </p>
+                        {s.rules.some((x) => x.endTime <= x.startTime) ? <Badge tone="info" className="mt-2">Turno nocturno</Badge> : null}
                       </div>
-                      <ScheduleEditor schedule={s} onDone={data.reload} />
-                    </div>
-                    <ul className="mt-4 grid grid-cols-7 gap-1 text-center">
-                      {[1, 2, 3, 4, 5, 6, 7].map((wd) => {
-                        const rule = s.rules.find((x) => x.weekday === wd);
-                        return (
-                          <li key={wd} className={`rounded-md px-0.5 py-2 ${rule ? "bg-primary-soft text-primary" : "bg-surface text-subtle"}`}>
-                            <span className="block text-[11px] font-medium">{WD_SHORT[wd]}</span>
-                            <span className="mt-1 block text-[10px] leading-tight tabular">{rule ? rule.startTime : "—"}</span>
-                            <span className="block text-[10px] leading-tight tabular">{rule ? rule.endTime : ""}</span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                    {s.rules.some((x) => x.endTime <= x.startTime) ? (
-                      <Badge tone="info" className="mt-3 self-start">Turno nocturno</Badge>
-                    ) : null}
-                  </Card>
-                ))}
-              </div>
+                      <ul className="grid grid-cols-7 gap-1.5 sm:gap-2" aria-label="Semana">
+                        {[1, 2, 3, 4, 5, 6, 7].map((wd) => {
+                          const rule = s.rules.find((x) => x.weekday === wd);
+                          return (
+                            <li key={wd} className="min-w-0">
+                              <span className={`block text-[12px] font-bold ${rule ? "text-foreground" : "text-subtle"}`}>{WD_SHORT[wd]}</span>
+                              <span aria-hidden className={`mt-1.5 block h-2.5 rounded-full ${rule ? "bg-primary" : "bg-border"}`} />
+                              <span className="mt-1.5 block text-[11px] leading-tight font-bold tabular">{rule ? rule.startTime : "Folga"}</span>
+                              <span className="block text-[11px] leading-tight text-muted tabular">{rule ? rule.endTime : ""}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      <div className="lg:self-start">
+                        <ScheduleEditor schedule={s} onDone={data.reload} />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
             )}
 
             <section>
@@ -127,14 +130,14 @@ function Schedules() {
                 <Card>
                   <ul className="divide-y divide-border">
                     {data.data.holidays.map((h) => (
-                      <li key={h.id} className="flex items-center justify-between gap-3 px-5 py-3 text-[13px]">
+                      <li key={h.id} className="flex items-center justify-between gap-3 px-5 py-3 text-[13.5px] sm:px-6">
                         <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-                          <span className="w-28 text-muted tabular">
+                          <span className="w-32 font-bold text-muted tabular">
                             {h.recurring
                               ? new Date(`${h.date}T12:00:00Z`).toLocaleDateString("pt-PT", { day: "2-digit", month: "long", timeZone: "UTC" })
                               : formatDate(h.date, tz)}
                           </span>
-                          <span className="font-medium">{h.name}</span>
+                          <span className="font-bold">{h.name}</span>
                           {h.recurring ? <Badge>Anual</Badge> : null}
                         </span>
                         <ActionButton
@@ -212,9 +215,9 @@ function ScheduleEditor({ schedule, onDone }: { schedule?: Schedule; onDone: () 
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {schedule ? (
-          <Button size="icon-sm" variant="ghost" aria-label="Editar horário"><Pencil /></Button>
+          <Button size="sm" variant="outline">Editar</Button>
         ) : (
-          <Button><Plus /> Novo horário</Button>
+          <Button>Novo horário</Button>
         )}
       </DialogTrigger>
       <DialogContent title={schedule ? "Editar horário" : "Novo horário"} wide>
@@ -225,9 +228,9 @@ function ScheduleEditor({ schedule, onDone }: { schedule?: Schedule; onDone: () 
               <Input name="toleranceMinutes" type="number" min={0} max={120} defaultValue={schedule?.toleranceMinutes ?? 10} />
             </Field>
           </div>
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="overflow-x-auto rounded-[16px] border border-border">
             <table className="w-full min-w-[520px] text-[13px]">
-              <thead className="bg-surface text-left text-xs text-muted">
+              <thead className="bg-surface text-left text-[12px] font-bold text-muted">
                 <tr>
                   <th className="px-3 py-2">Dia</th><th className="px-3 py-2">Início</th><th className="px-3 py-2">Fim</th><th className="px-3 py-2">Intervalo (min)</th>
                 </tr>
@@ -265,7 +268,7 @@ function HolidayForm({ onDone }: { onDone: () => void }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="soft"><Plus /> Feriado</Button>
+        <Button size="sm" variant="soft">Adicionar feriado</Button>
       </DialogTrigger>
       <DialogContent title="Novo feriado">
         <ActionForm

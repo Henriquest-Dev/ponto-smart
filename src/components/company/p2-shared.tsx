@@ -1,6 +1,5 @@
 "use client";
 
-import { ShieldAlert } from "lucide-react";
 import * as React from "react";
 import { EmptyState, Notice, Skeleton } from "@/components/ui/misc";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
@@ -47,7 +46,7 @@ export function NoAccess({ title }: { title: string }) {
     <>
       <PageHeader title={title} />
       <PageBody>
-        <EmptyState icon={<ShieldAlert />} title="Sem acesso" description="O seu papel não tem permissão para esta área. Fale com o administrador da empresa." />
+        <EmptyState title="Sem acesso" description="O seu papel não tem permissão para esta área. Fale com o administrador da empresa." />
       </PageBody>
     </>
   );
@@ -58,7 +57,7 @@ export function LoadingBlock({ rows = 3 }: { rows?: number }) {
   return (
     <div className="space-y-3">
       {Array.from({ length: rows }).map((_, i) => (
-        <Skeleton key={i} className={i === 0 ? "h-24 w-full" : "h-14 w-full"} />
+        <Skeleton key={i} className={i === 0 ? "h-24 w-full rounded-[22px]" : "h-14 w-full rounded-[14px]"} />
       ))}
     </div>
   );

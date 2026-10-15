@@ -1,6 +1,5 @@
 "use client";
 
-import { Eye, EyeOff, RefreshCw } from "lucide-react";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -28,26 +27,26 @@ export function PasswordInput({ value, onChange, name = "password" }: { value: s
           required
           autoComplete="new-password"
           spellCheck={false}
-          className="pr-10 font-mono"
+          className="pr-24 font-mono"
         />
         <button
           type="button"
           onClick={() => setShow((s) => !s)}
-          className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-muted hover:text-foreground"
-          aria-label={show ? "Ocultar palavra-passe" : "Mostrar palavra-passe"}
+          className="absolute top-1/2 right-1.5 h-8 -translate-y-1/2 rounded-full px-3 text-[12.5px] font-bold text-primary hover:bg-primary-soft"
+          aria-pressed={!show}
         >
-          {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+          {show ? "Ocultar" : "Mostrar"}
         </button>
       </div>
       <Button type="button" variant="outline" onClick={() => onChange(generatePassword())}>
-        <RefreshCw /> Gerar
+        Gerar
       </Button>
     </div>
   );
 }
 
 function planLabel(p: Plan) {
-  return `${p.name} — ${formatMoney(p.price_monthly, p.currency)}/mês · até ${p.max_employees} colab.${p.active ? "" : " (inactivo)"}`;
+  return `${p.name}, ${formatMoney(p.price_monthly, p.currency)} por mês, até ${p.max_employees} colaboradores${p.active ? "" : " (inactivo)"}`;
 }
 
 /**
@@ -81,7 +80,7 @@ export function CompanyDialog({
     >
       <DialogContent
         wide
-        title={creds ? "Empresa criada" : request ? `Aprovar pedido — ${request.company_name}` : "Nova empresa cliente"}
+        title={creds ? "Empresa criada" : request ? `Aprovar pedido de ${request.company_name}` : "Nova empresa cliente"}
         description={creds ? undefined : "Cria a empresa, a subscrição, um horário base e a conta do responsável (proprietário)."}
       >
         {creds ? (
@@ -166,7 +165,10 @@ function CompanyForm({
       ) : null}
 
       <fieldset className="grid gap-4 sm:grid-cols-2">
-        <legend className="mb-3 text-[13px] font-semibold text-muted">Empresa</legend>
+        <legend className="mb-3 flex items-center gap-2 text-[15px] font-extrabold tracking-[-0.01em]">
+          <span className="stem text-primary" aria-hidden />
+          Empresa
+        </legend>
         <Field label="Nome da empresa" className="sm:col-span-2">
           <Input
             name="name"
@@ -201,8 +203,11 @@ function CompanyForm({
         </Field>
       </fieldset>
 
-      <fieldset className="grid gap-4 rounded-xl border border-border bg-surface/50 p-4 sm:grid-cols-2">
-        <legend className="px-1 text-[13px] font-semibold text-muted">Responsável da empresa</legend>
+      <fieldset className="grid gap-4 rounded-[22px] bg-surface p-4 sm:grid-cols-2 sm:p-5">
+        <legend className="float-left mb-1 flex w-full items-center gap-2 text-[15px] font-extrabold tracking-[-0.01em] sm:col-span-2">
+          <span className="stem text-primary" aria-hidden />
+          Responsável da empresa
+        </legend>
         <Field label="Nome" className="sm:col-span-2">
           <Input name="owner_name" required minLength={3} defaultValue={request?.contact_name ?? ""} autoComplete="off" />
         </Field>

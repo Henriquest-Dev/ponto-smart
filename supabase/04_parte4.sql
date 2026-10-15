@@ -1,4 +1,4 @@
--- PontoSmart, script 4, parte 4 de 5: QR, marcação de ponto e justificações
+-- Horbit, script 4, parte 4 de 5: QR, marcação de ponto e justificações
 BEGIN;
 CREATE OR REPLACE FUNCTION ps_station_qr(p_station uuid)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions, pg_temp AS $$
@@ -54,7 +54,7 @@ BEGIN
     SELECT * INTO v_st FROM attendance_stations WHERE qr_mode = 'static' AND static_token_hash = v_hash;
     v_mode := 'static';
   END IF;
-  IF v_st.id IS NULL THEN RAISE EXCEPTION 'QR Code não reconhecido pelo PontoSmart.' USING ERRCODE = '22023'; END IF;
+  IF v_st.id IS NULL THEN RAISE EXCEPTION 'QR Code não reconhecido pelo Horbit.' USING ERRCODE = '22023'; END IF;
   SELECT * INTO v_emp FROM employees WHERE user_id = auth.uid() AND company_id = v_st.company_id AND status = 'active';
   IF v_emp.id IS NULL THEN RAISE EXCEPTION 'Este QR Code pertence a outra empresa.' USING ERRCODE = '42501'; END IF;
   PERFORM ps_require(ps_has_perm(v_st.company_id, 'self.clock'), 'Sem permissão para marcar ponto.');

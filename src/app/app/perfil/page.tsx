@@ -89,14 +89,13 @@ export default function ProfilePage() {
       <PageBody className="mx-auto max-w-3xl">
         {profile.error ? <Notice tone="danger">{profile.error}</Notice> : null}
         {p ? (
-          <Card className="p-5">
+          <Card className="p-5 sm:p-6">
             <div className="flex items-center gap-4">
-              <Avatar name={p.emp.full_name} size={52} />
+              <Avatar name={p.emp.full_name} size={64} className="bg-primary text-white" />
               <div className="min-w-0">
-                <p className="text-[17px] font-semibold">{p.emp.full_name}</p>
-                <p className="text-[13px] text-muted">
-                  {p.emp.job_title ?? "—"} · {company.companyName}
-                </p>
+                <p className="text-[22px] leading-tight font-extrabold tracking-[-0.02em]">{p.emp.full_name}</p>
+                <p className="mt-0.5 text-[14px] font-bold text-muted">{p.emp.job_title ?? "—"}</p>
+                <p className="text-[13px] text-muted">{company.companyName}</p>
               </div>
             </div>
             <DescriptionList
@@ -117,10 +116,10 @@ export default function ProfilePage() {
                 ["Horário semanal", p.contract ? `${p.contract.weekly_hours} horas` : "—"],
               ]}
             />
-            <p className="mt-4 text-xs text-muted">Para corrigir dados pessoais, contacte os Recursos Humanos.</p>
+            <p className="mt-5 text-[12.5px] text-muted">Para corrigir dados pessoais, contacte os Recursos Humanos.</p>
           </Card>
         ) : profile.loading ? (
-          <Skeleton className="h-64 rounded-xl" />
+          <Skeleton className="h-64 rounded-[22px]" />
         ) : null}
 
         <Card>
@@ -141,28 +140,29 @@ export default function ProfilePage() {
             {devices.error ? <Notice tone="danger">{devices.error}</Notice> : null}
             {devices.data ? (
               devices.data.length ? (
-                <ul className="divide-y divide-border rounded-lg border border-border">
+                <ul className="divide-y divide-border overflow-hidden rounded-[18px] bg-surface">
                   {devices.data.map((d) => (
-                    <li key={d.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                      <div className="min-w-0">
-                        <p className="flex items-center gap-2 text-[13px] font-medium">
-                          <span className="truncate">{d.label}</span>
-                          {d.current ? <Badge tone="primary">Este dispositivo</Badge> : null}
-                        </p>
-                        <p className="text-xs text-muted">
-                          Registado {formatDate(d.created_at, tz)}
-                          {d.last_used_at ? ` · última marcação ${formatDateTime(d.last_used_at, tz)}` : ""}
-                        </p>
+                    <li key={d.id} className="flex items-center justify-between gap-3 px-4 py-3.5">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <span className={d.current ? "stem mt-1 text-primary" : "stem mt-1 text-border-strong"} aria-hidden />
+                        <div className="min-w-0">
+                          <p className="flex flex-wrap items-center gap-2 text-[14px] font-bold">
+                            <span className="truncate">{d.label}</span>
+                            {d.current ? <span className="text-[12.5px] text-primary">Este dispositivo</span> : null}
+                          </p>
+                          <p className="text-[12.5px] text-muted">Registado {formatDate(d.created_at, tz)}</p>
+                          {d.last_used_at ? <p className="text-[12.5px] text-muted">Última marcação {formatDateTime(d.last_used_at, tz)}</p> : null}
+                        </div>
                       </div>
                       <RevokeDevice id={d.id} onDone={devices.reload} />
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-[13px] text-muted">Nenhum dispositivo registado.</p>
+                <p className="text-[13.5px] text-muted">Nenhum dispositivo registado.</p>
               )
             ) : devices.loading ? (
-              <Skeleton className="h-14 rounded-lg" />
+              <Skeleton className="h-14 rounded-[18px]" />
             ) : null}
             <Notice tone="info">
               Numa aplicação web não é possível identificar o hardware de forma infalível. O registo é um factor adicional de confiança, não uma prova.
@@ -170,9 +170,9 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        <Card className="flex flex-wrap items-center justify-between gap-3 p-5">
+        <Card className="flex flex-wrap items-center justify-between gap-3 p-5 sm:p-6">
           <div>
-            <p className="flex flex-wrap items-center gap-2 text-[15px] font-semibold">
+            <p className="flex flex-wrap items-center gap-2 text-[16px] font-extrabold tracking-[-0.01em]">
               Segurança da conta
               {p?.mfa ? <Badge tone="success">Dois passos activo</Badge> : null}
             </p>

@@ -1,6 +1,5 @@
 "use client";
 
-import { Ban, CheckCircle2, Clock, KeyRound, Layers, MoreHorizontal, XCircle } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -14,20 +13,20 @@ import { PasswordInput } from "./company-form";
 import { CredentialsPanel, type Credentials } from "./credentials";
 import { generatePassword, type AdminCompany, type CompanyStatus, type Plan } from "./data";
 
-const STATUS_ACTIONS: { status: CompanyStatus; label: string; icon: React.ReactNode; confirm?: (n: string) => string; done: string }[] = [
-  { status: "active", label: "Activar", icon: <CheckCircle2 />, done: "Empresa activa." },
-  { status: "trial", label: "Marcar como experimental", icon: <Clock />, done: "Empresa em período experimental." },
+const STATUS_ACTIONS: { status: CompanyStatus; label: string; confirm?: (n: string) => string; done: string }[] = [
+  { status: "active", label: "Activar", done: "Empresa activa." },
+  { status: "trial", label: "Marcar como experimental", done: "Empresa em período experimental." },
   {
     status: "suspended",
     label: "Suspender",
-    icon: <Ban />,
+   
     confirm: (n) => `Suspender ${n}? Os utilizadores da empresa deixam de ter acesso até ser reactivada.`,
-    done: "Empresa suspensa — os utilizadores deixam de ter acesso.",
+    done: "Empresa suspensa: os utilizadores deixam de ter acesso.",
   },
   {
     status: "cancelled",
     label: "Cancelar conta",
-    icon: <XCircle />,
+   
     confirm: (n) => `Cancelar a conta de ${n}? Os utilizadores perdem o acesso. Os dados mantêm-se e pode reactivar depois.`,
     done: "Conta cancelada.",
   },
@@ -70,8 +69,9 @@ export function CompanyActions({ company, plans = [], onChanged }: { company: Ad
     <>
       <Dropdown>
         <DropdownTrigger asChild>
-          <Button size="icon-sm" variant="ghost" aria-label={`Acções para ${company.name}`} disabled={busy}>
-            <MoreHorizontal />
+          <Button size="sm" variant="ghost" aria-label={`Acções para ${company.name}`} disabled={busy}>
+            {busy ? <span className="spinner" aria-hidden /> : null}
+            Acções
           </Button>
         </DropdownTrigger>
         <DropdownContent>
@@ -80,9 +80,9 @@ export function CompanyActions({ company, plans = [], onChanged }: { company: Ad
             <DropdownItem
               key={a.status}
               onSelect={() => void setStatus(a)}
-              className={a.status === "suspended" || a.status === "cancelled" ? "text-danger [&_svg]:text-danger" : undefined}
+              className={a.status === "suspended" || a.status === "cancelled" ? "text-danger" : undefined}
             >
-              {a.icon} {a.label}
+              {a.label}
             </DropdownItem>
           ))}
           {plans.filter((p) => p.active && p.code !== company.plan_code).length ? (
@@ -93,14 +93,14 @@ export function CompanyActions({ company, plans = [], onChanged }: { company: Ad
                 .filter((p) => p.active && p.code !== company.plan_code)
                 .map((p) => (
                   <DropdownItem key={p.code} onSelect={() => void setPlan(p)}>
-                    <Layers /> {p.name}
+                    {p.name}
                   </DropdownItem>
                 ))}
             </>
           ) : null}
           <DropdownSeparator />
           <DropdownItem onSelect={() => setResetOpen(true)} disabled={!company.owner_login}>
-            <KeyRound /> Nova palavra-passe do responsável
+            Nova palavra-passe do responsável
           </DropdownItem>
         </DropdownContent>
       </Dropdown>
@@ -127,7 +127,7 @@ function ResetOwnerPassword({ company, open, onOpenChange }: { company: AdminCom
     >
       <DialogContent
         title={creds ? "Nova palavra-passe definida" : "Nova palavra-passe do responsável"}
-        description={creds ? undefined : `${company.name} · acesso ${company.owner_login ?? "—"}. A palavra-passe actual deixa de funcionar.`}
+        description={creds ? undefined : `${company.name}, acesso ${company.owner_login ?? "—"}. A palavra-passe actual deixa de funcionar.`}
       >
         {creds ? (
           <CredentialsPanel creds={creds} onClose={() => onOpenChange(false)} />

@@ -8,7 +8,7 @@ import { monthRange } from "@/lib/time";
 /** Título do separador do navegador (as páginas cliente não exportam `metadata`). */
 export function useTitle(title: string) {
   React.useEffect(() => {
-    document.title = `${title} · PontoSmart`;
+    document.title = `${title} · Horbit`;
   }, [title]);
 }
 

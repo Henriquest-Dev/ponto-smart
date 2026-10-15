@@ -1,6 +1,5 @@
 "use client";
 
-import { Smartphone } from "lucide-react";
 import { useState } from "react";
 import { ActionButton } from "@/components/ui/action-button";
 import { Input } from "@/components/ui/input";
@@ -41,7 +40,7 @@ export function DeviceControls({ companyId, onDone }: { companyId: string; onDon
           })
         }
       >
-        <Smartphone /> Registar este dispositivo
+        Registar este dispositivo
       </ActionButton>
     </div>
   );

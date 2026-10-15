@@ -1,6 +1,5 @@
 "use client";
 
-import { History } from "lucide-react";
 import { AttendanceNav } from "@/components/company/p1-attendance-nav";
 import { LoadingRows } from "@/components/company/p1-shared";
 import { EmptyState, Notice } from "@/components/ui/misc";
@@ -29,7 +28,7 @@ function describe(v: Record<string, unknown> | null) {
   const parts: string[] = [];
   if (typeof v.status === "string") parts.push(DAILY_STATUS_LABEL[v.status as DailyStatus] ?? v.status);
   if (typeof v.workedMinutes === "number") parts.push(`${Math.floor(v.workedMinutes / 60)}h${String(v.workedMinutes % 60).padStart(2, "0")}`);
-  return parts.join(" · ") || "—";
+  return parts.join(", ") || "—";
 }
 
 export default function AdjustmentsPage() {
@@ -55,22 +54,28 @@ export default function AdjustmentsPage() {
         ) : list.loading && !list.data ? (
           <LoadingRows rows={4} />
         ) : rows.length === 0 ? (
-          <EmptyState icon={<History />} title="Sem correcções registadas" />
+          <EmptyState title="Sem correcções registadas" />
         ) : (
           <>
-            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border md:hidden">
+            <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border bg-background md:hidden">
               {rows.map((a) => (
-                <li key={a.id} className="space-y-1 px-4 py-3">
+                <li key={a.id} className="space-y-2 px-4 py-4">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="truncate text-[13.5px] font-medium">{a.employees?.full_name ?? "—"}</p>
-                    <span className="text-xs text-muted tabular">{formatDate(a.work_date, tz)}</span>
+                    <p className="truncate text-[14px] font-bold">{a.employees?.full_name ?? "—"}</p>
+                    <span className="text-[12.5px] font-bold text-muted tabular">{formatDate(a.work_date, tz)}</span>
                   </div>
-                  <p className="text-xs">
-                    <span className="text-muted">{describe(a.previous)}</span> → <span className="font-medium">{describe(a.next)}</span>
-                  </p>
-                  <p className="text-xs text-muted">{a.reason}</p>
-                  <p className="text-[11px] text-subtle">
-                    {a.users?.name ?? "—"} · {formatDateTime(a.created_at, tz)}
+                  <dl className="grid grid-cols-[64px_1fr] gap-x-3 gap-y-0.5 text-[13px]">
+                    <dt className="text-muted">Antes</dt>
+                    <dd className="text-muted line-through decoration-1">{describe(a.previous)}</dd>
+                    <dt className="text-muted">Depois</dt>
+                    <dd className="inline-flex items-center gap-1.5 font-bold">
+                      <span className="stem h-3 text-primary" aria-hidden />
+                      {describe(a.next)}
+                    </dd>
+                  </dl>
+                  <p className="text-[13px]">{a.reason}</p>
+                  <p className="text-[12px] text-subtle">
+                    {a.users?.name ?? "Autor desconhecido"}, {formatDateTime(a.created_at, tz)}
                   </p>
                 </li>
               ))}
@@ -92,12 +97,17 @@ export default function AdjustmentsPage() {
                   {rows.map((a) => (
                     <TR key={a.id}>
                       <TD className="text-muted tabular">{formatDateTime(a.created_at, tz)}</TD>
-                      <TD className="font-medium">{a.employees?.full_name ?? "—"}</TD>
+                      <TD className="text-[14px] font-bold">{a.employees?.full_name ?? "—"}</TD>
                       <TD className="tabular">{formatDate(a.work_date, tz)}</TD>
                       <TD className="text-muted">{describe(a.previous)}</TD>
-                      <TD>{describe(a.next)}</TD>
+                      <TD>
+                        <span className="inline-flex items-center gap-1.5 font-bold">
+                          <span className="stem h-3 text-primary" aria-hidden />
+                          {describe(a.next)}
+                        </span>
+                      </TD>
                       <TD className="text-muted">{a.users?.name ?? "—"}</TD>
-                      <TD className="max-w-xs text-xs text-muted">{a.reason}</TD>
+                      <TD className="max-w-xs text-[12.5px] leading-snug text-muted">{a.reason}</TD>
                     </TR>
                   ))}
                 </tbody>

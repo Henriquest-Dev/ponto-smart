@@ -1,12 +1,13 @@
 "use client";
 
-import { AlertTriangle, ArrowLeft, Camera, CheckCircle2, Clock, Keyboard, Loader2, LocateFixed, MapPinOff, RotateCcw, ScanLine, ShieldCheck } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Notice } from "@/components/ui/misc";
+import { ScanFrame, StemLoader, StemSteps, ThickBar } from "@/components/collab/motion";
 import { getDeviceKey } from "@/lib/client/device";
 import { extractQrToken } from "@/lib/domain/qr-client";
 import { rpc } from "@/lib/sb/client";
@@ -135,7 +136,7 @@ export function ClockFlow({
                 setStep("locating");
                 return;
               }
-              setCamError("Este QR Code não é de uma estação PontoSmart.");
+              setCamError("Este QR Code não é de uma estação Horbit.");
             }
           }
           raf = requestAnimationFrame(tick);
@@ -253,133 +254,143 @@ export function ClockFlow({
   };
 
   /* ----------------------------- Render ----------------------------- */
+  const reduce = useReducedMotion();
+  const stepIdx = step === "intro" ? -1 : step === "scanning" ? 0 : step === "locating" ? 1 : step === "submitting" ? 2 : 3;
+
   return (
     <div className="mx-auto flex min-h-[calc(100dvh-8rem)] max-w-md flex-col px-4 py-5 sm:py-8">
-      <div className="mb-5 flex items-center gap-3">
-        <Link href="/app/" className="rounded-md p-1.5 text-muted hover:bg-surface" aria-label="Voltar">
-          <ArrowLeft className="size-5" />
-        </Link>
+      <div className="mb-6 flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-[18px] font-semibold tracking-tight">Marcar ponto</h1>
-          <p className="text-[13px] text-muted">Próxima marcação: {action}</p>
+          <h1 className="text-[28px] leading-[1.05] font-extrabold tracking-[-0.03em]">Marcar ponto</h1>
+          <p className="mt-1.5 flex items-center gap-2 text-[14px] text-muted">
+            <span className="stem text-primary" aria-hidden />
+            Próxima marcação: <span className="font-bold text-foreground">{action}</span>
+          </p>
         </div>
+        <Link href="/app/" className="inline-flex h-9 shrink-0 items-center rounded-full px-4 text-[13px] font-bold text-muted hover:bg-surface-2 hover:text-foreground">
+          Voltar
+        </Link>
       </div>
 
-      <Steps step={step} />
+      <StemSteps labels={["QR Code", "Localização", "Validação"]} current={stepIdx === 3 ? 3 : Math.max(stepIdx, -1)} />
 
-      {step === "intro" ? (
-        <div className="mt-6 flex flex-1 flex-col">
-          <div className="rounded-2xl border border-border bg-surface/60 p-6 text-center">
-            <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-primary-soft text-primary">
-              <ScanLine className="size-8" />
+      {/* Só animação de entrada: o novo passo (ex.: o vídeo da câmara) monta de imediato. */}
+      <motion.div
+        key={step}
+        className="flex flex-1 flex-col"
+        initial={reduce ? false : { opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
+      >
+          {step === "intro" ? (
+            <div className="mt-6 flex flex-1 flex-col">
+              <div className="relative overflow-hidden rounded-[28px] bg-foreground px-6 pt-7 pb-6 text-white">
+                <div className="flex items-end gap-[6px]" aria-hidden>
+                  {[22, 38, 54, 38, 22].map((h, i) => (
+                    <motion.span
+                      key={i}
+                      className={cn("block w-[7px] rounded-full", i === 2 ? "bg-primary" : "bg-white/25")}
+                      initial={reduce ? false : { height: 6 }}
+                      animate={{ height: h }}
+                      transition={{ delay: 0.08 * i, type: "spring", stiffness: 220, damping: 16 }}
+                    />
+                  ))}
+                </div>
+                <p className="mt-6 text-[22px] leading-tight font-extrabold tracking-[-0.02em]">Leia o QR Code da estação</p>
+                <p className="mt-2 text-[14px] leading-relaxed text-white/70">
+                  Aponte a câmara para o código no ecrã da recepção ou portaria. O código muda a cada poucos segundos.
+                </p>
+              </div>
+              <ul className="mt-5 space-y-3.5 text-[13.5px] leading-relaxed text-muted">
+                {[
+                  "A localização é pedida apenas neste momento, para confirmar que está no local de trabalho. Não há rastreio contínuo.",
+                  "A hora registada é a do servidor, não a do telemóvel.",
+                  "Se o GPS estiver impreciso, a marcação fica em revisão e nunca é tratada como fraude.",
+                ].map((t) => (
+                  <li key={t} className="flex gap-3">
+                    <span className="stem mt-1 text-primary" aria-hidden />
+                    {t}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-auto space-y-2 pt-6">
+                <ManualCode open={manual} setOpen={setManual} code={code} setCode={setCode} error={codeError} onSubmit={applyCode} />
+                <Button size="lg" className="h-14 w-full text-[16px] font-extrabold" onClick={() => setStep("scanning")}>
+                  Abrir câmara
+                </Button>
+              </div>
             </div>
-            <p className="mt-4 text-[15px] font-semibold">Leia o QR Code da estação</p>
-            <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
-              Aponte a câmara para o código apresentado no ecrã da recepção ou portaria. O código muda a cada poucos segundos.
-            </p>
-          </div>
-          <ul className="mt-5 space-y-3 text-[13px] text-muted">
-            <li className="flex gap-3">
-              <LocateFixed className="mt-0.5 size-4 shrink-0 text-primary" />
-              A localização é pedida apenas neste momento, para confirmar que está no local de trabalho. Não há rastreio contínuo.
-            </li>
-            <li className="flex gap-3">
-              <Clock className="mt-0.5 size-4 shrink-0 text-primary" />A hora registada é a do servidor, não a do telemóvel.
-            </li>
-            <li className="flex gap-3">
-              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
-              Se o GPS estiver impreciso, a marcação fica em revisão — nunca é tratada como fraude.
-            </li>
-          </ul>
-          <div className="mt-auto space-y-2 pt-6">
-            <ManualCode
-              open={manual}
-              setOpen={setManual}
-              code={code}
-              setCode={setCode}
-              error={codeError}
-              onSubmit={applyCode}
-            />
-            <Button size="lg" className="w-full" onClick={() => setStep("scanning")}>
-              <Camera /> Abrir câmara
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
-      {step === "scanning" ? (
-        <div className="mt-6 flex flex-1 flex-col">
-          <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-[#0d0e16]">
-            <video ref={videoRef} className="size-full object-cover" playsInline muted autoPlay />
-            <div className="pointer-events-none absolute inset-[14%] rounded-2xl border-2 border-white/90 shadow-[0_0_0_999px_rgb(13_14_22/0.45)]">
-              <div className="absolute inset-x-4 top-1/2 h-0.5 -translate-y-1/2 animate-pulse bg-primary/80" />
-            </div>
-          </div>
-          {camError ? (
-            <Notice tone="warning" className="mt-4">
-              {camError}
-            </Notice>
-          ) : (
-            <p className="mt-4 text-center text-[13px] text-muted">A procurar QR Code…</p>
-          )}
-          <div className="mt-auto space-y-2 pt-6">
-            <ManualCode
-              open={manual}
-              setOpen={setManual}
-              code={code}
-              setCode={setCode}
-              error={codeError}
-              onSubmit={applyCode}
-            />
-            <Button variant="outline" size="lg" className="w-full" onClick={() => setStep("intro")}>
-              Cancelar
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
-      {step === "locating" ? (
-        <div className="mt-10 flex flex-1 flex-col items-center text-center">
-          <div className="relative flex size-24 items-center justify-center">
-            <span className="absolute inset-0 animate-ping rounded-full bg-primary/15" />
-            <span className="relative flex size-16 items-center justify-center rounded-full bg-primary-soft text-primary">
-              <LocateFixed className="size-7" />
-            </span>
-          </div>
-          <p className="mt-6 text-[15px] font-semibold">A obter localização</p>
-          <p className="mt-1 text-[13px] text-muted">
-            {liveAccuracy ? `Precisão actual: ±${liveAccuracy} m` : "Autorize o acesso à localização quando o navegador pedir."}
-          </p>
-          {geoError ? (
-            <Notice tone="warning" className="mt-5 w-full text-left">
-              {geoError}
-            </Notice>
           ) : null}
-          <Button variant="ghost" className="mt-auto" onClick={() => setStep("submitting")}>
-            Continuar sem esperar
-          </Button>
-        </div>
-      ) : null}
 
-      {step === "submitting" ? (
-        <div className="mt-16 flex flex-1 flex-col items-center text-center">
-          <Loader2 className="size-10 animate-spin text-primary" />
-          <p className="mt-5 text-[15px] font-semibold">A validar no servidor</p>
-          <p className="mt-1 text-[13px] text-muted">QR Code, perímetro e dispositivo</p>
-        </div>
-      ) : null}
+          {step === "scanning" ? (
+            <div className="mt-6 flex flex-1 flex-col">
+              <div className="relative aspect-square w-full overflow-hidden rounded-[28px] bg-[#0d0e16]">
+                <video ref={videoRef} className="size-full object-cover" playsInline muted autoPlay />
+                <ScanFrame />
+              </div>
+              <AnimatePresence mode="wait" initial={false}>
+                {camError ? (
+                  <motion.div key="err" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                    <Notice tone="warning" className="mt-4">
+                      {camError}
+                    </Notice>
+                  </motion.div>
+                ) : (
+                  <motion.p key="hint" className="mt-4 flex items-center justify-center gap-2 text-[14px] font-bold text-muted" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                    <span className="stem animate-pulse text-primary" aria-hidden />A procurar QR Code
+                  </motion.p>
+                )}
+              </AnimatePresence>
+              <div className="mt-auto space-y-2 pt-6">
+                <ManualCode open={manual} setOpen={setManual} code={code} setCode={setCode} error={codeError} onSubmit={applyCode} />
+                <Button variant="outline" size="lg" className="w-full" onClick={() => setStep("intro")}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          ) : null}
 
-      {step === "result" && response ? (
-        <Result
-          response={response}
-          timeZone={timeZone}
-          fix={fix}
-          note={note}
-          setNote={setNote}
-          onRetry={restart}
-          onReview={requestReview}
-        />
-      ) : null}
+          {step === "locating" ? (
+            <div className="mt-12 flex flex-1 flex-col items-center text-center">
+              <StemLoader count={7} />
+              <p className="mt-7 text-[20px] font-extrabold tracking-[-0.02em]">A obter localização</p>
+              <p className="mt-1.5 text-[14px] text-muted">
+                {liveAccuracy ? (
+                  <>
+                    Precisão actual <span className="font-extrabold text-foreground tabular">±{liveAccuracy} m</span>
+                  </>
+                ) : (
+                  "Autorize o acesso à localização quando o navegador pedir."
+                )}
+              </p>
+              {liveAccuracy ? (
+                <div className="mt-4 w-full max-w-[220px]">
+                  <ThickBar value={Math.max(8, 100 - liveAccuracy)} tone={liveAccuracy <= 20 ? "success" : "primary"} />
+                </div>
+              ) : null}
+              {geoError ? (
+                <Notice tone="warning" className="mt-5 w-full text-left">
+                  {geoError}
+                </Notice>
+              ) : null}
+              <Button variant="ghost" className="mt-auto" onClick={() => setStep("submitting")}>
+                Continuar sem esperar
+              </Button>
+            </div>
+          ) : null}
+
+          {step === "submitting" ? (
+            <div className="mt-16 flex flex-1 flex-col items-center text-center">
+              <StemLoader count={5} />
+              <p className="mt-7 text-[20px] font-extrabold tracking-[-0.02em]">A validar no servidor</p>
+              <p className="mt-1.5 text-[14px] text-muted">QR Code, perímetro e dispositivo</p>
+            </div>
+          ) : null}
+
+          {step === "result" && response ? (
+            <Result response={response} timeZone={timeZone} fix={fix} note={note} setNote={setNote} onRetry={restart} onReview={requestReview} />
+          ) : null}
+      </motion.div>
     </div>
   );
 }
@@ -402,19 +413,19 @@ function ManualCode({
   if (!open) {
     return (
       <Button variant="ghost" className="w-full" onClick={() => setOpen(true)}>
-        <Keyboard /> Introduzir código manualmente
+        Introduzir código manualmente
       </Button>
     );
   }
   return (
     <form
-      className="space-y-2 rounded-xl border border-border p-3"
+      className="space-y-2.5 rounded-[22px] bg-surface p-4"
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit();
       }}
     >
-      <label htmlFor="qr-code" className="text-[13px] font-medium">
+      <label htmlFor="qr-code" className="text-[13px] font-bold">
         Código da estação
       </label>
       <Input
@@ -427,7 +438,7 @@ function ManualCode({
         spellCheck={false}
         autoFocus
       />
-      {error ? <p className="text-xs text-danger">{error}</p> : <p className="text-xs text-muted">Cole o código ou a ligação apresentada na estação.</p>}
+      {error ? <p className="text-xs font-bold text-danger">{error}</p> : <p className="text-xs text-muted">Cole o código ou a ligação apresentada na estação.</p>}
       <div className="grid grid-cols-2 gap-2">
         <Button type="button" variant="outline" onClick={() => setOpen(false)}>
           Fechar
@@ -440,19 +451,22 @@ function ManualCode({
   );
 }
 
-function Steps({ step }: { step: Step }) {
-  const order: Step[] = ["scanning", "locating", "submitting", "result"];
-  const idx = step === "intro" ? -1 : order.indexOf(step);
-  const labels = ["QR Code", "Localização", "Validação"];
+/** Marca grande do resultado: hastes que crescem a partir do centro, na cor do estado. */
+function ResultMark({ tone }: { tone: "success" | "primary" | "warning" | "danger" }) {
+  const reduce = useReducedMotion();
+  const color = { success: "text-success", primary: "text-primary", warning: "text-warning", danger: "text-danger" }[tone];
   return (
-    <ol className="grid grid-cols-3 gap-2" aria-label="Progresso">
-      {labels.map((l, i) => (
-        <li key={l}>
-          <div className={cn("h-1 rounded-full", i < idx || idx === 3 ? "bg-primary" : i === idx ? "bg-primary/50" : "bg-surface-2")} />
-          <p className={cn("mt-1.5 text-[11px]", i <= idx ? "text-foreground" : "text-subtle")}>{l}</p>
-        </li>
+    <span className={cn("flex h-20 items-center gap-[7px]", color)} aria-hidden>
+      {[30, 52, 76, 52, 30].map((h, i) => (
+        <motion.span
+          key={i}
+          className="block w-[9px] rounded-full bg-current"
+          initial={reduce ? false : { height: 0, opacity: 0 }}
+          animate={{ height: h, opacity: i === 2 ? 1 : 0.45 }}
+          transition={{ delay: 0.05 + Math.abs(2 - i) * 0.08, type: "spring", stiffness: 260, damping: 15 }}
+        />
       ))}
-    </ol>
+    </span>
   );
 }
 
@@ -473,16 +487,21 @@ function Result({
   onRetry: () => void;
   onReview: () => void;
 }) {
+  const reduce = useReducedMotion();
+  const rise = (delay: number) => (reduce ? {} : { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, transition: { delay, duration: 0.35, ease: "easeOut" as const } });
+
   if (!response.ok) {
     return (
-      <div className="mt-10 flex flex-1 flex-col items-center text-center">
-        <span className="flex size-16 items-center justify-center rounded-full bg-danger-soft text-danger">
-          <AlertTriangle className="size-8" />
-        </span>
-        <p className="mt-5 text-[17px] font-semibold">Marcação não registada</p>
-        <p className="mt-1.5 max-w-xs text-[13px] text-muted">{response.error.message}</p>
-        <Button size="lg" className="mt-auto w-full" onClick={onRetry}>
-          <RotateCcw /> Ler QR Code novamente
+      <div className="mt-12 flex flex-1 flex-col items-center text-center">
+        <ResultMark tone="danger" />
+        <motion.p {...rise(0.15)} className="mt-6 text-[24px] font-extrabold tracking-[-0.02em]">
+          Marcação não registada
+        </motion.p>
+        <motion.p {...rise(0.22)} className="mt-2 max-w-xs text-[14px] leading-relaxed text-muted">
+          {response.error.message}
+        </motion.p>
+        <Button size="lg" className="mt-auto h-14 w-full text-[16px] font-extrabold" onClick={onRetry}>
+          Ler QR Code novamente
         </Button>
       </div>
     );
@@ -493,23 +512,29 @@ function Result({
   if (r.status === "rejected") {
     return (
       <div className="mt-8 flex flex-1 flex-col">
-        <div className="text-center">
-          <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-warning-soft text-warning">
-            <MapPinOff className="size-8" />
-          </span>
-          <p className="mt-5 text-[17px] font-semibold">Fora do perímetro</p>
-          <p className="mx-auto mt-1.5 max-w-xs text-[13px] text-muted">{r.message}</p>
-          {fix ? <p className="mt-1 text-xs text-subtle">Precisão do GPS: ±{Math.round(fix.accuracy)} m</p> : null}
+        <div className="flex flex-col items-center text-center">
+          <ResultMark tone="warning" />
+          <motion.p {...rise(0.15)} className="mt-6 text-[24px] font-extrabold tracking-[-0.02em]">
+            Fora do perímetro
+          </motion.p>
+          <motion.p {...rise(0.22)} className="mx-auto mt-2 max-w-xs text-[14px] leading-relaxed text-muted">
+            {r.message}
+          </motion.p>
+          {fix ? (
+            <p className="mt-2 text-[13px] text-subtle">
+              Precisão do GPS: <span className="font-bold tabular">±{Math.round(fix.accuracy)} m</span>
+            </p>
+          ) : null}
         </div>
-        <div className="mt-6 space-y-2">
-          <label htmlFor="note" className="text-[13px] font-medium">
+        <motion.div {...rise(0.3)} className="mt-7 space-y-2">
+          <label htmlFor="note" className="text-[13px] font-bold">
             Está no local? Explique e peça revisão
           </label>
           <Textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ex.: estou no armazém lateral, o sinal GPS é fraco." maxLength={300} />
-        </div>
+        </motion.div>
         <div className="mt-auto grid gap-2 pt-6">
           <Button size="lg" onClick={onRetry}>
-            <RotateCcw /> Tentar novamente
+            Tentar novamente
           </Button>
           <Button size="lg" variant="outline" onClick={onReview} disabled={note.trim().length < 5}>
             Pedir revisão
@@ -522,16 +547,27 @@ function Result({
   const ok = r.status === "accepted";
   return (
     <div className="mt-10 flex flex-1 flex-col items-center text-center">
-      <span className={cn("flex size-20 items-center justify-center rounded-full", ok ? "bg-success-soft text-success" : "bg-primary-soft text-primary")}>
-        {ok ? <CheckCircle2 className="size-10" /> : <Clock className="size-10" />}
-      </span>
-      <p className="mt-5 text-[13px] text-muted">{TYPE_LABEL[r.type]}</p>
-      <p className="text-[44px] leading-tight font-semibold tracking-tight tabular">{time}</p>
-      <Badge tone={ok ? "success" : "primary"} className="mt-2">
-        {ok ? "Marcação validada" : "Em revisão"}
-      </Badge>
-      <p className="mt-4 max-w-xs text-[13px] text-muted">{r.message}</p>
-      <Button size="lg" className="mt-auto w-full" asChild>
+      <ResultMark tone={ok ? "success" : "primary"} />
+      <motion.p {...rise(0.15)} className="mt-6 text-[15px] font-bold text-muted">
+        {TYPE_LABEL[r.type]}
+      </motion.p>
+      <motion.p
+        className="text-[72px] leading-none font-extrabold tracking-[-0.04em] tabular"
+        initial={reduce ? false : { opacity: 0, scale: 0.85 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 18 }}
+      >
+        {time}
+      </motion.p>
+      <motion.div {...rise(0.32)}>
+        <Badge tone={ok ? "success" : "primary"} className="mt-3 text-[14px]">
+          {ok ? "Marcação validada" : "Em revisão"}
+        </Badge>
+      </motion.div>
+      <motion.p {...rise(0.38)} className="mt-4 max-w-xs text-[14px] leading-relaxed text-muted">
+        {r.message}
+      </motion.p>
+      <Button size="lg" className="mt-auto h-14 w-full text-[16px] font-extrabold" asChild>
         <Link href="/app/">Concluir</Link>
       </Button>
     </div>

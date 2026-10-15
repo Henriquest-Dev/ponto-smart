@@ -1,4 +1,4 @@
--- PontoSmart, script 4, parte 5 de 5: salários, painel, anexos e permissões finais
+-- Horbit, script 4, parte 5 de 5: salários, painel, anexos e permissões finais
 BEGIN;
 CREATE OR REPLACE FUNCTION ps_payroll_period(p_company uuid, p_year integer, p_month integer)
 RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$

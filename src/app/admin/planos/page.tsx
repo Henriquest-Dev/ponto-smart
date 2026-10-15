@@ -1,17 +1,16 @@
 "use client";
 
-import { Layers, Pencil, Plus } from "lucide-react";
 import * as React from "react";
 import { billable, loadOverview, type Plan } from "@/components/admin/data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { PendingButton, SubmitForm } from "@/components/admin/submit-form";
 import { Checkbox, Field, Input, Select } from "@/components/ui/input";
 import { EmptyState, Notice, Skeleton } from "@/components/ui/misc";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatNumber } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { attempt, formObject } from "@/lib/result";
 import { must, sb } from "@/lib/sb/client";
 import { useData } from "@/lib/sb/use-data";
@@ -30,7 +29,7 @@ export default function PlansPage() {
         description="Preços mensais, limites e módulos incluídos. Os planos activos aparecem na página pública de pedido de conta."
         actions={
           <Button onClick={() => setEditing("new")}>
-            <Plus /> Novo plano
+            Novo plano
           </Button>
         }
       />
@@ -38,51 +37,55 @@ export default function PlansPage() {
         {error ? <Notice tone="danger">{error}</Notice> : null}
 
         {loading && !data ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: 3 }, (_, i) => (
-              <Skeleton key={i} className="h-48 rounded-xl" />
-            ))}
-          </div>
+          <Skeleton className="h-72 rounded-[22px]" />
         ) : plans.length === 0 ? (
-          <EmptyState icon={<Layers />} title="Sem planos" description="Crie o primeiro plano de subscrição." />
+          <EmptyState
+            title="Sem planos"
+            description="Crie o primeiro plano de subscrição."
+            action={<Button onClick={() => setEditing("new")}>Novo plano</Button>}
+          />
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border">
             {plans.map((p) => {
               const used = usage(p.code);
               const revenue = used.reduce((s, c) => s + Number(c.price_monthly ?? 0), 0);
               return (
-                <Card key={p.id} className={p.active ? "flex flex-col p-5" : "flex flex-col p-5 opacity-70"}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-2 text-[15px] font-semibold">
-                        {p.name}
-                        {p.active ? null : <Badge>Inactivo</Badge>}
-                      </p>
-                      <p className="font-mono text-xs text-muted">{p.code}</p>
-                    </div>
-                    <Button size="icon-sm" variant="ghost" aria-label={`Editar ${p.name}`} onClick={() => setEditing(p)}>
-                      <Pencil />
+                <li
+                  key={p.id}
+                  className={cn(
+                    "grid gap-4 px-5 py-5 sm:px-6 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-center",
+                    !p.active && "bg-surface/60",
+                  )}
+                >
+                  <div className="min-w-0">
+                    <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="text-[18px] font-extrabold tracking-[-0.01em]">{p.name}</span>
+                      {p.active ? <Badge tone="success">Activo</Badge> : <Badge>Inactivo</Badge>}
+                    </p>
+                    <p className="mt-0.5 font-mono text-[12px] text-muted">{p.code}</p>
+                    {p.modules.length ? <p className="mt-2 text-[13px] text-muted">{p.modules.join(", ")}</p> : null}
+                  </div>
+                  <div>
+                    <p className="text-[26px] leading-none font-extrabold tracking-[-0.02em] tabular">{formatMoney(p.price_monthly, p.currency)}</p>
+                    <p className="mt-1.5 text-[13px] text-muted">por mês, até {formatNumber(p.max_employees)} colaboradores</p>
+                  </div>
+                  <div>
+                    <p className="text-[15px] font-extrabold tabular">
+                      {used.length} {used.length === 1 ? "empresa" : "empresas"}
+                    </p>
+                    <p className="mt-0.5 text-[13px] text-muted tabular">
+                      {used.length ? `${formatMoney(revenue, p.currency)} por mês` : "Sem receita"}
+                    </p>
+                  </div>
+                  <div>
+                    <Button size="sm" variant="outline" aria-label={`Editar ${p.name}`} onClick={() => setEditing(p)}>
+                      Editar
                     </Button>
                   </div>
-                  <p className="mt-3 text-[28px] font-semibold tracking-tight tabular">
-                    {formatMoney(p.price_monthly, p.currency)}
-                    <span className="text-sm font-normal text-muted"> /mês</span>
-                  </p>
-                  <p className="text-[13px] text-muted">
-                    Até {p.max_employees} colaboradores · {used.length} {used.length === 1 ? "empresa" : "empresas"}
-                    {used.length ? ` · ${formatMoney(revenue, p.currency)}/mês` : ""}
-                  </p>
-                  {p.modules.length ? (
-                    <div className="mt-4 flex flex-wrap gap-1.5">
-                      {p.modules.map((m) => (
-                        <Badge key={m}>{m}</Badge>
-                      ))}
-                    </div>
-                  ) : null}
-                </Card>
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
       </PageBody>
 
@@ -100,7 +103,7 @@ function PlanDialog({ plan, open, onClose, onSaved }: { plan: Plan | null; open:
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       {open ? (
-        <DialogContent title={plan ? `Editar plano — ${plan.name}` : "Novo plano"}>
+        <DialogContent title={plan ? `Editar o plano ${plan.name}` : "Novo plano"}>
           <SubmitForm
             key={plan?.id ?? "new"}
             onSubmit={(fd) =>
@@ -155,7 +158,7 @@ function PlanDialog({ plan, open, onClose, onSaved }: { plan: Plan | null; open:
             <Field label="Máx. colaboradores">
               <Input name="max_employees" type="number" min={1} defaultValue={plan?.max_employees} required />
             </Field>
-            <label className="flex items-center gap-2 self-end pb-2.5 text-[13px] font-medium">
+            <label className="flex min-h-11 cursor-pointer items-center gap-3 self-end text-[13.5px] font-bold">
               <Checkbox name="active" defaultChecked={plan ? plan.active : true} /> Plano activo (disponível para novos pedidos)
             </label>
             <Field label="Módulos" hint="Separados por vírgula (ex.: ponto, assiduidade, salarios)." className="sm:col-span-2">

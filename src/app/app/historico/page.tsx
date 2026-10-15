@@ -1,6 +1,5 @@
 "use client";
 
-import { CalendarX2 } from "lucide-react";
 import { useState } from "react";
 import { loadMonthDays, one, summarize, useTitle, type EventStatus, type One } from "@/components/collab/shared";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +14,7 @@ import { must, sb } from "@/lib/sb/client";
 import { useCompany } from "@/lib/sb/session";
 import { useData } from "@/lib/sb/use-data";
 import { monthRange } from "@/lib/time";
+import { cn } from "@/lib/utils";
 
 type EventRow = {
   id: string;
@@ -75,13 +75,13 @@ export default function HistoryPage() {
 
         {loading && !data ? (
           <div className="space-y-3">
-            <Skeleton className="h-24 rounded-xl" />
-            <Skeleton className="h-64 rounded-xl" />
+            <Skeleton className="h-24 rounded-[22px]" />
+            <Skeleton className="h-64 rounded-[22px]" />
           </div>
         ) : data && data.days.length === 0 ? (
-          <EmptyState icon={<CalendarX2 />} title="Sem registos neste mês" description="Quando marcar ponto, os dias aparecem aqui." />
+          <EmptyState title="Sem registos neste mês" description="Quando marcar ponto, os dias aparecem aqui." />
         ) : data ? (
-          <ul className={loading ? "overflow-hidden rounded-xl border border-border opacity-60" : "overflow-hidden rounded-xl border border-border"}>
+          <ul className={cn("overflow-hidden rounded-[22px] border border-border bg-background transition-opacity", loading && "opacity-60")}>
             {data.days.map((d) => {
               const st = dailyStatus(d.status);
               const dayEvents = data.events.filter((e) => e.work_date === d.work_date);
@@ -89,39 +89,45 @@ export default function HistoryPage() {
               return (
                 <li key={d.id} className="border-b border-border last:border-0">
                   <details className="group">
-                    <summary className="flex cursor-pointer list-none items-center gap-4 px-4 py-3.5 hover:bg-surface/60 sm:px-5 [&::-webkit-details-marker]:hidden">
-                      <div className="flex w-11 shrink-0 flex-col items-center rounded-lg bg-surface py-1.5">
-                        <span className="text-[10px] text-muted uppercase">
+                    <summary className="flex cursor-pointer list-none items-center gap-4 px-4 py-3.5 transition-colors hover:bg-surface sm:px-5 [&::-webkit-details-marker]:hidden">
+                      <div className="flex w-12 shrink-0 flex-col items-center rounded-[14px] bg-surface-2 py-1.5 group-open:bg-primary group-open:text-white">
+                        <span className="text-[11px] font-bold opacity-70 first-letter:uppercase">
                           {date.toLocaleDateString("pt-PT", { weekday: "short", timeZone: "UTC" }).replace(".", "")}
                         </span>
-                        <span className="text-[17px] leading-tight font-semibold tabular">{date.getUTCDate()}</span>
+                        <span className="text-[19px] leading-tight font-extrabold tabular">{date.getUTCDate()}</span>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[13px] font-medium tabular">
-                          {d.first_in ? formatTime(d.first_in, tz) : "—"} <span className="text-subtle">→</span>{" "}
+                        <p className="text-[15px] font-extrabold tabular">
+                          {d.first_in ? formatTime(d.first_in, tz) : "—"}
+                          <span className="mx-1.5 font-bold text-subtle">a</span>
                           {d.last_out ? formatTime(d.last_out, tz) : "—"}
                         </p>
-                        <p className="mt-0.5 text-xs text-muted">
-                          {formatMinutes(d.worked_minutes)} trabalhadas
-                          {d.late_minutes ? ` · ${d.late_minutes} min de atraso` : ""}
-                          {d.overtime_minutes ? ` · ${formatMinutes(d.overtime_minutes)} extra` : ""}
+                        <p className="mt-0.5 text-[12.5px] text-muted">
+                          {[
+                            `${formatMinutes(d.worked_minutes)} trabalhadas`,
+                            d.late_minutes ? `${d.late_minutes} min de atraso` : null,
+                            d.overtime_minutes ? `${formatMinutes(d.overtime_minutes)} extra` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")}
                         </p>
                       </div>
                       <Badge tone={st.tone}>{st.label}</Badge>
                     </summary>
                     {dayEvents.length ? (
-                      <ul className="space-y-2 border-t border-border bg-surface/40 px-4 py-3 sm:px-5">
+                      <ul className="space-y-2.5 border-t border-border bg-surface px-4 py-3.5 sm:px-5">
                         {dayEvents.map((e) => {
                           const v = one(e.attendance_validations);
                           const station = one(e.attendance_stations);
                           const accuracy = v?.accuracy_m != null ? Number(v.accuracy_m) : null;
                           return (
                             <li key={e.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
-                              <span className="w-12 font-medium tabular">{formatTime(e.occurred_at, tz)}</span>
-                              <span className="min-w-28">{EVENT_TYPE_LABEL[e.type]}</span>
-                              <span className="text-xs text-muted">
+                              <span className="stem text-primary" aria-hidden />
+                              <span className="w-12 font-extrabold tabular">{formatTime(e.occurred_at, tz)}</span>
+                              <span className="min-w-28 font-bold">{EVENT_TYPE_LABEL[e.type]}</span>
+                              <span className="text-[12.5px] text-muted">
                                 {station?.name ?? "—"}
-                                {v?.geofence_result ? ` · ${GEOFENCE_LABEL[v.geofence_result] ?? v.geofence_result}` : ""}
+                                {v?.geofence_result ? `, ${GEOFENCE_LABEL[v.geofence_result] ?? v.geofence_result}` : ""}
                                 {accuracy ? ` (±${Math.round(accuracy)} m)` : ""}
                               </span>
                               {e.status !== "accepted" ? (
