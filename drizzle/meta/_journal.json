@@ -29,6 +29,13 @@
       "when": 1792043669607,
       "tag": "0003_company_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792045252447,
+      "tag": "0004_supabase_lockdown",
+      "breakpoints": true
     }
   ]
 }

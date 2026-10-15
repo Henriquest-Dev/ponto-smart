@@ -17,7 +17,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx --import ./scripts/server-only-hook.mjs scripts/seed.ts",
-    "db:reset": "tsx scripts/reset.ts && npm run db:migrate && npm run db:seed"
+    "db:reset": "tsx scripts/reset.ts && npm run db:migrate && npm run db:seed",
+    "supabase:sql": "bash scripts/export-supabase.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.134.0",

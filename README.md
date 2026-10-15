@@ -67,6 +67,7 @@ Comandos úteis:
 | `npm run lint` / `npm run typecheck` | Qualidade |
 | `npm run db:generate` | Gera nova migração após alterar `src/lib/db/schema.ts` |
 | `npm run db:reset` | Apaga e recria a base de dados local (bloqueado em produção) |
+| `npm run supabase:sql` | Regenera os ficheiros SQL da pasta `supabase/` |
 
 > A câmara e a localização só funcionam em **HTTPS** ou em `localhost`. Para testar no telemóvel em rede local, use um túnel HTTPS (ex.: `npx localtunnel --port 3000`) ou o deploy de pré-visualização da Netlify.
 
@@ -86,7 +87,9 @@ O projecto foi preparado para evitar os erros comuns de deploy:
 
 ### 1. Base de dados (PostgreSQL com PostGIS)
 
-Use **Neon** ou **Supabase** (ambos suportam PostGIS). Escolha a região mais próxima dos utilizadores.
+Use **Supabase** ou **Neon** (ambos suportam PostGIS). Escolha a região mais próxima dos utilizadores.
+
+**Supabase (mais simples):** execute no SQL Editor os ficheiros da pasta [`supabase/`](supabase/README.md) — `01_esquema.sql`, opcionalmente `02_dados_demonstracao.sql`, e `03_super_admin.sql` com o seu email e palavra-passe. O esquema activa o RLS para que a API REST do Supabase não exponha dados.
 
 - **Neon**: copie a *connection string* **pooled** (`...-pooler...neon.tech/...?sslmode=require`).
 - **Supabase**: use a ligação *Transaction pooler* (porta `6543`).
