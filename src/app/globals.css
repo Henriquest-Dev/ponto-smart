@@ -1,0 +1,123 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens do PontoSmart — inspirados no painel de referência:
+ * tela cinza-lavanda, painel branco, barra lateral suave e destaque violeta.
+ */
+:root {
+  --canvas: #ebebf0;
+  --background: #ffffff;
+  --foreground: #11131f;
+  --surface: #f7f7fa;
+  --surface-2: #f1f1f5;
+  --muted: #6b6e7f;
+  --subtle: #9a9cab;
+  --border: #ebebf0;
+  --border-strong: #dcdce4;
+  --primary: #7041ec;
+  --primary-hover: #5f32d6;
+  --primary-soft: #efe9fe;
+  --primary-foreground: #ffffff;
+  --indigo: #4a3fdc;
+  --indigo-soft: #dfe0fb;
+  --success: #0f9d58;
+  --success-soft: #e3f6ea;
+  --warning: #c97a00;
+  --warning-soft: #fff3d9;
+  --danger: #dc3b45;
+  --danger-soft: #fdeaea;
+  --info: #2b6fd6;
+  --info-soft: #e5eefc;
+  --ring: #7041ec;
+  --radius: 12px;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-indigo: var(--indigo);
+  --color-indigo-soft: var(--indigo-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-ring: var(--ring);
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: var(--radius);
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --shadow-panel: 0 1px 2px rgb(17 19 31 / 0.04), 0 8px 24px -12px rgb(17 19 31 / 0.08);
+  --animate-fade-in: fade-in 0.18s ease-out;
+  --animate-slide-up: slide-up 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-slide-in-left: slide-in-left 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slide-in-left {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+    text-size-adjust: 100%;
+  }
+  body {
+    background: var(--canvas);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
