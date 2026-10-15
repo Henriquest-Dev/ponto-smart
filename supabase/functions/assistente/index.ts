@@ -9,7 +9,7 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-const MODELS = [Deno.env.get("GEMINI_MODEL") ?? "gemini-flash-lite-latest", "gemini-flash-latest", "gemini-2.5-flash-lite"];
+const MODELS = [Deno.env.get("GEMINI_MODEL") ?? "gemini-flash-lite-latest", "gemini-flash-latest", "gemini-3.5-flash-lite"];
 const GEMINI = Deno.env.get("GEMINI_API_BASE") ?? "https://generativelanguage.googleapis.com/v1beta";
 
 type Msg = { role: "user" | "model"; text: string };
@@ -28,7 +28,7 @@ const GUIDE_COMPANY = `Como funciona o Horbit (painel da empresa):
 
 const GUIDE_PLATFORM = `Como funciona o Horbit (Super Admin):
 - Visão geral: empresas, colaboradores activos, pedidos pendentes e actividade de marcações.
-- Pedidos de acesso: a empresa envia em /registo/ só o nome, o email e o motivo. O Super Admin usa "Pedir dados por email" para pedir o nome do responsável e os dados da empresa; com a resposta usa "Criar conta" (cria a empresa e o acesso do responsável) e depois "Enviar por email" para mandar as credenciais. Também pode recusar com motivo.
+- Pedidos de acesso (menu Plataforma → Pedidos de acesso): as empresas pedem acesso na página pública "Pedir acesso" com só o nome, o email e o motivo. No menu Pedidos de acesso, o Super Admin usa "Pedir dados por email" para pedir o nome do responsável e os dados da empresa; com a resposta usa "Criar conta" (cria a empresa e o acesso do responsável) e depois "Enviar por email" para mandar as credenciais. Também pode recusar com motivo.
 - Empresas: criar empresa directamente, ver o responsável, redefinir a palavra-passe do responsável, suspender ou reactivar.
 - Auditoria: todas as acções na plataforma.
 - O Super Admin não vê salários das empresas. Cada empresa cria os acessos da própria equipa.`;
@@ -70,7 +70,8 @@ Deno.serve(async (req) => {
       : "Estás a conversar com alguém da gestão de uma empresa (responsável, RH, financeiro ou supervisor).",
     "Conversa de forma natural e simpática em português de Portugal: cumprimenta, responde a perguntas de seguimento, pede esclarecimento quando a pergunta é ambígua e lembra-te do que já foi dito nesta conversa.",
     "Sê directo e curto. Texto simples; listas com hífen quando ajudar; **negrito** só para números ou nomes importantes.",
-    "Para perguntas sobre dados, usa apenas o contexto JSON abaixo e diz de onde vem o número. Se o dado não estiver lá, diz que não o tens e indica a página do Horbit onde se vê.",
+    "Para perguntas sobre dados, usa apenas o contexto JSON abaixo. Se o dado não estiver lá, diz que não o tens e indica a página do Horbit onde se vê.",
+    "Nunca mostres nomes técnicos do contexto (chaves do JSON, nomes de funções ou de tabelas); fala sempre pelos nomes das páginas e menus do Horbit.",
     "Para perguntas sobre como usar o Horbit, explica os passos com base no guia abaixo.",
     "Não tomas decisões nem executas acções: não aprovas faltas, não crias contas, não pagas, não aplicas sanções nem calculas taxas legais. Valores em MZN.",
     platform ? GUIDE_PLATFORM : GUIDE_COMPANY,
