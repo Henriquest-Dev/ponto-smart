@@ -7,7 +7,7 @@
 -- =====================================================================
 DO $$
 DECLARE
-  v_email    text := 'o-seu-email@exemplo.co.mz';   -- ← altere
+  v_email    text := 'o-seu-email@exemplo.co.mz';   -- ← altere (email ou nome de utilizador)
   v_name     text := 'Administrador PontoSmart';    -- ← altere
   v_password text := 'Troque-Esta-Palavra-Passe-2026';  -- ← altere (mín. 10 caracteres, letras e números)
   v_schema   text;

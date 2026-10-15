@@ -14,8 +14,8 @@ export function LoginForm({ next }: { next?: string }) {
     <form action={action} className="mt-8 space-y-4">
       {state && !state.ok ? <Notice tone="danger">{state.error}</Notice> : null}
       <input type="hidden" name="next" value={next ?? ""} />
-      <Field label="Email" htmlFor="email">
-        <Input id="email" name="email" type="email" autoComplete="username" inputMode="email" required placeholder="nome@empresa.co.mz" />
+      <Field label="Email ou utilizador" htmlFor="email">
+        <Input id="email" name="email" type="text" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} required placeholder="nome@empresa.co.mz" />
       </Field>
       <Field label="Palavra-passe" htmlFor="password">
         <div className="relative">

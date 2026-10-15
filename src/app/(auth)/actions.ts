@@ -17,7 +17,8 @@ import { runAction, type ActionResult } from "@/lib/action";
 import { HttpError } from "@/lib/errors";
 
 const loginSchema = z.object({
-  email: z.string().trim().toLowerCase().email("Indique um email válido."),
+  // Aceita email ou nome de utilizador (ex.: conta de Super Admin criada no Supabase).
+  email: z.string().trim().toLowerCase().min(3, "Indique o email ou o utilizador.").max(200),
   password: z.string().min(1, "Indique a palavra-passe."),
   next: z.string().optional(),
 });
@@ -39,7 +40,7 @@ export async function loginAction(_prev: ActionResult | null, fd: FormData): Pro
     const ok = user && user.status === "active" && (await verifyPassword(input.password, user.passwordHash));
     if (!ok) {
       await audit({ companyId: null, actorId: user?.id ?? null, action: "auth.login_failed", entity: "user", entityId: user?.id, after: { email: input.email } });
-      throw new HttpError(401, "Email ou palavra-passe incorrectos.");
+      throw new HttpError(401, "Utilizador ou palavra-passe incorrectos.");
     }
     const [m] = await db.select({ companyId: memberships.companyId }).from(memberships).where(and(eq(memberships.userId, user.id), eq(memberships.active, true))).limit(1);
     await createSession(user.id, { companyId: m?.companyId ?? null, mfaPending: user.mfaEnabled });

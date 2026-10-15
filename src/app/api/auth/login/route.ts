@@ -15,14 +15,14 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   try {
     assertSameOrigin(req);
-    const input = z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(1) }).parse(await req.json());
+    const input = z.object({ email: z.string().trim().toLowerCase().min(3).max(200), password: z.string().min(1) }).parse(await req.json());
     const { ip } = await requestMeta();
     await rateLimit(`login:ip:${ip ?? "unknown"}`, 20, 300);
     await rateLimit(`login:email:${input.email}`, 6, 300);
     const [user] = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
     if (!user || user.status !== "active" || !(await verifyPassword(input.password, user.passwordHash))) {
       await audit({ companyId: null, actorId: user?.id ?? null, action: "auth.login_failed", entity: "user", entityId: user?.id, after: { email: input.email, via: "api" } });
-      throw new HttpError(401, "Email ou palavra-passe incorrectos.", "invalid_credentials");
+      throw new HttpError(401, "Utilizador ou palavra-passe incorrectos.", "invalid_credentials");
     }
     const [m] = await db.select({ companyId: memberships.companyId }).from(memberships).where(and(eq(memberships.userId, user.id), eq(memberships.active, true))).limit(1);
     await createSession(user.id, { companyId: m?.companyId ?? null, mfaPending: user.mfaEnabled });
