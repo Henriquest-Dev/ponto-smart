@@ -13,7 +13,9 @@ import { cn } from "@/lib/utils";
 type Msg = { role: "user" | "model"; text: string };
 type Conversation = { id: string; title: string; messages: Msg[]; updated_at: string };
 
-const NOT_ACTIVE = "O assistente ainda não está activo. Publique a função 'assistente' no Supabase.";
+/** Nome da Edge Function publicada no Supabase (no projecto actual chama-se "Ponto-ai"). */
+const AI_FUNCTION = process.env.NEXT_PUBLIC_AI_FUNCTION ?? "Ponto-ai";
+const NOT_ACTIVE = `O assistente ainda não está activo. Publique a função '${AI_FUNCTION}' no Supabase.`;
 
 export type AssistantScope = { kind: "company"; companyId: string } | { kind: "platform" };
 
@@ -31,7 +33,7 @@ function normalize(raw: unknown): Msg[] {
 
 async function ask(scope: AssistantScope, messages: Msg[]): Promise<string> {
   const payload = scope.kind === "company" ? { scope: "company", companyId: scope.companyId, messages } : { scope: "platform", messages };
-  const { data, error } = await sb().functions.invoke("assistente", { body: payload });
+  const { data, error } = await sb().functions.invoke(AI_FUNCTION, { body: payload });
   if (error) {
     if (error instanceof FunctionsHttpError) {
       const res = error.context as Response | undefined;

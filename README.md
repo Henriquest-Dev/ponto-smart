@@ -30,7 +30,7 @@ Opcional: em *Database → Extensions* activar **pg_cron** e voltar a correr o `
 
 ### 2. Supabase → Edge Functions (assistente)
 
-1. *Edge Functions → Deploy a new function → Via Editor*, nome **assistente**, colar `supabase/functions/assistente/index.ts`, *Deploy*. Quando o ficheiro mudar, abrir a função, colar a versão nova e *Deploy* outra vez.
+1. *Edge Functions → Deploy a new function → Via Editor*, nome **Ponto-ai** (o nome que o site chama; pode ser outro com `NEXT_PUBLIC_AI_FUNCTION`), colar `supabase/functions/assistente/index.ts`, *Deploy*. Quando o ficheiro mudar, abrir a função, colar a versão nova e *Deploy* outra vez.
 2. *Edge Functions → Secrets*: adicionar `GEMINI_API_KEY` com a chave do Google AI Studio.
 3. O mesmo assistente serve o painel da empresa (*Assistente*) e o Super Admin (*Plataforma → Assistente*).
 
