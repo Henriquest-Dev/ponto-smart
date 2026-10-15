@@ -266,7 +266,7 @@ DECLARE
   v_status daily_status; v_day_over boolean; v_keep daily_status;
 BEGIN
   SELECT * INTO v_emp FROM employees WHERE id = p_employee;
-  IF v_emp.id IS NULL THEN RETURN; END IF;
+  IF v_emp.id IS NULL OR p_date < v_emp.hire_date THEN RETURN; END IF;
   SELECT * INTO v_existing FROM attendance_daily WHERE employee_id = p_employee AND work_date = p_date;
   IF v_existing.locked THEN RETURN; END IF;
   v_tz := ps_company_tz(v_emp.company_id);
@@ -311,7 +311,7 @@ BEGIN
   END IF;
   v_day_over := p_date < (now() AT TIME ZONE v_tz)::date;
   IF v_existing.status IN ('justified', 'unjustified') THEN v_keep := v_existing.status; END IF;
-  IF v_count = 0 AND NOT v_day_over AND v_existing.id IS NULL THEN RETURN; END IF;
+  IF v_count = 0 AND v_existing.id IS NULL AND (NOT v_day_over OR v_start IS NULL) THEN RETURN; END IF;
   IF v_count = 0 THEN
     v_status := CASE WHEN v_keep IS NOT NULL THEN v_keep WHEN v_holiday THEN 'holiday'
                      WHEN v_start IS NULL THEN 'day_off' ELSE 'absent_pending' END;
