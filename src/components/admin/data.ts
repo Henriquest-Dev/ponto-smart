@@ -31,7 +31,7 @@ export type AdminRequest = {
   id: string;
   company_name: string;
   nuit: string | null;
-  contact_name: string;
+  contact_name: string | null;
   email: string;
   phone: string | null;
   city: string | null;

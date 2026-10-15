@@ -77,6 +77,27 @@ function Components() {
 
   const pending = (data.data?.rules ?? []).filter((r) => !r.validated);
 
+  const rateLabel = (c: Component) =>
+    c.rate != null
+      ? c.calc_type === "fixed"
+        ? formatMoney(c.rate, company.currency)
+        : c.calc_type === "percent_base"
+          ? `${Number(c.rate).toLocaleString("pt-PT")}%`
+          : `${Number(c.rate).toLocaleString("pt-PT")}×`
+      : "Por colaborador";
+  const toggle = (c: Component) =>
+    attempt(async () => {
+      must(await sb().from("payroll_components").update({ active: !c.active }).eq("id", c.id).select("id"));
+      data.reload();
+      return c.active ? "Rubrica desactivada." : "Rubrica activada.";
+    });
+  const ruleParams = (r: RuleVersion) =>
+    r.params?.ratePercent != null
+      ? `${r.params.ratePercent}%`
+      : r.params?.brackets?.length
+        ? `${r.params.brackets.length} escalões`
+        : "Por definir";
+
   return (
     <>
       <PageHeader title="Rubricas e regras" description="Catálogo de abonos e descontos, e regras legais versionadas." />
@@ -94,7 +115,37 @@ function Components() {
               {data.data.components.length === 0 ? (
                 <EmptyState title="Sem rubricas" description="Crie subsídios, adiantamentos ou descontos autorizados." />
               ) : (
-                <TableWrap>
+                <>
+                <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background md:hidden">
+                  {data.data.components.map((c) => (
+                    <li key={c.id} className="px-4 py-3">
+                      <div className="flex items-start gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[14px] font-bold">{c.name}</p>
+                          <p className="font-mono text-[12px] text-muted">{c.code}</p>
+                        </div>
+                        {c.nature === "earning" ? <Badge tone="success">Abono</Badge> : <Badge tone="danger">Desconto</Badge>}
+                      </div>
+                      <p className="mt-1 text-[12.5px] text-muted">
+                        {CALC[c.calc_type]}: <span className="tabular">{rateLabel(c)}</span>
+                        {c.taxable ? ", tributável" : ", não tributável"}
+                      </p>
+                      <p className="text-[12.5px] text-muted">
+                        Desde {formatDate(c.effective_from, tz)}
+                        {c.effective_to ? ` até ${formatDate(c.effective_to, tz)}` : ""}
+                      </p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <Badge tone={c.active ? "success" : "neutral"}>{c.active ? "Activa" : "Inactiva"}</Badge>
+                        {canEdit ? (
+                          <ActionButton size="sm" variant="ghost" action={() => toggle(c)}>
+                            {c.active ? "Desactivar" : "Activar"}
+                          </ActionButton>
+                        ) : null}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <TableWrap className="hidden md:block">
                   <Table>
                     <THead>
                       <tr>
@@ -108,15 +159,7 @@ function Components() {
                           <TD className="font-bold">{c.name}</TD>
                           <TD>{c.nature === "earning" ? <Badge tone="success">Abono</Badge> : <Badge tone="danger">Desconto</Badge>}</TD>
                           <TD className="text-muted">{CALC[c.calc_type]}</TD>
-                          <TD className="tabular">
-                            {c.rate != null
-                              ? c.calc_type === "fixed"
-                                ? formatMoney(c.rate, company.currency)
-                                : c.calc_type === "percent_base"
-                                  ? `${Number(c.rate).toLocaleString("pt-PT")}%`
-                                  : `${Number(c.rate).toLocaleString("pt-PT")}×`
-                              : "Por colaborador"}
-                          </TD>
+                          <TD className="tabular">{rateLabel(c)}</TD>
                           <TD className="text-muted">{c.taxable ? "Sim" : "Não"}</TD>
                           <TD className="whitespace-nowrap text-muted">
                             desde {formatDate(c.effective_from, tz)}
@@ -129,13 +172,7 @@ function Components() {
                               <ActionButton
                                 size="sm"
                                 variant="ghost"
-                                action={() =>
-                                  attempt(async () => {
-                                    must(await sb().from("payroll_components").update({ active: !c.active }).eq("id", c.id).select("id"));
-                                    data.reload();
-                                    return c.active ? "Rubrica desactivada." : "Rubrica activada.";
-                                  })
-                                }
+                                action={() => toggle(c)}
                               >
                                 {c.active ? "Desactivar" : "Activar"}
                               </ActionButton>
@@ -149,6 +186,7 @@ function Components() {
                     </tbody>
                   </Table>
                 </TableWrap>
+                </>
               )}
             </section>
 
@@ -168,7 +206,34 @@ function Components() {
               {data.data.rules.length === 0 ? (
                 <EmptyState title="Sem regras registadas" description="Sem regras validadas, o processamento não aplica retenções legais." />
               ) : (
-                <TableWrap>
+                <>
+                <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background md:hidden">
+                  {data.data.rules.map((r) => (
+                    <li key={r.id} className="px-4 py-3">
+                      <div className="flex items-start gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[14px] font-bold">
+                            {r.name} <span className="font-normal text-muted tabular">v{r.version}</span>
+                          </p>
+                          <p className="font-mono text-[12px] text-muted">{r.rule_code}</p>
+                        </div>
+                        {r.validated ? <Badge tone="success">Validada</Badge> : <Badge tone="warning">Por validar</Badge>}
+                      </div>
+                      <p className="mt-1 text-[12.5px] text-muted">
+                        {KIND[r.params?.kind] ?? r.params?.kind ?? "—"}, {ruleParams(r)}
+                      </p>
+                      <p className="text-[12.5px] text-muted">
+                        Desde {formatDate(r.effective_from, tz)}
+                        {r.validated && r.validated_by ? `, validada por ${r.validated_by}` : ""}
+                      </p>
+                      {r.source_reference ? <p className="text-[12px] text-subtle">{r.source_reference}</p> : null}
+                      <div className="mt-2">
+                        {r.company_id ? <Badge tone="primary">Empresa</Badge> : <Badge>Plataforma</Badge>}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <TableWrap className="hidden md:block">
                   <Table>
                     <THead>
                       <tr>
@@ -185,13 +250,7 @@ function Components() {
                           </TD>
                           <TD className="tabular">v{r.version}</TD>
                           <TD className="text-muted">{KIND[r.params?.kind] ?? r.params?.kind ?? "—"}</TD>
-                          <TD className="text-xs text-muted">
-                            {r.params?.ratePercent != null
-                              ? `${r.params.ratePercent}%`
-                              : r.params?.brackets?.length
-                                ? `${r.params.brackets.length} escalões`
-                                : "Por definir"}
-                          </TD>
+                          <TD className="text-xs text-muted">{ruleParams(r)}</TD>
                           <TD className="whitespace-nowrap text-muted">desde {formatDate(r.effective_from, tz)}</TD>
                           <TD>{r.company_id ? <Badge tone="primary">Empresa</Badge> : <Badge>Plataforma</Badge>}</TD>
                           <TD>
@@ -209,6 +268,7 @@ function Components() {
                     </tbody>
                   </Table>
                 </TableWrap>
+                </>
               )}
             </section>
           </>

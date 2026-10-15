@@ -3,23 +3,29 @@
 import Link from "next/link";
 import { Dropdown, DropdownContent, DropdownTrigger } from "@/components/ui/dropdown";
 import { cn } from "@/lib/utils";
+import { NavIcon } from "./nav-icon";
 
 export type NotificationView = { id: string; title: string; body: string | null; link: string | null; when: string; unread: boolean };
 
-/** Avisos: botão de texto com contador (sem sino). */
+/** Avisos: sino com contador (no telemóvel só o sino). */
 export function NotificationBell({ items, unread, onMarkRead, dark }: { items: NotificationView[]; unread: number; onMarkRead: () => void; dark?: boolean }) {
   return (
     <Dropdown>
       <DropdownTrigger asChild>
         <button
           className={cn(
-            "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-bold transition-colors",
+            "relative inline-flex h-10 min-w-10 shrink-0 items-center justify-center gap-1.5 rounded-md px-2 text-[13px] font-bold transition-colors lg:h-8 lg:min-w-0 lg:px-2.5",
             dark ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-muted hover:bg-surface-2 hover:text-foreground",
           )}
           aria-label={unread ? `Avisos, ${unread} por ler` : "Avisos"}
         >
-          Avisos
-          {unread ? <span className="rounded bg-primary px-1.5 text-[11.5px] text-white tabular">{unread > 9 ? "9+" : unread}</span> : null}
+          <NavIcon href="avisos" className="size-[22px] lg:size-[18px]" />
+          <span className="hidden lg:inline">Avisos</span>
+          {unread ? (
+            <span className="absolute top-1 right-0.5 min-w-[18px] rounded-full bg-primary px-1 text-center text-[11px] leading-[18px] text-white tabular lg:static lg:rounded lg:px-1.5 lg:leading-normal">
+              {unread > 9 ? "9+" : unread}
+            </span>
+          ) : null}
         </button>
       </DropdownTrigger>
       <DropdownContent className="w-[min(380px,calc(100vw-24px))] p-0">

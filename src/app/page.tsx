@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 export const metadata: Metadata = {
   title: { absolute: "Horbit — guia prático" },
   description:
-    "Guia prático do Horbit, página a página: pedir a conta, configurar o local, criar a equipa, marcar o ponto com QR Code, justificar faltas, fechar salários e falar com o assistente.",
+    "Guia prático do Horbit, página a página: pedir acesso, configurar o local, criar a equipa, marcar o ponto com QR Code, justificar faltas, fechar salários e falar com o assistente.",
 };
 
 type Chapter = {
@@ -26,30 +26,30 @@ type Chapter = {
 const CHAPTERS: Chapter[] = [
   {
     id: "pedir-conta",
-    who: "Responsável da empresa",
-    title: "Pedir a conta da empresa",
-    page: "Pedir conta",
+    who: "Empresa",
+    title: "Pedir acesso para a empresa",
+    page: "Pedir acesso",
     steps: [
-      "Abra Pedir conta e escreva o nome da empresa, o NUIT, a cidade e quantas pessoas trabalham consigo.",
-      "Indique o responsável: nome, email e telefone. É esta pessoa que vai receber o primeiro acesso.",
-      "Envie o pedido. A equipa Horbit confirma os dados e responde pelo email ou telefone indicados.",
+      "Abra Pedir acesso e escreva só o nome da empresa, o email e porque quer usar o Horbit.",
+      "A equipa Horbit responde para esse email a pedir o nome do responsável e os dados da empresa.",
+      "Responda ao email. Com esses dados, a conta da empresa é criada.",
     ],
     main: "/guia/01-pedir-conta.webp",
-    alt: "Formulário de pedido de conta com os dados da empresa e do responsável",
+    alt: "Formulário de pedido de acesso com o nome da empresa, o email e o motivo",
   },
   {
     id: "aprovar",
     who: "Super Admin",
-    title: "Aprovar o pedido e entregar o acesso",
-    page: "Plataforma › Pedidos de conta",
+    title: "Criar a conta e enviar as credenciais",
+    page: "Plataforma › Pedidos de acesso",
     steps: [
-      "Em Pedidos de conta aparecem os pedidos novos, com os contactos e o número de colaboradores.",
-      "Aprovar cria a empresa, um horário base de 08:00 às 17:00 e o acesso do responsável.",
-      "No fim, o Horbit mostra o utilizador e a palavra-passe para copiar e entregar ao responsável.",
+      "Em Pedidos de acesso, Pedir dados por email abre o email de resposta já escrito.",
+      "Com a resposta, Criar conta regista a empresa, um horário base e o acesso do responsável.",
+      "No fim, Enviar por email manda o utilizador e a palavra-passe para o email da empresa.",
     ],
     main: "/guia/02-aprovar.webp",
     detail: "/guia/02-aprovar-detalhe.webp",
-    alt: "Lista de pedidos de conta no painel do Super Admin",
+    alt: "Lista de pedidos de acesso no painel do Super Admin",
   },
   {
     id: "local",
@@ -173,12 +173,12 @@ export default function Home() {
               Guia prático do Horbit
             </h1>
             <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-muted">
-              Do pedido de conta ao recibo de vencimento, página a página. Cada passo mostra o ecrã real e quem o usa: o Super Admin, a
+              Do pedido de acesso ao recibo de vencimento, página a página. Cada passo mostra o ecrã real e quem o usa: o Super Admin, a
               empresa, o RH, o financeiro e o colaborador.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button size="lg" asChild>
-                <Link href="/registo/">Pedir conta para a empresa</Link>
+                <Link href="/registo/">Pedir acesso para a empresa</Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
                 <Link href="/login/">Entrar</Link>
@@ -242,12 +242,12 @@ export default function Home() {
             <div className="max-w-xl">
               <h2 className="text-[26px] leading-tight font-bold tracking-[-0.02em] sm:text-[30px]">Pronto para começar?</h2>
               <p className="mt-2 text-[15px] leading-relaxed text-muted">
-                A empresa pede a conta, o Super Admin aprova e o responsável cria os acessos da equipa.
+                A empresa pede acesso, o Super Admin cria a conta e envia as credenciais, e o responsável cria os acessos da equipa.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button size="lg" asChild>
-                <Link href="/registo/">Pedir conta</Link>
+                <Link href="/registo/">Pedir acesso</Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
                 <Link href="/login/">Entrar</Link>
@@ -264,7 +264,7 @@ export default function Home() {
           <nav className="flex gap-6 font-bold" aria-label="Rodapé">
             <Link href="/comecar/" className="hover:text-foreground">Apresentação</Link>
             <Link href="/login/" className="hover:text-foreground">Entrar</Link>
-            <Link href="/registo/" className="hover:text-foreground">Pedir conta</Link>
+            <Link href="/registo/" className="hover:text-foreground">Pedir acesso</Link>
           </nav>
         </div>
       </footer>

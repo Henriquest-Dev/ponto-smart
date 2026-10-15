@@ -146,7 +146,7 @@ export function Onboarding() {
                   onClick={markSeen}
                   className="flex h-12 items-center justify-center rounded-lg border border-white/25 px-6 text-[15px] font-bold text-white hover:border-white/60"
                 >
-                  Pedir conta para a empresa
+                  Pedir acesso para a empresa
                 </Link>
               </div>
             ) : null}

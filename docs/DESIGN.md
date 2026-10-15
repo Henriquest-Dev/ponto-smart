@@ -11,13 +11,17 @@ Marca: **Horbit** (nunca "PontoSmart"). Tipo de letra: M PLUS Rounded 1c (já gl
 - Progresso: barra fina (`h-1`).
 - Listas de texto: separadas por linhas (`border-b border-border`), sem marcadores decorativos.
 
+## Navegação e telemóvel
+- Mobile-first: desenhar primeiro a 390 px. Tabelas largas têm uma lista empilhada no telemóvel (`md:hidden`) e a tabela só a partir de `md`.
+- Ícones só na navegação (barra lateral, barra inferior, avisos), com Phosphor em traço arredondado, via `NavIcon` (`src/components/shell/nav-icon.tsx`). O item activo usa o peso `fill`.
+
 ## Imagens
 - Página inicial = guia prático com capturas reais em `public/guia/` (principal 1600×1000, detalhe 640×800 sobreposto). Usar `Picture` de `@/components/brand/media` (trata do `basePath`).
 - Apresentação (`/comecar/`): `public/onboarding/1–3.webp` (1080×1080, fundo violeta `#673FEC`). Podem ser substituídas pelas ilustrações cartoon de `docs/PROMPTS-ILUSTRACOES.md`.
 - Sem animações decorativas (a biblioteca `motion` foi removida). Só transições curtas de cor/largura em resposta a acções.
 
 ## Proibido (aspecto genérico de "site feito por IA")
-- Ícones (`lucide-react` foi removido), emojis, "icon chips", setas "→" em botões, estrelas, brilhos.
+- Ícones fora da navegação, emojis, "icon chips", setas "→" em botões, estrelas, brilhos, robôs ou varinhas mágicas (nada que lembre "IA").
 - Gradientes decorativos, sombras suaves em todos os cartões, animações de entrada em cada secção.
 - Rótulos em MAIÚSCULAS, eyebrows por cima de títulos, separadores " · " em metadados.
 

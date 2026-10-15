@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
+import { NavIcon } from "./nav-icon";
 import type { NavItem, NavSection } from "./nav-types";
 
 const trim = (p: string) => (p.length > 1 ? p.replace(/\/+$/, "") : p);
@@ -41,7 +42,7 @@ function Item({ item, pathname, root, onNavigate }: { item: NavItem; pathname: s
     if (active) setOpen(true);
   }, [active]);
 
-  const base = "relative flex h-10 w-full items-center gap-3 rounded-md pr-3 pl-5 text-[14.5px] transition-colors";
+  const base = "relative flex h-10 w-full items-center gap-3 rounded-md pr-3 pl-4 text-[14.5px] transition-colors";
   if (item.children?.length) {
     return (
       <li>
@@ -52,6 +53,7 @@ function Item({ item, pathname, root, onNavigate }: { item: NavItem; pathname: s
           className={cn(base, "text-white/70 hover:bg-white/5 hover:text-white", active && "font-bold text-white")}
         >
           <ActiveStem on={active} />
+          <NavIcon href={item.href} active={active} className={active ? "text-[#b9a6fa]" : "text-white/55"} />
           <span className="flex-1 text-left">{item.label}</span>
           <Count n={item.badge} />
           <span aria-hidden className={cn("text-[15px] leading-none text-white/40 transition-transform", open && "rotate-90")}>
@@ -59,7 +61,7 @@ function Item({ item, pathname, root, onNavigate }: { item: NavItem; pathname: s
           </span>
         </button>
         {open ? (
-          <ul className="mt-0.5 mb-1 ml-6 space-y-0.5 border-l border-white/15 pl-3">
+          <ul className="mt-0.5 mb-1 ml-[25px] space-y-0.5 border-l border-white/15 pl-3">
             {item.children.map((c) => {
               const childActive = trim(pathname) === trim(c.href) || (c.href !== item.href && pathname.startsWith(c.href));
               return (
@@ -91,6 +93,7 @@ function Item({ item, pathname, root, onNavigate }: { item: NavItem; pathname: s
         className={cn(base, "text-white/70 hover:bg-white/5 hover:text-white", active && "bg-white/[0.07] font-bold text-white")}
       >
         <ActiveStem on={active} />
+        <NavIcon href={item.href} active={active} className={active ? "text-[#b9a6fa]" : "text-white/55"} />
         <span className="flex-1">{item.label}</span>
         <Count n={item.badge} />
       </Link>
@@ -145,7 +148,7 @@ export function SidebarNav({
       <nav className="-mr-1 flex-1 space-y-6 overflow-y-auto pr-1" aria-label="Navegação principal">
         {sections.map((section, i) => (
           <div key={i}>
-            {section.title ? <p className="mb-1.5 px-5 text-[12px] font-medium text-white/40">{section.title}</p> : null}
+            {section.title ? <p className="mb-1.5 px-4 text-[12px] font-medium text-white/40">{section.title}</p> : null}
             <ul className="space-y-0.5">
               {section.items.map((item) => (
                 <Item key={item.href} item={item} pathname={pathname} root={root} onNavigate={onNavigate} />

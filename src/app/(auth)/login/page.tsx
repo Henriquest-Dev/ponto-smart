@@ -27,7 +27,7 @@ export default function LoginPage() {
         <p className="text-[13px] text-muted">
           Ainda sem acesso?{" "}
           <Link href="/registo/" className="font-bold text-foreground underline decoration-border-strong underline-offset-4 hover:decoration-foreground">
-            Pedir conta para a empresa
+            Pedir acesso para a empresa
           </Link>
         </p>
       </section>

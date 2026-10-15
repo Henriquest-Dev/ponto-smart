@@ -52,7 +52,7 @@ export default function PlatformOverviewPage() {
           >
             <span className="text-[30px] leading-none font-bold tracking-[-0.02em] tabular">{pending.length}</span>
             <span className="min-w-0 flex-1 text-[14px] leading-snug">
-              <span className="block font-bold">{pending.length === 1 ? "Pedido de conta" : "Pedidos de conta"} à espera de aprovação</span>
+              <span className="block font-bold">{pending.length === 1 ? "Pedido de acesso" : "Pedidos de acesso"} à espera de aprovação</span>
               <span className="block text-muted">Mais antigo recebido {formatDateTime(pending.reduce((a, r) => (r.created_at < a ? r.created_at : a), pending[0].created_at))}</span>
             </span>
             <span className="rounded-lg border border-border-strong px-4 py-2 text-[13px] font-bold">Rever pedidos</span>
@@ -139,7 +139,7 @@ export default function PlatformOverviewPage() {
           ) : companies.length === 0 ? (
             <EmptyState
               title="Ainda não há empresas"
-              description="Crie a primeira empresa cliente ou aprove um pedido de conta."
+              description="Crie a primeira empresa cliente ou trate um pedido de acesso."
               action={
                 <Button onClick={() => setCreating(true)}>
                   Nova empresa
@@ -147,7 +147,26 @@ export default function PlatformOverviewPage() {
               }
             />
           ) : (
-            <TableWrap>
+            <>
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background md:hidden">
+              {companies.slice(0, 8).map((c) => {
+                const st = companyStatus(c.status);
+                return (
+                  <li key={c.id} className="flex items-start gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[14px] font-bold">{c.name}</p>
+                      <p className="truncate font-mono text-[12px] text-muted">{c.owner_login ?? "Sem responsável"}</p>
+                      <p className="text-[12.5px] text-muted">
+                        <span className="tabular">{c.employees}</span> {c.employees === 1 ? "colaborador" : "colaboradores"},{" "}
+                        {c.last_activity ? <span className="tabular">{formatDateTime(c.last_activity)}</span> : "sem marcações"}
+                      </p>
+                    </div>
+                    <Badge tone={st.tone}>{st.label}</Badge>
+                  </li>
+                );
+              })}
+            </ul>
+            <TableWrap className="hidden md:block">
               <Table>
                 <THead>
                   <tr>
@@ -177,6 +196,7 @@ export default function PlatformOverviewPage() {
                 </tbody>
               </Table>
             </TableWrap>
+            </>
           )}
         </section>
       </PageBody>

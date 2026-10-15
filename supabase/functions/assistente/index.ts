@@ -28,7 +28,7 @@ const GUIDE_COMPANY = `Como funciona o Horbit (painel da empresa):
 
 const GUIDE_PLATFORM = `Como funciona o Horbit (Super Admin):
 - Visão geral: empresas, colaboradores activos, pedidos pendentes e actividade de marcações.
-- Pedidos de conta: empresas pedem conta em /registo/; o Super Admin aprova (cria a empresa e o acesso do responsável) ou recusa com motivo.
+- Pedidos de acesso: a empresa envia em /registo/ só o nome, o email e o motivo. O Super Admin usa "Pedir dados por email" para pedir o nome do responsável e os dados da empresa; com a resposta usa "Criar conta" (cria a empresa e o acesso do responsável) e depois "Enviar por email" para mandar as credenciais. Também pode recusar com motivo.
 - Empresas: criar empresa directamente, ver o responsável, redefinir a palavra-passe do responsável, suspender ou reactivar.
 - Auditoria: todas as acções na plataforma.
 - O Super Admin não vê salários das empresas. Cada empresa cria os acessos da própria equipa.`;

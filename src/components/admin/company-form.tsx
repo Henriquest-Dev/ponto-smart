@@ -73,7 +73,7 @@ export function CompanyDialog({
     >
       <DialogContent
         wide
-        title={creds ? "Empresa criada" : request ? `Aprovar pedido de ${request.company_name}` : "Nova empresa cliente"}
+        title={creds ? "Empresa criada" : request ? `Criar conta para ${request.company_name}` : "Nova empresa cliente"}
         description={creds ? undefined : "Cria a empresa, um horário base e a conta do responsável (proprietário)."}
       >
         {creds ? (
@@ -131,8 +131,8 @@ function CompanyForm({
         p_trial_days: 0,
         p_request: request?.id ?? null,
       });
-      const data: Credentials = { company: o.name, login: ownerLogin, password };
-      return { ok: true, message: request ? "Pedido aprovado e empresa criada." : "Empresa criada.", data };
+      const data: Credentials = { company: o.name, login: ownerLogin, password, email: request?.email ?? o.email ?? null };
+      return { ok: true, message: request ? "Conta criada. Envie as credenciais por email." : "Empresa criada.", data };
     });
 
   return (
@@ -205,7 +205,7 @@ function CompanyForm({
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancelar
         </Button>
-        <PendingButton pendingText="A criar…">{request ? "Aprovar e criar conta" : "Criar empresa"}</PendingButton>
+        <PendingButton pendingText="A criar…">{request ? "Criar conta" : "Criar empresa"}</PendingButton>
       </div>
     </SubmitForm>
   );

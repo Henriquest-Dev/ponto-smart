@@ -79,7 +79,7 @@ export default function CompaniesPage() {
         ) : rows.length === 0 ? (
           <EmptyState
             title={companies.length ? "Nenhuma empresa corresponde ao filtro" : "Ainda não há empresas"}
-            description={companies.length ? "Altere a pesquisa ou o estado." : "Crie a primeira empresa cliente ou aprove um pedido de conta."}
+            description={companies.length ? "Altere a pesquisa ou o estado." : "Crie a primeira empresa cliente ou trate um pedido de acesso."}
             action={
               companies.length ? null : (
                 <Button onClick={() => setCreating(true)}>

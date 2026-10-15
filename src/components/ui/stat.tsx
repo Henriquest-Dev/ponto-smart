@@ -38,7 +38,7 @@ export function Stat({
         
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span className="text-[clamp(20px,2vw,28px)] leading-none font-bold tabular whitespace-nowrap">{value}</span>
+        <span className="text-[clamp(17px,2vw,28px)] leading-none font-bold tabular whitespace-nowrap">{value}</span>
         {delta}
       </div>
       {hint ? <div className="mt-2 truncate text-xs text-muted">{hint}</div> : null}

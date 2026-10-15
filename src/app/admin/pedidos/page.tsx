@@ -4,6 +4,7 @@ import Link from "next/link";
 import * as React from "react";
 import { CompanyDialog } from "@/components/admin/company-form";
 import { loadOverview, REQUEST_STATUS, type AdminRequest } from "@/components/admin/data";
+import { mailto } from "@/components/admin/credentials";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -32,7 +33,7 @@ export default function RequestsPage() {
 
   return (
     <>
-      <PageHeader title="Pedidos de conta" description="Recebidos pela página pública. Ao aprovar, cria a empresa e o acesso do responsável." />
+      <PageHeader title="Pedidos de acesso" description="1. Peça os dados por email. 2. Com a resposta, crie a conta. 3. Envie as credenciais para o mesmo email." />
       <PageBody>
         {error ? <Notice tone="danger">{error}</Notice> : null}
 
@@ -53,7 +54,7 @@ export default function RequestsPage() {
         ) : rows.length === 0 ? (
           <EmptyState
             title={filter === "pending" ? "Sem pedidos por tratar" : filter === "approved" ? "Nenhum pedido aprovado" : "Nenhum pedido recusado"}
-            description={filter === "pending" ? "Os pedidos feitos na página pública “Pedir conta para a empresa” aparecem aqui." : undefined}
+            description={filter === "pending" ? "Os pedidos feitos na página pública “Pedir acesso” aparecem aqui." : undefined}
           />
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
@@ -73,8 +74,10 @@ export default function RequestsPage() {
                       {r.status === "pending" ? null : <Badge tone={st.tone}>{st.label}</Badge>}
                     </div>
                     <p className="mt-1 text-[13.5px] break-words">
-                      <span className="font-bold">{r.contact_name}</span>
-                      <span className="text-muted">, {r.email}</span>
+                      {r.contact_name ? <span className="font-bold">{r.contact_name}, </span> : null}
+                      <a href={`mailto:${r.email}`} className="text-muted underline decoration-border-strong underline-offset-4 hover:text-foreground">
+                        {r.email}
+                      </a>
                       {r.phone ? <span className="text-muted tabular">, {r.phone}</span> : null}
                     </p>
 
@@ -112,7 +115,10 @@ export default function RequestsPage() {
                     </p>
                   </div>
                   {r.status === "pending" ? (
-                    <div className="flex gap-2 lg:flex-col lg:items-stretch">
+                    <div className="flex flex-wrap gap-2 lg:flex-col lg:items-stretch">
+                      <Button size="sm" variant="outline" asChild>
+                        <a href={askDetailsMail(r)}>Pedir dados por email</a>
+                      </Button>
                       <Button
                         size="sm"
                         onClick={() => {
@@ -120,7 +126,7 @@ export default function RequestsPage() {
                           setApproveOpen(true);
                         }}
                       >
-                        Aprovar
+                        Criar conta
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => setRejecting(r)}>
                         Recusar
@@ -192,5 +198,14 @@ function RejectDialog({ request, onClose, onDone }: { request: AdminRequest | nu
         </DialogContent>
       ) : null}
     </Dialog>
+  );
+}
+
+/** Resposta ao pedido: pede ao responsável os dados que faltam para criar a conta. */
+function askDetailsMail(r: AdminRequest) {
+  return mailto(
+    r.email,
+    `Horbit: pedido de acesso da ${r.company_name}`,
+    `Olá,\n\nRecebemos o pedido de acesso da ${r.company_name} ao Horbit. Para criarmos a conta, responda a este email com:\n\n- Nome completo do responsável:\n- Telefone:\n- NUIT da empresa:\n- Cidade:\n- Número aproximado de colaboradores:\n- Utilizador que prefere para entrar (opcional):\n\nDepois de criarmos a conta, enviamos para este email o utilizador e a palavra-passe do responsável.\n\nCumprimentos,\nEquipa Horbit`,
   );
 }

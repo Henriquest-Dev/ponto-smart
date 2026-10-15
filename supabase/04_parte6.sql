@@ -1,4 +1,4 @@
--- Horbit, script 4, parte 6: assistente também para o Super Admin
+-- Horbit, script 4, parte 6: assistente do Super Admin e pedido de conta simplificado
 -- Pode ser executado de novo sem problema.
 BEGIN;
 
@@ -48,5 +48,41 @@ DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN REVOKE ALL ON FUNCTION ps_ai_platform_context() FROM anon; END IF;
 END $$;
 GRANT EXECUTE ON FUNCTION ps_ai_platform_context() TO authenticated;
+
+-- Pedido de conta simplificado: só nome da empresa, email e motivo.
+ALTER TABLE company_requests ALTER COLUMN contact_name DROP NOT NULL;
+CREATE OR REPLACE FUNCTION ps_submit_company_request(
+  p_company_name text, p_contact_name text, p_email text, p_phone text DEFAULT NULL, p_nuit text DEFAULT NULL,
+  p_city text DEFAULT NULL, p_employees integer DEFAULT NULL, p_plan_code text DEFAULT NULL, p_message text DEFAULT NULL)
+RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE v_id uuid; v_key text; v_count int;
+BEGIN
+  -- Pedido simples: nome da empresa, email e o motivo. Os restantes dados são pedidos depois, por email.
+  IF length(trim(COALESCE(p_company_name, ''))) < 2 THEN
+    RAISE EXCEPTION 'Indique o nome da empresa.' USING ERRCODE = '22023';
+  END IF;
+  IF COALESCE(p_email, '') !~* '^[^@\s]+@[^@\s]+\.[^@\s]+$' THEN
+    RAISE EXCEPTION 'Indique um email válido.' USING ERRCODE = '22023';
+  END IF;
+  IF length(trim(COALESCE(p_message, ''))) < 10 THEN
+    RAISE EXCEPTION 'Explique em poucas palavras porque pede o acesso.' USING ERRCODE = '22023';
+  END IF;
+  v_key := 'req:' || lower(trim(p_email)) || ':' || current_date;
+  INSERT INTO rate_limits (key, window_start, count) VALUES (v_key, now(), 1)
+  ON CONFLICT (key) DO UPDATE SET count = rate_limits.count + 1 RETURNING count INTO v_count;
+  IF v_count > 3 THEN RAISE EXCEPTION 'Já recebemos o seu pedido. Aguarde o nosso contacto.' USING ERRCODE = '54000'; END IF;
+  INSERT INTO rate_limits (key, window_start, count) VALUES ('req:all:' || current_date, now(), 1)
+  ON CONFLICT (key) DO UPDATE SET count = rate_limits.count + 1 RETURNING count INTO v_count;
+  IF v_count > 300 THEN RAISE EXCEPTION 'Muitos pedidos hoje. Tente amanhã.' USING ERRCODE = '54000'; END IF;
+  INSERT INTO company_requests (company_name, nuit, contact_name, email, phone, city, employees_estimate, plan_id, message)
+  VALUES (left(trim(p_company_name), 160), NULLIF(left(trim(p_nuit), 20), ''), NULLIF(left(trim(p_contact_name), 120), ''),
+          lower(trim(p_email)), NULLIF(left(trim(p_phone), 30), ''), NULLIF(left(trim(p_city), 80), ''),
+          CASE WHEN p_employees BETWEEN 1 AND 100000 THEN p_employees END,
+          (SELECT id FROM subscription_plans WHERE code = p_plan_code AND active),
+          left(trim(p_message), 1000))
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END $$;
+GRANT EXECUTE ON FUNCTION ps_submit_company_request(text, text, text, text, text, text, integer, text, text) TO anon, authenticated;
 
 COMMIT;

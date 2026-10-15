@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { LogoMark } from "./logo";
+import { NavIcon } from "./nav-icon";
 import type { NavItem, NavSection } from "./nav-types";
 import { NotificationBell, type NotificationView } from "./notification-bell";
 import { isActive, SidebarNav } from "./sidebar";
@@ -73,8 +74,9 @@ export function AppShell({ sections, root, subtitle, user, notifications, mobile
               <li className="flex justify-center">
                 <Link
                   href={centerAction.href}
-                  className="flex h-11 w-full max-w-[84px] items-center justify-center rounded-lg bg-primary text-[13px] font-bold text-white"
+                  className="flex h-12 w-full max-w-[76px] flex-col items-center justify-center gap-0.5 rounded-xl bg-primary text-[11.5px] font-bold text-white"
                 >
+                  <NavIcon href="/app/marcar/" active className="size-[22px]" />
                   Marcar
                 </Link>
               </li>
@@ -85,7 +87,10 @@ export function AppShell({ sections, root, subtitle, user, notifications, mobile
           ) : (
             <li>
               <D.Root open={open} onOpenChange={setOpen}>
-                <D.Trigger className="relative flex h-16 w-full items-center justify-center text-[13px] font-bold text-muted">Menu</D.Trigger>
+                <D.Trigger className="relative flex h-16 w-full flex-col items-center justify-center gap-1 text-[11.5px] font-bold text-muted">
+                  <NavIcon href="menu" className="size-[22px]" />
+                  Menu
+                </D.Trigger>
                 <D.Portal>
                   <D.Overlay className="fixed inset-0 z-50 bg-[#1a1530]/40 data-[state=open]:animate-fade-in" />
                   <D.Content className="fixed inset-y-0 left-0 z-50 w-[88vw] max-w-[320px] bg-[#16131f] text-white data-[state=open]:animate-slide-in-left">
@@ -118,11 +123,12 @@ function TabLink({ item, root, pathname }: { item: NavItem; root: string; pathna
       <Link
         href={item.href}
         aria-current={active ? "page" : undefined}
-        className={cn("relative flex h-16 items-center justify-center text-[13px] font-bold text-muted", active && "text-foreground")}
+        className={cn("relative flex h-16 flex-col items-center justify-center gap-1 text-[11.5px] font-bold text-muted", active && "text-primary")}
       >
+        <NavIcon href={item.href} active={active} className="size-[22px]" />
         <span
           aria-hidden
-          className={cn("absolute top-0 left-1/2 h-[3px] w-8 -translate-x-1/2 rounded-full bg-primary transition-transform", active ? "scale-x-100" : "scale-x-0")}
+          className={cn("absolute top-0 left-1/2 h-[3px] w-8 -translate-x-1/2 rounded-b-full bg-primary transition-transform", active ? "scale-x-100" : "scale-x-0")}
         />
         {item.label}
       </Link>

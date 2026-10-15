@@ -29,7 +29,7 @@ export function SiteHeader() {
                 <Link href="/login/">Entrar</Link>
               </Button>
               <Button asChild className="hidden sm:inline-flex">
-                <Link href="/registo/">Pedir conta</Link>
+                <Link href="/registo/">Pedir acesso</Link>
               </Button>
             </>
           )}

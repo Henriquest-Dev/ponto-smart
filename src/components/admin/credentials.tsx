@@ -5,7 +5,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { withBase } from "@/lib/sb/use-data";
 
-export type Credentials = { company: string; login: string; password: string };
+export type Credentials = { company: string; login: string; password: string; email?: string | null };
+
+/** Abre o programa de email do Super Admin com a mensagem já escrita (não há envio automático). */
+export function mailto(to: string, subject: string, body: string) {
+  return `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
 
 function loginUrl() {
   if (typeof window === "undefined") return "/login/";
@@ -28,6 +33,13 @@ export function CredentialsPanel({ creds, onClose }: { creds: Credentials; onClo
   const [copied, setCopied] = React.useState(false);
   const url = loginUrl();
   const text = `Horbit — ${creds.company}\nEndereço: ${url}\nUtilizador: ${creds.login}\nPalavra-passe: ${creds.password}`;
+  const mail = creds.email
+    ? mailto(
+        creds.email,
+        `Horbit: acesso da ${creds.company}`,
+        `Olá,\n\nA conta da ${creds.company} no Horbit está criada. Estas são as credenciais do responsável:\n\nEndereço: ${url}\nUtilizador: ${creds.login}\nPalavra-passe: ${creds.password}\n\nNo primeiro acesso, altere a palavra-passe em Conta > Segurança. Depois, em Colaboradores, crie os acessos da sua equipa.\n\nCumprimentos,\nEquipa Horbit`,
+      )
+    : null;
 
   const rows: [string, string, boolean][] = [
     ["Endereço de entrada", url, false],
@@ -48,10 +60,7 @@ export function CredentialsPanel({ creds, onClose }: { creds: Credentials; onClo
         <dl className="divide-y divide-border bg-background">
           {rows.map(([k, v, strong]) => (
             <div key={k} className="grid gap-1 px-5 py-3.5 sm:grid-cols-[150px_1fr] sm:items-center sm:gap-4">
-              <dt className="flex items-center gap-2 text-[12.5px] font-bold text-muted">
-                <span className="stem text-primary" aria-hidden />
-                {k}
-              </dt>
+              <dt className="text-[12.5px] font-bold text-muted">{k}</dt>
               <dd className={strong ? "min-w-0 font-mono text-[15px] font-bold break-all select-all" : "min-w-0 font-mono text-[13px] break-all text-muted select-all"}>
                 {v}
               </dd>
@@ -60,12 +69,9 @@ export function CredentialsPanel({ creds, onClose }: { creds: Credentials; onClo
         </dl>
       </section>
 
-      <p className="flex gap-2.5 text-[13px] leading-relaxed text-muted">
-        <span className="stem mt-1.5 shrink-0 text-warning" aria-hidden />
-        <span>
-          A palavra-passe não volta a ser mostrada depois de fechar esta janela. Entregue-a por um canal seguro; o responsável
-          deve alterá-la no primeiro acesso (Segurança da conta) e depois criar os acessos da equipa.
-        </span>
+      <p className="rounded-lg border-l-4 border-warning bg-warning-soft px-4 py-3 text-[13px] leading-relaxed text-[#7a4b00]">
+        A palavra-passe não volta a ser mostrada depois de fechar esta janela. Envie-a agora para o email da empresa; o responsável
+        deve alterá-la no primeiro acesso e depois criar os acessos da equipa.
       </p>
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -73,13 +79,18 @@ export function CredentialsPanel({ creds, onClose }: { creds: Credentials; onClo
           Fechar
         </Button>
         <Button
-          variant={copied ? "outline" : "primary"}
+          variant={mail || copied ? "outline" : "primary"}
           onClick={async () => {
             if (await copy(text)) setCopied(true);
           }}
         >
           {copied ? "Credenciais copiadas" : "Copiar credenciais"}
         </Button>
+        {mail ? (
+          <Button asChild>
+            <a href={mail}>Enviar por email</a>
+          </Button>
+        ) : null}
       </div>
     </div>
   );

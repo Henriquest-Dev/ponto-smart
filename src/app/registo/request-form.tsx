@@ -15,18 +15,13 @@ async function submit(fd: FormData): Promise<ActionResult> {
     // Armadilha anti-spam: campo invisível que só os robôs preenchem.
     if (o.website) return { ok: true };
     if (!o.company_name || o.company_name.length < 2) throw new Error("Indique o nome da empresa.");
-    if (!o.contact_name || o.contact_name.length < 3) throw new Error("Indique o nome do responsável.");
-    const employees = o.employees ? Number(o.employees) : null;
+    if (!o.email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(o.email)) throw new Error("Indique um email válido.");
+    if (!o.message || o.message.trim().length < 10) throw new Error("Explique em poucas palavras porque pede o acesso.");
     await rpc("ps_submit_company_request", {
       p_company_name: o.company_name,
-      p_contact_name: o.contact_name,
-      p_email: (o.email ?? "").toLowerCase(),
-      p_phone: o.phone ?? null,
-      p_nuit: o.nuit ?? null,
-      p_city: o.city ?? null,
-      p_employees: employees && Number.isInteger(employees) && employees > 0 ? employees : null,
-      p_plan_code: null,
-      p_message: o.message ?? null,
+      p_contact_name: null,
+      p_email: o.email.toLowerCase(),
+      p_message: o.message,
     });
     return { ok: true };
   });
@@ -41,7 +36,8 @@ export function RequestForm() {
       <div role="status" className="py-6">
         <h1 className="text-[28px] leading-[1.1] font-bold tracking-[-0.02em] sm:text-[32px]">Pedido enviado</h1>
         <p className="mt-3 max-w-md text-[15px] leading-relaxed text-muted">
-          Recebemos o pedido. A equipa Horbit cria a conta da empresa e envia-lhe o utilizador e a palavra-passe do responsável.
+          Recebemos o pedido. Vamos responder para o email indicado a pedir os dados do responsável. Depois criamos a conta e
+          enviamos o utilizador e a palavra-passe para esse email.
         </p>
         <div className="mt-8 flex flex-wrap gap-2">
           <Button size="lg" asChild>
@@ -66,9 +62,9 @@ export function RequestForm() {
       className="space-y-8"
     >
       <div>
-        <h1 className="text-[28px] leading-[1.1] font-bold tracking-[-0.02em] sm:text-[32px]">Pedir conta para a empresa</h1>
+        <h1 className="text-[28px] leading-[1.1] font-bold tracking-[-0.02em] sm:text-[32px]">Pedir acesso para a empresa</h1>
         <p className="mt-2 text-[15px] leading-relaxed text-muted">
-          Deixe os dados da empresa e do responsável. Validamos o pedido e criamos o acesso do responsável.
+          Só precisamos do nome da empresa, de um email e do motivo. Respondemos por email a pedir o resto dos dados.
         </p>
       </div>
 
@@ -78,30 +74,24 @@ export function RequestForm() {
         </p>
       ) : null}
 
-      <fieldset className="space-y-4">
-        <legend className="mb-3 text-[17px] font-bold tracking-[-0.01em]">Empresa</legend>
+      <div className="space-y-4">
         <FloatField label="Nome da empresa" name="company_name" required minLength={2} maxLength={160} autoComplete="organization" />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FloatField label="NUIT" name="nuit" inputMode="numeric" maxLength={20} />
-          <FloatField label="Cidade" name="city" defaultValue="Maputo" maxLength={80} autoComplete="address-level2" />
-        </div>
-        <FloatField label="Número de colaboradores" name="employees" type="number" min={1} max={100000} inputMode="numeric" />
-      </fieldset>
-
-      <fieldset className="space-y-4">
-        <legend className="mb-3 text-[17px] font-bold tracking-[-0.01em]">Responsável</legend>
-        <FloatField label="Nome do responsável" name="contact_name" required minLength={3} maxLength={120} autoComplete="name" />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FloatField label="Email" name="email" type="email" required autoComplete="email" />
-          <FloatField label="Telefone" name="phone" type="tel" maxLength={30} autoComplete="tel" />
-        </div>
+        <FloatField label="Email da empresa" name="email" type="email" required autoComplete="email" inputMode="email" />
         <div>
           <label htmlFor="request-message" className="mb-1.5 block text-[13.5px] font-bold">
-            Mensagem <span className="font-normal text-muted">(opcional)</span>
+            Porque pede o acesso?
           </label>
-          <Textarea id="request-message" name="message" maxLength={1000} placeholder="Filiais, turnos ou necessidades específicas" />
+          <Textarea
+            id="request-message"
+            name="message"
+            required
+            minLength={10}
+            maxLength={1000}
+            rows={4}
+            placeholder="Ex.: Somos uma loja com 20 pessoas e queremos controlar o ponto e os salários."
+          />
         </div>
-      </fieldset>
+      </div>
 
       <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden />
 

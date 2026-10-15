@@ -6,7 +6,11 @@ import { cn } from "@/lib/utils";
  */
 export function StepStems({ steps, current, className }: { steps: string[]; current: number; className?: string }) {
   return (
-    <ol className={cn("grid gap-2 sm:gap-3", className)} style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }} aria-label="Etapas">
+    <ol
+      className={cn("grid gap-2 sm:gap-3", className)}
+      style={{ gridTemplateColumns: steps.map((_, i) => (i === current ? "minmax(0, 3fr)" : "minmax(0, 1fr)")).join(" ") }}
+      aria-label="Etapas"
+    >
       {steps.map((s, i) => {
         const state = i < current ? "done" : i === current ? "current" : "todo";
         return (
@@ -26,7 +30,8 @@ export function StepStems({ steps, current, className }: { steps: string[]; curr
               )}
             >
               <span className="tabular font-bold">{i + 1}</span>
-              <span className="truncate">{s}</span>
+              {/* No telemóvel só a etapa actual mostra o nome; as outras ficam pelo número. */}
+              <span className={cn("truncate", state !== "current" && "hidden sm:inline")}>{s}</span>
             </span>
           </li>
         );

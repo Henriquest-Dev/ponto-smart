@@ -127,11 +127,12 @@ function adminNav() {
   const items: NavItem[] = [
     { href: "/admin/", label: "Visão geral" },
     { href: "/admin/empresas/", label: "Empresas" },
-    { href: "/admin/pedidos/", label: "Pedidos de conta" },
+    { href: "/admin/pedidos/", label: "Pedidos de acesso" },
     { href: "/admin/assistente/", label: "Assistente" },
     { href: "/admin/auditoria/", label: "Auditoria" },
   ];
-  return { root: "/admin/", sections: [{ items }], tabs: items.slice(0, 4) };
+  const short: Record<string, string> = { "/admin/": "Início", "/admin/pedidos/": "Pedidos" };
+  return { root: "/admin/", sections: [{ items }], tabs: items.slice(0, 3).map((i) => ({ ...i, label: short[i.href] ?? i.label })) };
 }
 
 function companyNav(can: (...p: string[]) => boolean) {

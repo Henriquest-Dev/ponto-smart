@@ -202,7 +202,31 @@ function UsersTab() {
         data.data.length === 0 ? (
           <EmptyState title="Sem utilizadores" />
         ) : (
-          <TableWrap>
+          <>
+          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background md:hidden">
+            {data.data.map((m) => (
+              <li key={m.id} className="flex items-center gap-3 px-4 py-3">
+                <Avatar name={m.users?.name ?? "?"} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[14px] font-bold">
+                    {m.users?.name ?? "—"}
+                    {m.user_id === me.id ? <span className="ml-1.5 text-xs font-normal text-muted">(você)</span> : null}
+                  </p>
+                  <p className="truncate text-[12.5px] text-muted">{m.users?.email}</p>
+                  <p className="text-[12.5px] text-muted">
+                    Último acesso: {m.users?.last_login_at ? <span className="tabular">{formatDateTime(m.users.last_login_at, tz)}</span> : "nunca"}
+                  </p>
+                </div>
+                <span className="flex flex-col items-end gap-1">
+                  <Badge tone={m.roles?.code === "owner" || m.roles?.code === "admin" ? "primary" : "neutral"}>
+                    {ROLE_LABEL[m.roles?.code ?? ""] ?? m.roles?.name ?? "—"}
+                  </Badge>
+                  {m.active && m.users?.status !== "disabled" ? <Badge tone="success">Activo</Badge> : <Badge tone="danger">Desactivado</Badge>}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <TableWrap className="hidden md:block">
             <Table>
               <THead>
                 <tr><TH>Utilizador</TH><TH>Papel</TH><TH>Último acesso</TH><TH>Estado</TH></tr>
@@ -236,6 +260,7 @@ function UsersTab() {
               </tbody>
             </Table>
           </TableWrap>
+          </>
         )
       ) : null}
       <Card>

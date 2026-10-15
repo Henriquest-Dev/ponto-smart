@@ -4,12 +4,12 @@ import { Suspense } from "react";
 import { Wordmark } from "@/components/shell/logo";
 import { RequestForm } from "./request-form";
 
-export const metadata: Metadata = { title: "Pedir conta para a empresa" };
+export const metadata: Metadata = { title: "Pedir acesso para a empresa" };
 
 const STEPS = [
-  ["Envie o pedido", "Dados da empresa e do responsável."],
-  ["Validamos os dados", "Confirmamos a empresa e o contacto do responsável."],
-  ["Recebe o acesso do responsável", "Utilizador e palavra-passe do painel da empresa."],
+  ["Envie o pedido", "Nome da empresa, email e o motivo."],
+  ["Responda ao nosso email", "Pedimos o nome do responsável e os dados da empresa."],
+  ["Recebe as credenciais", "Utilizador e palavra-passe do responsável, no mesmo email."],
   ["Cria os acessos da equipa", "Colaboradores, RH, financeiro e supervisores, a partir do painel."],
 ];
 
@@ -29,15 +29,15 @@ export default function RegisterPage() {
             Já tenho conta
           </Link>
         </div>
-        <div className="flex flex-1 py-8 lg:py-12">
-          <div className="mx-auto w-full max-w-[560px]">
-            <Suspense fallback={<div className="h-[720px]" />}>
+        <div className="flex flex-1 py-8 lg:items-center lg:py-12">
+          <div className="mx-auto w-full max-w-[480px]">
+            <Suspense fallback={<div className="h-[420px]" />}>
               <RequestForm />
             </Suspense>
           </div>
         </div>
         <p className="text-center text-[12.5px] text-muted lg:text-left">
-          Respondemos pelo email ou telefone indicados no pedido.
+          Respondemos para o email indicado no pedido.
         </p>
       </section>
 

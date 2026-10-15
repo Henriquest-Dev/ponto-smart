@@ -199,11 +199,15 @@ CREATE OR REPLACE FUNCTION ps_submit_company_request(
 RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE v_id uuid; v_key text; v_count int;
 BEGIN
-  IF length(trim(COALESCE(p_company_name, ''))) < 2 OR length(trim(COALESCE(p_contact_name, ''))) < 3 THEN
-    RAISE EXCEPTION 'Indique o nome da empresa e o nome do responsável.' USING ERRCODE = '22023';
+  -- Pedido simples: nome da empresa, email e o motivo. Os restantes dados são pedidos depois, por email.
+  IF length(trim(COALESCE(p_company_name, ''))) < 2 THEN
+    RAISE EXCEPTION 'Indique o nome da empresa.' USING ERRCODE = '22023';
   END IF;
-  IF p_email !~* '^[^@\s]+@[^@\s]+\.[^@\s]+$' THEN
+  IF COALESCE(p_email, '') !~* '^[^@\s]+@[^@\s]+\.[^@\s]+$' THEN
     RAISE EXCEPTION 'Indique um email válido.' USING ERRCODE = '22023';
+  END IF;
+  IF length(trim(COALESCE(p_message, ''))) < 10 THEN
+    RAISE EXCEPTION 'Explique em poucas palavras porque pede o acesso.' USING ERRCODE = '22023';
   END IF;
   v_key := 'req:' || lower(trim(p_email)) || ':' || current_date;
   INSERT INTO rate_limits (key, window_start, count) VALUES (v_key, now(), 1)
@@ -213,11 +217,11 @@ BEGIN
   ON CONFLICT (key) DO UPDATE SET count = rate_limits.count + 1 RETURNING count INTO v_count;
   IF v_count > 300 THEN RAISE EXCEPTION 'Muitos pedidos hoje. Tente amanhã.' USING ERRCODE = '54000'; END IF;
   INSERT INTO company_requests (company_name, nuit, contact_name, email, phone, city, employees_estimate, plan_id, message)
-  VALUES (left(trim(p_company_name), 160), NULLIF(left(trim(p_nuit), 20), ''), left(trim(p_contact_name), 120),
+  VALUES (left(trim(p_company_name), 160), NULLIF(left(trim(p_nuit), 20), ''), NULLIF(left(trim(p_contact_name), 120), ''),
           lower(trim(p_email)), NULLIF(left(trim(p_phone), 30), ''), NULLIF(left(trim(p_city), 80), ''),
           CASE WHEN p_employees BETWEEN 1 AND 100000 THEN p_employees END,
           (SELECT id FROM subscription_plans WHERE code = p_plan_code AND active),
-          NULLIF(left(trim(p_message), 1000), ''))
+          left(trim(p_message), 1000))
   RETURNING id INTO v_id;
   RETURN v_id;
 END $$;

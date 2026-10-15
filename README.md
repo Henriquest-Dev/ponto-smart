@@ -45,7 +45,7 @@ O URL do projecto Supabase e a chave publicável estão em `src/lib/sb/client.ts
 | Conta | Quem cria | Onde |
 |---|---|---|
 | Super Admin | Quem gere a plataforma | SQL acima |
-| Empresa + responsável | Super Admin | Plataforma → Empresas (ou aprovando um pedido feito em `/registo/`) |
+| Empresa + responsável | Super Admin | Plataforma → Pedidos de acesso: a empresa pede em `/registo/` (nome, email e motivo); o Super Admin pede os dados por email, cria a conta e envia as credenciais por email. Também em Plataforma → Empresas. |
 | Colaboradores, supervisores, RH, financeiro | Responsável ou RH da empresa | Painel → Colaboradores → Novo colaborador / ficha |
 
 Utilizadores sem `@` (ex.: `ana.macuacua`) são guardados no Supabase Auth como `ana.macuacua@pontosmart.app`; no login basta escrever `ana.macuacua`.

@@ -107,7 +107,28 @@ function Audit() {
         {data.loading && !data.data ? <Skeleton className="h-96 w-full rounded-xl" /> : null}
         {data.data && data.data.rows.length === 0 ? <EmptyState title="Sem registos" description="Nenhuma acção corresponde aos filtros escolhidos." /> : null}
         {data.data && data.data.rows.length > 0 ? (
-          <TableWrap className={data.loading ? "opacity-60" : undefined}>
+          <div className={data.loading ? "opacity-60" : undefined}>
+          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background md:hidden">
+            {data.data.rows.map((a) => (
+              <li key={a.id} className="px-4 py-3">
+                <p className="flex items-center gap-2 text-[14px] font-bold">
+                  <span className={`stem ${actionTone(a.action)}`} aria-hidden />
+                  <span className="min-w-0 break-all font-mono text-[13px]">{a.action}</span>
+                </p>
+                <p className="mt-0.5 text-[12.5px] text-muted">
+                  {a.users?.name ?? (a.actor_id ? "Utilizador" : "Sistema")}, <span className="tabular">{formatDateTime(a.created_at, tz)}</span>
+                </p>
+                <p className="text-[12.5px] text-muted">
+                  {ENTITIES[a.entity] ?? a.entity}
+                  {a.entity_id ? <span className="font-mono text-[11px] text-subtle"> {a.entity_id.slice(0, 8)}</span> : null}
+                </p>
+                <div className="mt-1.5 min-w-0">
+                  <Detail before={a.before} after={a.after} />
+                </div>
+              </li>
+            ))}
+          </ul>
+          <TableWrap className="hidden md:block">
             <Table>
               <THead>
                 <tr><TH>Quando</TH><TH>Utilizador</TH><TH>Acção</TH><TH>Entidade</TH><TH>Detalhe</TH></tr>
@@ -130,6 +151,7 @@ function Audit() {
               </tbody>
             </Table>
           </TableWrap>
+          </div>
         ) : null}
         {data.data ? <Pagination page={page} pages={Math.ceil(data.data.total / PAGE)} onChange={setPage} /> : null}
       </PageBody>

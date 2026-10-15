@@ -6,7 +6,7 @@ import { useSession } from "@/lib/sb/session";
 
 const SUGGESTIONS = [
   "Olá! Faz-me um resumo da plataforma.",
-  "Há pedidos de conta por tratar?",
+  "Há pedidos de acesso por tratar?",
   "Que empresas não marcam ponto há mais de uma semana?",
   "Como crio uma empresa e o acesso do responsável?",
 ];
@@ -16,12 +16,12 @@ export default function AdminAssistantPage() {
   if (state.status !== "ready") return null;
   return (
     <>
-      <PageHeader title="Assistente" description="Converse sobre as empresas, os pedidos de conta e a actividade da plataforma." />
+      <PageHeader title="Assistente" description="Converse sobre as empresas, os pedidos de acesso e a actividade da plataforma." />
       <AssistantChat
         scope={{ kind: "platform" }}
         userId={state.me.id}
         suggestions={SUGGESTIONS}
-        intro="Uso o resumo da plataforma: empresas, pedidos de conta, actividade e auditoria. Não vejo salários das empresas e não executo acções."
+        intro="Uso o resumo da plataforma: empresas, pedidos de acesso, actividade e auditoria. Não vejo salários das empresas e não executo acções."
       />
     </>
   );
