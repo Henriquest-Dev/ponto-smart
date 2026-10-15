@@ -1,24 +1,11 @@
 "use client";
 
-import { animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import Link from "next/link";
-import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 
-/** Número que conta até ao valor final uma única vez (sem animação se o utilizador a reduzir). */
+/** Número formatado (valor final, sem animação). */
 export function CountUp({ value, className }: { value: number; className?: string }) {
-  const reduce = useReducedMotion();
-  const mv = useMotionValue(reduce ? value : 0);
-  const text = useTransform(mv, (v) => Math.round(v).toLocaleString("pt-PT"));
-  useEffect(() => {
-    if (reduce) {
-      mv.set(value);
-      return;
-    }
-    const c = animate(mv, value, { duration: 0.9, ease: [0.22, 1, 0.36, 1] });
-    return () => c.stop();
-  }, [value, reduce, mv]);
-  return <motion.span className={className}>{text}</motion.span>;
+  return <span className={className}>{Math.round(value).toLocaleString("pt-PT")}</span>;
 }
 
 type Segment = { key: string; label: string; value: number; className: string; textClass: string };
@@ -41,7 +28,6 @@ export function TodayOverview({
   punctuality: number;
   pending: PendingLink[];
 }) {
-  const reduce = useReducedMotion();
   const base = Math.max(scheduled, present);
   const onTime = Math.max(0, present - late);
   const missing = Math.max(0, base - present);
@@ -96,14 +82,11 @@ export function TodayOverview({
           {base > 0
             ? segments
                 .filter((s) => s.value > 0)
-                .map((s, i) => (
-                  <motion.span
+                .map((s) => (
+                  <span
                     key={s.key}
                     className={cn("h-full rounded-full", s.className)}
-                    style={{ flexGrow: s.value, flexBasis: 0, transformOrigin: "left" }}
-                    initial={reduce ? false : { scaleX: 0 }}
-                    animate={{ scaleX: 1 }}
-                    transition={{ duration: 0.7, delay: 0.15 + i * 0.12, ease: [0.22, 1, 0.36, 1] }}
+                    style={{ flexGrow: s.value, flexBasis: 0 }}
                   />
                 ))
             : null}

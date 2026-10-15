@@ -1,234 +1,255 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { HeroVideo, Illustration } from "@/components/brand/media";
-import { Plans } from "@/components/landing/plans";
+import { Picture } from "@/components/brand/media";
 import { SiteHeader } from "@/components/landing/site-header";
 import { Wordmark } from "@/components/shell/logo";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: { absolute: "Horbit — ponto, assiduidade e salários" },
+  title: { absolute: "Horbit — guia prático" },
   description:
-    "Os colaboradores marcam o ponto no telemóvel, com QR Code que muda e localização confirmada. Assiduidade, justificações e recibos num só sítio. Para empresas em Moçambique.",
+    "Guia prático do Horbit, página a página: pedir a conta, configurar o local, criar a equipa, marcar o ponto com QR Code, justificar faltas, fechar salários e falar com o assistente.",
 };
 
-const STEPS: { img: Illustration; who: string; title: string; text: string }[] = [
+type Chapter = {
+  id: string;
+  who: string;
+  title: string;
+  page: string;
+  steps: string[];
+  /** Captura principal (1600×1000) e detalhe sobreposto (640×800), em public/guia/. */
+  main: string;
+  detail?: string;
+  alt: string;
+};
+
+const CHAPTERS: Chapter[] = [
   {
-    img: "company",
-    who: "Horbit",
-    title: "Criamos a conta da empresa",
-    text: "Peça a conta nesta página. Depois de validarmos os dados, o responsável da empresa recebe o utilizador e a palavra-passe.",
+    id: "pedir-conta",
+    who: "Responsável da empresa",
+    title: "Pedir a conta da empresa",
+    page: "Pedir conta",
+    steps: [
+      "Abra Pedir conta e escreva o nome da empresa, o NUIT, a cidade e quantas pessoas trabalham consigo.",
+      "Indique o responsável: nome, email e telefone. É esta pessoa que vai receber o primeiro acesso.",
+      "Envie o pedido. A equipa Horbit confirma os dados e responde pelo email ou telefone indicados.",
+    ],
+    main: "/guia/01-pedir-conta.webp",
+    alt: "Formulário de pedido de conta com os dados da empresa e do responsável",
   },
   {
-    img: "team",
-    who: "Empresa",
-    title: "A empresa cria os acessos da equipa",
-    text: "O responsável ou o RH regista cada colaborador e define o utilizador, a palavra-passe e o papel: colaborador, supervisor, RH ou financeiro.",
+    id: "aprovar",
+    who: "Super Admin",
+    title: "Aprovar o pedido e entregar o acesso",
+    page: "Plataforma › Pedidos de conta",
+    steps: [
+      "Em Pedidos de conta aparecem os pedidos novos, com os contactos e o número de colaboradores.",
+      "Aprovar cria a empresa, um horário base de 08:00 às 17:00 e o acesso do responsável.",
+      "No fim, o Horbit mostra o utilizador e a palavra-passe para copiar e entregar ao responsável.",
+    ],
+    main: "/guia/02-aprovar.webp",
+    detail: "/guia/02-aprovar-detalhe.webp",
+    alt: "Lista de pedidos de conta no painel do Super Admin",
   },
   {
-    img: "scan",
+    id: "local",
+    who: "Responsável ou RH",
+    title: "Configurar o local e a estação",
+    page: "Painel › Locais e estações",
+    steps: [
+      "Crie o local de trabalho com as coordenadas da entrada e o raio permitido, por exemplo 80 metros.",
+      "Dentro do local, crie a estação: é o ecrã da recepção que mostra o QR Code.",
+      "Escolha QR dinâmico: o código muda a cada 30 segundos e uma fotografia dele deixa de servir.",
+    ],
+    main: "/guia/03-locais.webp",
+    alt: "Página de locais e estações com o perímetro e a estação da recepção",
+  },
+  {
+    id: "equipa",
+    who: "Responsável ou RH",
+    title: "Criar os acessos da equipa",
+    page: "Painel › Colaboradores",
+    steps: [
+      "Em Novo colaborador escreva o nome, o número, o departamento, o horário e o salário base.",
+      "Defina o utilizador e a palavra-passe, e o papel: colaborador, supervisor, RH ou financeiro.",
+      "Entregue o acesso à pessoa. Se esquecer a palavra-passe, redefine-a na ficha do colaborador.",
+    ],
+    main: "/guia/04-colaboradores.webp",
+    detail: "/guia/04-novo-colaborador.webp",
+    alt: "Lista de colaboradores por departamento e o formulário de novo colaborador",
+  },
+  {
+    id: "estacao",
+    who: "Recepção",
+    title: "Pôr a estação na recepção",
+    page: "Locais e estações › Abrir estação",
+    steps: [
+      "Abra a estação num tablet ou computador na entrada, com o ecrã sempre ligado.",
+      "O ecrã mostra o QR Code, a hora e o tempo até o código mudar.",
+      "Não é preciso ninguém a vigiar: cada leitura fica registada com a hora do servidor.",
+    ],
+    main: "/guia/05-estacao.webp",
+    alt: "Ecrã da estação com o QR Code dinâmico e o relógio",
+  },
+  {
+    id: "marcar",
     who: "Colaborador",
-    title: "O colaborador marca o ponto",
-    text: "Abre o Horbit no telemóvel e lê o QR do ecrã da recepção. O sistema confirma o código, a hora e se está dentro do local.",
-  },
-  {
-    img: "payroll",
-    who: "RH e financeiro",
-    title: "O mês fecha sem papelada",
-    text: "Faltas justificadas com anexos, assiduidade revista, salários calculados e aprovados por outra pessoa, recibos em PDF.",
-  },
-];
-
-const ROLES = [
-  {
-    title: "Para quem marca",
-    lines: [
-      "Entrada, intervalo e saída em segundos, no próprio telemóvel.",
-      "Histórico do mês e atrasos sempre visíveis.",
-      "Justificação de faltas com fotografia do atestado.",
-      "Recibos de vencimento disponíveis para descarregar.",
+    title: "Marcar o ponto no telemóvel",
+    page: "Aplicação › Marcar",
+    steps: [
+      "Entre com o utilizador que recebeu da empresa e toque em Marcar.",
+      "Aponte a câmara ao QR da recepção. O telemóvel pede a localização só nesse momento.",
+      "O Horbit confirma o código, a hora e o local, e mostra Entrada registada. À saída faz o mesmo.",
     ],
+    main: "/guia/06-marcar.webp",
+    detail: "/guia/06-marcar-detalhe.webp",
+    alt: "Ecrã inicial do colaborador com o tempo trabalhado e o botão de marcar",
   },
   {
-    title: "Para RH e supervisores",
-    lines: [
-      "Quem está, quem chegou atrasado e quem falta, por departamento.",
-      "Marcações duvidosas ficam em revisão, nunca são apagadas.",
-      "Aprovação de justificações em dois passos, com fundamento.",
-      "Relatórios em Excel e registo de todas as alterações.",
+    id: "justificar",
+    who: "Colaborador, supervisor e RH",
+    title: "Justificar uma falta",
+    page: "Aplicação › Faltas  e  Painel › Justificações",
+    steps: [
+      "O colaborador escolhe o dia, o motivo e junta uma fotografia do atestado ou documento.",
+      "O pedido chega ao supervisor e ao RH, que aprovam ou recusam, sempre com o fundamento.",
+      "Uma falta aprovada passa a justificada na assiduidade e não conta como desconto.",
     ],
+    main: "/guia/07-justificacoes.webp",
+    detail: "/guia/07-justificar-detalhe.webp",
+    alt: "Justificações por decidir no painel e o pedido feito no telemóvel",
   },
   {
-    title: "Para o financeiro",
-    lines: [
-      "Processamento salarial a partir da assiduidade fechada.",
-      "Quem prepara não aprova: a aprovação é de outra pessoa.",
-      "Recibos emitidos e pagamentos registados por colaborador.",
-      "Valores em meticais, sem taxas legais inventadas.",
+    id: "acompanhar",
+    who: "RH e supervisores",
+    title: "Acompanhar a assiduidade",
+    page: "Painel  e  Assiduidade",
+    steps: [
+      "O Painel mostra quem está presente, quem chegou atrasado e quem ainda não marcou.",
+      "Marcações com GPS fraco ou no limite do local ficam em Revisão para uma pessoa decidir.",
+      "Correcções de horas pedem sempre um motivo e ficam registadas na Auditoria.",
     ],
+    main: "/guia/08-painel.webp",
+    alt: "Painel da empresa com a presença de hoje e a equipa",
   },
-];
-
-const TRUST = [
-  ["Cada empresa só vê os seus dados", "As regras de acesso estão na própria base de dados: um colaborador vê o que é dele, um supervisor vê a equipa."],
-  ["GPS impreciso não é fraude", "Quando o sinal é fraco ou está no limite do local, a marcação fica em revisão para o RH decidir."],
-  ["Um QR fotografado não serve", "O código do ecrã muda a cada 30 segundos e só é aceite uma vez dentro do prazo."],
-  ["Tudo fica registado", "Correcções, aprovações e alterações salariais guardam quem fez, quando e o valor anterior."],
+  {
+    id: "salarios",
+    who: "Responsável, RH e financeiro",
+    title: "Fechar o mês e emitir os recibos",
+    page: "Painel › Salários",
+    steps: [
+      "Feche a assiduidade do mês e gere o pré-processamento a partir das horas e faltas registadas.",
+      "Outra pessoa aprova os valores: quem prepara não aprova.",
+      "Emita os recibos em PDF e registe os pagamentos. Cada colaborador vê o seu recibo no telemóvel.",
+    ],
+    main: "/guia/09-salarios.webp",
+    detail: "/guia/09-recibos.webp",
+    alt: "Processamento salarial com os totais do mês e o recibo no telemóvel",
+  },
+  {
+    id: "assistente",
+    who: "Gestão e Super Admin",
+    title: "Conversar com o assistente",
+    page: "Painel › Assistente",
+    steps: [
+      "Pergunte em português, como numa conversa: quem chegou atrasado, que faltas estão por decidir.",
+      "O assistente usa só os dados que o seu papel pode ver, e explica como usar cada página.",
+      "Não aprova, não paga e não altera nada: as decisões ficam sempre com uma pessoa.",
+    ],
+    main: "/guia/10-assistente.webp",
+    alt: "Conversa com o assistente sobre os atrasos dos últimos 30 dias",
+  },
 ];
 
 export default function Home() {
   return (
-    <div className="min-h-dvh bg-canvas text-foreground">
+    <div className="min-h-dvh bg-background text-foreground">
       <SiteHeader />
 
       <main>
-        {/* Hero: texto à esquerda, vídeo 3D do produto à direita */}
-        <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-10 pb-16 sm:px-6 lg:grid-cols-[1fr_1.05fr] lg:gap-12 lg:pt-16 lg:pb-24">
-          <div>
-            <h1 className="text-[40px] leading-[1.02] font-bold tracking-[-0.02em] text-balance sm:text-[56px] lg:text-[64px]">
-              O ponto da equipa, marcado no telemóvel e no sítio certo.
+        <section className="border-b border-border">
+          <div className="mx-auto max-w-6xl px-4 pt-12 pb-12 sm:px-6 lg:pt-20 lg:pb-16">
+            <h1 className="max-w-3xl text-[36px] leading-[1.05] font-bold tracking-[-0.02em] text-balance sm:text-[52px]">
+              Guia prático do Horbit
             </h1>
-            <p className="mt-6 max-w-[34rem] text-[17px] leading-relaxed text-muted">
-              Sem relógio de ponto nem folhas para assinar. O colaborador lê o QR da recepção, o Horbit confirma a hora e a localização, e o
-              RH vê a assiduidade, as faltas e os salários do mês num só lugar.
+            <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-muted">
+              Do pedido de conta ao recibo de vencimento, página a página. Cada passo mostra o ecrã real e quem o usa: o Super Admin, a
+              empresa, o RH, o financeiro e o colaborador.
             </p>
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button size="lg" asChild>
                 <Link href="/registo/">Pedir conta para a empresa</Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
-                <Link href="/login/">Já tenho acesso</Link>
+                <Link href="/login/">Entrar</Link>
               </Button>
             </div>
-            <p className="mt-6 text-[13.5px] font-medium text-muted">
-              Feito para Moçambique: meticais, horário de Maputo e português.
-            </p>
-          </div>
-          <div className="overflow-hidden rounded-2xl bg-[#efebfb]">
-            <HeroVideo className="block h-auto w-full" />
           </div>
         </section>
 
-        {/* Como funciona */}
-        <section id="como-funciona" className="scroll-mt-20 border-t border-border bg-background">
-          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
-            <div className="max-w-2xl">
-              <h2 className="text-[32px] leading-tight font-bold tracking-[-0.025em] sm:text-[42px]">Como funciona</h2>
-              <p className="mt-3 text-[16px] leading-relaxed text-muted">
-                Os acessos são criados de cima para baixo. Ninguém se regista sozinho: cada conta tem um responsável.
-              </p>
-            </div>
-
-            <ol className="mt-12 grid gap-x-6 gap-y-12 md:grid-cols-2 lg:grid-cols-4">
-              {STEPS.map((s, i) => (
-                <li key={s.title} className="flex flex-col">
-                  <div className="flex aspect-[4/3] items-center justify-center rounded-xl bg-[#efebfb] p-5">
-                    <Illustration name={s.img} className="h-full w-full object-contain" />
-                  </div>
-                  <p className="mt-5 text-[13px] font-bold text-muted">
-                    {i + 1}. {s.who}
-                  </p>
-                  <h3 className="mt-1 text-[18px] leading-snug font-bold">{s.title}</h3>
-                  <p className="mt-2 text-[14.5px] leading-relaxed text-muted">{s.text}</p>
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:grid lg:grid-cols-[220px_1fr] lg:gap-14">
+          {/* Índice */}
+          <nav aria-label="Capítulos do guia" className="hidden lg:block">
+            <ol className="sticky top-20 space-y-0.5 py-12 text-[13.5px]">
+              {CHAPTERS.map((c, i) => (
+                <li key={c.id}>
+                  <a href={`#${c.id}`} className="flex gap-2.5 rounded-md px-2.5 py-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-foreground">
+                    <span className="w-5 shrink-0 text-right font-bold tabular">{i + 1}</span>
+                    <span>{c.title}</span>
+                  </a>
                 </li>
               ))}
             </ol>
+          </nav>
 
-            <div className="mt-16 grid gap-8 rounded-xl bg-canvas p-6 sm:p-10 lg:grid-cols-[0.9fr_1.4fr] lg:items-center">
-              <div>
-                <h3 className="text-[26px] leading-tight font-bold tracking-[-0.02em]">Onde se criam os acessos</h3>
-                <p className="mt-3 text-[15px] leading-relaxed text-muted">
-                  Se é colaborador e ainda não tem utilizador, peça-o ao RH da sua empresa. Se é responsável de uma empresa, comece por pedir a conta.
+          <ol className="divide-y divide-border">
+            {CHAPTERS.map((c, i) => (
+              <li key={c.id} id={c.id} className="scroll-mt-16 py-12 lg:py-16">
+                <p className="text-[13px] font-bold text-muted">
+                  Passo {i + 1} de {CHAPTERS.length}, {c.who}
                 </p>
-              </div>
-              <dl className="grid gap-3 sm:grid-cols-3">
-                {[
-                  ["Conta da empresa", "Criada pela Horbit, no painel de administração da plataforma."],
-                  ["Acessos da equipa", "Criados pela empresa, em Colaboradores, com papel e palavra-passe."],
-                  ["Palavra-passe esquecida", "Redefinida pelo responsável da empresa, na ficha do colaborador."],
-                ].map(([k, v]) => (
-                  <div key={k} className="rounded-lg border border-border bg-background p-5">
-                    <dt className="text-[15px] font-bold">{k}</dt>
-                    <dd className="mt-2 text-[13.5px] leading-relaxed text-muted">{v}</dd>
+                <h2 className="mt-1.5 text-[26px] leading-tight font-bold tracking-[-0.02em] sm:text-[32px]">{c.title}</h2>
+                <p className="mt-2 text-[13.5px] text-muted">
+                  Onde: <span className="font-bold text-foreground">{c.page}</span>
+                </p>
+
+                <figure className={c.detail ? "relative mt-8 pb-10 sm:pr-24 sm:pb-16" : "mt-8"}>
+                  <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-[0_24px_60px_-34px_rgb(22_19_31/0.45)]">
+                    <Picture src={c.main} alt={c.alt} width={1600} height={1000} className="block h-auto w-full" />
                   </div>
-                ))}
-              </dl>
-            </div>
-          </div>
-        </section>
+                  {c.detail ? (
+                    <div className="absolute right-0 bottom-0 w-[38%] max-w-[260px] overflow-hidden rounded-xl border border-border bg-background shadow-[0_28px_60px_-24px_rgb(22_19_31/0.55)] sm:w-[30%]">
+                      <Picture src={c.detail} alt="" width={640} height={800} className="block h-auto w-full" />
+                    </div>
+                  ) : null}
+                </figure>
 
-        {/* Para cada papel */}
-        <section className="bg-background">
-          <div className="mx-auto max-w-6xl px-4 pb-16 sm:px-6 lg:pb-24">
-            <h2 className="max-w-2xl text-[32px] leading-tight font-bold tracking-[-0.025em] sm:text-[42px]">
-              Cada pessoa vê o que precisa para o seu trabalho
-            </h2>
-            <div className="mt-12 grid gap-10 md:grid-cols-3 md:gap-0 md:divide-x md:divide-border">
-              {ROLES.map((r) => (
-                <div key={r.title} className="md:px-8 md:first:pl-0 md:last:pr-0">
-                  <h3 className="text-[19px] font-bold">{r.title}</h3>
-                  <ul className="mt-5 space-y-3.5">
-                    {r.lines.map((l) => (
-                      <li key={l} className="border-b border-border pb-3.5 text-[14.5px] leading-relaxed text-foreground/80 last:border-0">
-                        {l}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+                <ol className="mt-8 grid gap-5 md:grid-cols-3">
+                  {c.steps.map((s, j) => (
+                    <li key={s} className="border-t border-border-strong pt-4">
+                      <span className="text-[13px] font-bold text-muted tabular">{j + 1}.</span>
+                      <p className="mt-1 text-[15px] leading-relaxed">{s}</p>
+                    </li>
+                  ))}
+                </ol>
+              </li>
+            ))}
+          </ol>
+        </div>
 
-        {/* Preços */}
-        <section id="precos" className="scroll-mt-20">
-          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
+        <section className="border-t border-border bg-surface">
+          <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-14 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-xl">
-              <h2 className="text-[32px] leading-tight font-bold tracking-[-0.025em] sm:text-[42px]">Preços em meticais</h2>
-              <p className="mt-3 text-[16px] leading-relaxed text-muted">
-                Mensalidade por empresa, sem custo por marcação. Os primeiros 30 dias servem para configurar e experimentar.
-              </p>
-            </div>
-            <div className="mt-10">
-              <Plans />
-            </div>
-          </div>
-        </section>
-
-        {/* Confiança */}
-        <section id="confianca" className="scroll-mt-20 bg-background">
-          <div className="mx-auto grid max-w-6xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:py-24">
-            <div>
-              <h2 className="text-[32px] leading-tight font-bold tracking-[-0.025em] sm:text-[42px]">Regras claras, sem surpresas</h2>
-              <p className="mt-3 text-[16px] leading-relaxed text-muted">
-                O Horbit regista factos e ajuda a decidir. Faltas, revisões e salários são sempre decididos por uma pessoa.
-              </p>
-            </div>
-            <dl className="grid gap-x-10 gap-y-9 sm:grid-cols-2">
-              {TRUST.map(([t, d]) => (
-                <div key={t} className="border-t border-border-strong pt-4">
-                  <dt className="text-[17px] font-bold">{t}</dt>
-                  <dd className="mt-2 text-[14.5px] leading-relaxed text-muted">{d}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        </section>
-
-        {/* Chamada final */}
-        <section className="bg-background px-4 pb-16 sm:px-6">
-          <div className="mx-auto flex max-w-6xl flex-col gap-8 rounded-2xl bg-[#16131f] px-6 py-12 text-white sm:px-12 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-xl">
-              <h2 className="text-[30px] leading-tight font-bold tracking-[-0.02em] sm:text-[38px]">Comece pela conta da empresa</h2>
-              <p className="mt-3 text-[15.5px] leading-relaxed text-white/80">
-                Envie o pedido com os dados da empresa. Respondemos com o acesso do responsável, que depois cria os acessos da equipa.
+              <h2 className="text-[26px] leading-tight font-bold tracking-[-0.02em] sm:text-[30px]">Pronto para começar?</h2>
+              <p className="mt-2 text-[15px] leading-relaxed text-muted">
+                A empresa pede a conta, o Super Admin aprova e o responsável cria os acessos da equipa.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Button size="lg" asChild className="bg-white text-foreground hover:bg-white/90">
+              <Button size="lg" asChild>
                 <Link href="/registo/">Pedir conta</Link>
               </Button>
-              <Button size="lg" variant="outline" asChild className="border-white/40 bg-transparent text-white hover:border-white">
+              <Button size="lg" variant="outline" asChild>
                 <Link href="/login/">Entrar</Link>
               </Button>
             </div>
@@ -236,11 +257,12 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="bg-background">
-        <div className="mx-auto flex max-w-6xl flex-col gap-4 border-t border-border px-4 py-8 text-[13.5px] text-muted sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <footer className="border-t border-border">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-[13.5px] text-muted sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <Wordmark className="h-6" />
           <p>Horbit, Maputo, Moçambique</p>
           <nav className="flex gap-6 font-bold" aria-label="Rodapé">
+            <Link href="/comecar/" className="hover:text-foreground">Apresentação</Link>
             <Link href="/login/" className="hover:text-foreground">Entrar</Link>
             <Link href="/registo/" className="hover:text-foreground">Pedir conta</Link>
           </nav>

@@ -64,7 +64,6 @@ export default function RequestsPage() {
                 ["Cidade", r.city],
                 ["NUIT", r.nuit],
                 ["Colaboradores", r.employees_estimate ? formatNumber(r.employees_estimate) : null],
-                ["Plano", r.plan],
               ].filter((f): f is [string, string] => !!f[1]);
               return (
                 <li key={r.id} className="grid gap-4 px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto]">
@@ -142,7 +141,6 @@ export default function RequestsPage() {
             setApproveOpen(o);
             if (!o) setApproving(null);
           }}
-          plans={data.plans}
           request={approving}
           onCreated={reload}
         />

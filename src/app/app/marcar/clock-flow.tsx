@@ -1,7 +1,5 @@
 "use client";
 
-import { Illustration } from "@/components/brand/media";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -255,7 +253,6 @@ export function ClockFlow({
   };
 
   /* ----------------------------- Render ----------------------------- */
-  const reduce = useReducedMotion();
   const stepIdx = step === "intro" ? -1 : step === "scanning" ? 0 : step === "locating" ? 1 : step === "submitting" ? 2 : 3;
 
   return (
@@ -275,20 +272,10 @@ export function ClockFlow({
 
       <StemSteps labels={["QR Code", "Localização", "Validação"]} current={stepIdx === 3 ? 3 : Math.max(stepIdx, -1)} />
 
-      {/* Só animação de entrada: o novo passo (ex.: o vídeo da câmara) monta de imediato. */}
-      <motion.div
-        key={step}
-        className="flex flex-1 flex-col"
-        initial={reduce ? false : { opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25, ease: "easeOut" }}
-      >
+      <div key={step} className="flex flex-1 flex-col">
           {step === "intro" ? (
             <div className="mt-6 flex flex-1 flex-col">
               <div className="overflow-hidden rounded-xl border border-border bg-background">
-                <div className="flex h-44 items-center justify-center bg-[#efebfb] p-4">
-                  <Illustration name="scan" priority className="h-full w-auto object-contain" />
-                </div>
                 <div className="px-5 pt-5 pb-5">
                   <p className="text-[20px] leading-tight font-bold tracking-[-0.02em]">Leia o QR Code da estação</p>
                   <p className="mt-2 text-[14px] leading-relaxed text-muted">
@@ -322,19 +309,15 @@ export function ClockFlow({
                 <video ref={videoRef} className="size-full object-cover" playsInline muted autoPlay />
                 <ScanFrame />
               </div>
-              <AnimatePresence mode="wait" initial={false}>
-                {camError ? (
-                  <motion.div key="err" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                    <Notice tone="warning" className="mt-4">
-                      {camError}
-                    </Notice>
-                  </motion.div>
-                ) : (
-                  <motion.p key="hint" className="mt-4 flex items-center justify-center gap-2 text-[14px] font-bold text-muted" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                    <span className="stem animate-pulse text-primary" aria-hidden />A procurar QR Code
-                  </motion.p>
-                )}
-              </AnimatePresence>
+              {camError ? (
+                <Notice tone="warning" className="mt-4">
+                  {camError}
+                </Notice>
+              ) : (
+                <p className="mt-4 flex items-center justify-center gap-2 text-[14px] font-bold text-muted">
+                  <span className="stem text-primary" aria-hidden />A procurar QR Code
+                </p>
+              )}
               <div className="mt-auto space-y-2 pt-6">
                 <ManualCode open={manual} setOpen={setManual} code={code} setCode={setCode} error={codeError} onSubmit={applyCode} />
                 <Button variant="outline" size="lg" className="w-full" onClick={() => setStep("intro")}>
@@ -384,7 +367,7 @@ export function ClockFlow({
           {step === "result" && response ? (
             <Result response={response} timeZone={timeZone} fix={fix} note={note} setNote={setNote} onRetry={restart} onReview={requestReview} />
           ) : null}
-      </motion.div>
+      </div>
     </div>
   );
 }
@@ -445,20 +428,13 @@ function ManualCode({
   );
 }
 
-/** Marca grande do resultado: hastes que crescem a partir do centro, na cor do estado. */
+/** Marca grande do resultado: hastes na cor do estado. */
 function ResultMark({ tone }: { tone: "success" | "primary" | "warning" | "danger" }) {
-  const reduce = useReducedMotion();
   const color = { success: "text-success", primary: "text-primary", warning: "text-warning", danger: "text-danger" }[tone];
   return (
     <span className={cn("flex h-20 items-center gap-[7px]", color)} aria-hidden>
       {[30, 52, 76, 52, 30].map((h, i) => (
-        <motion.span
-          key={i}
-          className="block w-[9px] rounded-full bg-current"
-          initial={reduce ? false : { height: 0, opacity: 0 }}
-          animate={{ height: h, opacity: i === 2 ? 1 : 0.45 }}
-          transition={{ delay: 0.05 + Math.abs(2 - i) * 0.08, type: "spring", stiffness: 260, damping: 15 }}
-        />
+        <span key={i} className="block w-[9px] rounded-full bg-current" style={{ height: h, opacity: i === 2 ? 1 : 0.45 }} />
       ))}
     </span>
   );
@@ -481,19 +457,16 @@ function Result({
   onRetry: () => void;
   onReview: () => void;
 }) {
-  const reduce = useReducedMotion();
-  const rise = (delay: number) => (reduce ? {} : { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, transition: { delay, duration: 0.35, ease: "easeOut" as const } });
-
   if (!response.ok) {
     return (
       <div className="mt-12 flex flex-1 flex-col items-center text-center">
         <ResultMark tone="danger" />
-        <motion.p {...rise(0.15)} className="mt-6 text-[24px] font-bold tracking-[-0.02em]">
+        <p className="mt-6 text-[24px] font-bold tracking-[-0.02em]">
           Marcação não registada
-        </motion.p>
-        <motion.p {...rise(0.22)} className="mt-2 max-w-xs text-[14px] leading-relaxed text-muted">
+        </p>
+        <p className="mt-2 max-w-xs text-[14px] leading-relaxed text-muted">
           {response.error.message}
-        </motion.p>
+        </p>
         <Button size="lg" className="mt-auto h-14 w-full text-[16px] font-bold" onClick={onRetry}>
           Ler QR Code novamente
         </Button>
@@ -508,24 +481,24 @@ function Result({
       <div className="mt-8 flex flex-1 flex-col">
         <div className="flex flex-col items-center text-center">
           <ResultMark tone="warning" />
-          <motion.p {...rise(0.15)} className="mt-6 text-[24px] font-bold tracking-[-0.02em]">
+          <p className="mt-6 text-[24px] font-bold tracking-[-0.02em]">
             Fora do perímetro
-          </motion.p>
-          <motion.p {...rise(0.22)} className="mx-auto mt-2 max-w-xs text-[14px] leading-relaxed text-muted">
+          </p>
+          <p className="mx-auto mt-2 max-w-xs text-[14px] leading-relaxed text-muted">
             {r.message}
-          </motion.p>
+          </p>
           {fix ? (
             <p className="mt-2 text-[13px] text-subtle">
               Precisão do GPS: <span className="font-bold tabular">±{Math.round(fix.accuracy)} m</span>
             </p>
           ) : null}
         </div>
-        <motion.div {...rise(0.3)} className="mt-7 space-y-2">
+        <div className="mt-7 space-y-2">
           <label htmlFor="note" className="text-[13px] font-bold">
             Está no local? Explique e peça revisão
           </label>
           <Textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ex.: estou no armazém lateral, o sinal GPS é fraco." maxLength={300} />
-        </motion.div>
+        </div>
         <div className="mt-auto grid gap-2 pt-6">
           <Button size="lg" onClick={onRetry}>
             Tentar novamente
@@ -542,25 +515,20 @@ function Result({
   return (
     <div className="mt-10 flex flex-1 flex-col items-center text-center">
       <ResultMark tone={ok ? "success" : "primary"} />
-      <motion.p {...rise(0.15)} className="mt-6 text-[15px] font-bold text-muted">
+      <p className="mt-6 text-[15px] font-bold text-muted">
         {TYPE_LABEL[r.type]}
-      </motion.p>
-      <motion.p
-        className="text-[72px] leading-none font-bold tracking-[-0.02em] tabular"
-        initial={reduce ? false : { opacity: 0, scale: 0.85 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 18 }}
-      >
+      </p>
+      <p className="text-[72px] leading-none font-bold tracking-[-0.02em] tabular">
         {time}
-      </motion.p>
-      <motion.div {...rise(0.32)}>
+      </p>
+      <div>
         <Badge tone={ok ? "success" : "primary"} className="mt-3 text-[14px]">
           {ok ? "Marcação validada" : "Em revisão"}
         </Badge>
-      </motion.div>
-      <motion.p {...rise(0.38)} className="mt-4 max-w-xs text-[14px] leading-relaxed text-muted">
+      </div>
+      <p className="mt-4 max-w-xs text-[14px] leading-relaxed text-muted">
         {r.message}
-      </motion.p>
+      </p>
       <Button size="lg" className="mt-auto h-14 w-full text-[16px] font-bold" asChild>
         <Link href="/app/">Concluir</Link>
       </Button>

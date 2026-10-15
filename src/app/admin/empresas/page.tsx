@@ -3,7 +3,7 @@
 import * as React from "react";
 import { CompanyActions } from "@/components/admin/company-actions";
 import { CompanyDialog } from "@/components/admin/company-form";
-import { companyStatus, loadOverview, SUB_STATUS, type AdminCompany, type Plan } from "@/components/admin/data";
+import { companyStatus, loadOverview, type AdminCompany } from "@/components/admin/data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,10 +11,10 @@ import { EmptyState, Notice, Skeleton } from "@/components/ui/misc";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { Table, TableWrap, TD, TH, THead, TR } from "@/components/ui/table";
 import { Tabs } from "@/components/ui/tabs";
-import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { useData } from "@/lib/sb/use-data";
 
-type Filter = "all" | "active" | "trial" | "suspended" | "cancelled";
+type Filter = "all" | "active" | "suspended" | "cancelled";
 
 export default function CompaniesPage() {
   const { data, error, loading, reload } = useData(loadOverview, []);
@@ -23,12 +23,13 @@ export default function CompaniesPage() {
   const [q, setQ] = React.useState("");
 
   const companies = data?.companies ?? [];
-  const plans = data?.plans ?? [];
-  const count = (s: Filter) => (s === "all" ? companies.length : companies.filter((c) => c.status === s).length);
+  // Empresas em "trial" (criadas antes) contam como activas: já não há período experimental.
+  const statusOf = (c: AdminCompany): Filter => (c.status === "trial" ? "active" : c.status);
+  const count = (s: Filter) => (s === "all" ? companies.length : companies.filter((c) => statusOf(c) === s).length);
   const term = q.trim().toLowerCase();
   const rows = companies.filter(
     (c) =>
-      (filter === "all" || c.status === filter) &&
+      (filter === "all" || statusOf(c) === filter) &&
       (!term || [c.name, c.nuit, c.email, c.owner_login, c.phone].some((v) => v?.toLowerCase().includes(term))),
   );
 
@@ -36,7 +37,7 @@ export default function CompaniesPage() {
     <>
       <PageHeader
         title="Empresas"
-        description="Contas de clientes, planos e estado de acesso."
+        description="Empresas com acesso ao Horbit, responsável e estado."
         actions={
           <Button onClick={() => setCreating(true)} disabled={!data}>
             Nova empresa
@@ -52,7 +53,6 @@ export default function CompaniesPage() {
               [
                 ["all", "Todas"],
                 ["active", "Activas"],
-                ["trial", "Experimentais"],
                 ["suspended", "Suspensas"],
                 ["cancelled", "Canceladas"],
               ] as [Filter, string][]
@@ -99,20 +99,16 @@ export default function CompaniesPage() {
                       <p className="truncate text-[16px] font-bold tracking-[-0.01em]">{c.name}</p>
                       <p className="truncate font-mono text-[12px] text-muted">{c.owner_login ?? "Sem responsável"}</p>
                     </div>
-                    <CompanyActions company={c} plans={plans} onChanged={reload} />
+                    <CompanyActions company={c} onChanged={reload} />
                   </div>
                   <Badge tone={companyStatus(c.status).tone} className="mt-2">
                     {companyStatus(c.status).label}
                   </Badge>
                   <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5 text-[13px]">
                     <div>
-                      <dt className="text-[12px] text-muted">Plano</dt>
-                      <dd className="font-bold">{c.plan ?? "—"}</dd>
-                    </div>
-                    <div>
                       <dt className="text-[12px] text-muted">Colaboradores</dt>
                       <dd className="tabular">
-                        <Employees c={c} plans={plans} />
+                        <Employees c={c} />
                       </dd>
                     </div>
                     <div>
@@ -135,7 +131,6 @@ export default function CompaniesPage() {
                   <tr>
                     <TH>Empresa</TH>
                     <TH>Responsável</TH>
-                    <TH>Subscrição</TH>
                     <TH>Colaboradores</TH>
                     <TH>Última marcação</TH>
                     <TH>Desde</TH>
@@ -148,7 +143,6 @@ export default function CompaniesPage() {
                 <tbody>
                   {rows.map((c) => {
                     const st = companyStatus(c.status);
-                    const sub = c.subscription_status ? SUB_STATUS[c.subscription_status] : null;
                     return (
                       <TR key={c.id}>
                         <TD>
@@ -157,24 +151,8 @@ export default function CompaniesPage() {
                           {c.email ? <span className="block text-[12px] text-muted">{c.email}</span> : null}
                         </TD>
                         <TD className="font-mono text-[12.5px] text-muted">{c.owner_login ?? "—"}</TD>
-                        <TD>
-                          {c.plan ? (
-                            <span className="flex flex-col gap-0.5">
-                              <span className="flex items-center gap-2 font-bold">
-                                {c.plan}
-                                {sub ? <Badge tone={sub.tone}>{sub.label}</Badge> : null}
-                              </span>
-                              <span className="text-[12px] text-muted tabular">
-                                {formatMoney(c.price_monthly ?? 0)} por mês
-                                {c.current_period_end ? `, até ${formatDate(c.current_period_end)}` : ""}
-                              </span>
-                            </span>
-                          ) : (
-                            "—"
-                          )}
-                        </TD>
                         <TD className="tabular">
-                          <Employees c={c} plans={plans} />
+                          <Employees c={c} />
                         </TD>
                         <TD className="text-muted">{c.last_activity ? formatDateTime(c.last_activity) : "Sem marcações"}</TD>
                         <TD className="text-muted">{formatDate(c.created_at)}</TD>
@@ -182,7 +160,7 @@ export default function CompaniesPage() {
                           <Badge tone={st.tone}>{st.label}</Badge>
                         </TD>
                         <TD className="text-right">
-                          <CompanyActions company={c} plans={plans} onChanged={reload} />
+                          <CompanyActions company={c} onChanged={reload} />
                         </TD>
                       </TR>
                     );
@@ -194,20 +172,11 @@ export default function CompaniesPage() {
         )}
       </PageBody>
 
-      {data ? <CompanyDialog open={creating} onOpenChange={setCreating} plans={data.plans} onCreated={reload} /> : null}
+      {data ? <CompanyDialog open={creating} onOpenChange={setCreating} onCreated={reload} /> : null}
     </>
   );
 }
 
-function Employees({ c, plans }: { c: AdminCompany; plans: Plan[] }) {
-  const max = plans.find((p) => p.code === c.plan_code)?.max_employees;
-  return (
-    <span className="inline-flex flex-wrap items-center gap-2">
-      <span className="font-bold tabular">
-        {c.employees}
-        {max ? <span className="font-normal text-muted"> de {max}</span> : null}
-      </span>
-      {max && c.employees > max ? <Badge tone="warning">Acima do limite</Badge> : null}
-    </span>
-  );
+function Employees({ c }: { c: AdminCompany }) {
+  return <span className="font-bold tabular">{c.employees}</span>;
 }

@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Illustration } from "@/components/brand/media";
 import { Wordmark } from "@/components/shell/logo";
 import { RequestForm } from "./request-form";
 
 export const metadata: Metadata = { title: "Pedir conta para a empresa" };
 
 const STEPS = [
-  ["Envie o pedido", "Dados da empresa, do responsável e o plano pretendido."],
-  ["Validamos os dados", "Confirmamos o plano e o período experimental."],
+  ["Envie o pedido", "Dados da empresa e do responsável."],
+  ["Validamos os dados", "Confirmamos a empresa e o contacto do responsável."],
   ["Recebe o acesso do responsável", "Utilizador e palavra-passe do painel da empresa."],
   ["Cria os acessos da equipa", "Colaboradores, RH, financeiro e supervisores, a partir do painel."],
 ];
@@ -44,8 +43,7 @@ export default function RegisterPage() {
 
       {/* Como funciona */}
       <aside className="bg-[#efebfb] px-5 py-10 sm:px-10 lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col lg:px-12 lg:py-12">
-        <Illustration name="company" className="mx-auto hidden h-auto max-h-[34vh] w-auto lg:block" />
-        <div className="lg:mt-8">
+        <div className="lg:my-auto">
           <h2 className="max-w-sm text-[24px] leading-[1.2] font-bold tracking-[-0.02em]">A sua empresa no Horbit em quatro passos</h2>
           <ol className="mt-6 divide-y divide-[#dcd5f3] border-y border-[#dcd5f3]">
             {STEPS.map(([t, d], i) => (

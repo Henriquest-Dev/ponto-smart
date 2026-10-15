@@ -3,14 +3,13 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Field, Input, Select } from "@/components/ui/input";
+import { Field, Input } from "@/components/ui/input";
 import { Notice } from "@/components/ui/misc";
-import { formatMoney } from "@/lib/format";
 import { attempt, formObject } from "@/lib/result";
 import { must, rpc, sb } from "@/lib/sb/client";
 import { CredentialsPanel, type Credentials } from "./credentials";
 import { PendingButton, SubmitForm } from "./submit-form";
-import { generatePassword, LOGIN_PATTERN, suggestLogin, type AdminRequest, type Plan } from "./data";
+import { generatePassword, LOGIN_PATTERN, suggestLogin, type AdminRequest } from "./data";
 
 /** Campo de palavra-passe com "Gerar" e mostrar/ocultar. */
 export function PasswordInput({ value, onChange, name = "password" }: { value: string; onChange: (v: string) => void; name?: string }) {
@@ -45,10 +44,6 @@ export function PasswordInput({ value, onChange, name = "password" }: { value: s
   );
 }
 
-function planLabel(p: Plan) {
-  return `${p.name}, ${formatMoney(p.price_monthly, p.currency)} por mês, até ${p.max_employees} colaboradores${p.active ? "" : " (inactivo)"}`;
-}
-
 /**
  * Criação de uma empresa cliente (com a conta do responsável). Usado em "Nova empresa" e ao aprovar um pedido
  * (vem pré-preenchido e marca o pedido como aprovado). No fim mostra as credenciais para entregar.
@@ -56,13 +51,11 @@ function planLabel(p: Plan) {
 export function CompanyDialog({
   open,
   onOpenChange,
-  plans,
   request,
   onCreated,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  plans: Plan[];
   request?: AdminRequest | null;
   onCreated: () => void;
 }) {
@@ -81,14 +74,13 @@ export function CompanyDialog({
       <DialogContent
         wide
         title={creds ? "Empresa criada" : request ? `Aprovar pedido de ${request.company_name}` : "Nova empresa cliente"}
-        description={creds ? undefined : "Cria a empresa, a subscrição, um horário base e a conta do responsável (proprietário)."}
+        description={creds ? undefined : "Cria a empresa, um horário base e a conta do responsável (proprietário)."}
       >
         {creds ? (
           <CredentialsPanel creds={creds} onClose={close} />
         ) : open ? (
           <CompanyForm
             key={request?.id ?? "new"}
-            plans={plans}
             request={request ?? null}
             onCreated={(c) => {
               setCreds(c);
@@ -103,20 +95,14 @@ export function CompanyDialog({
 }
 
 function CompanyForm({
-  plans,
   request,
   onCreated,
   onCancel,
 }: {
-  plans: Plan[];
   request: AdminRequest | null;
   onCreated: (c: Credentials) => void;
   onCancel: () => void;
 }) {
-  const requestPlan = request?.plan_id ? plans.find((p) => p.id === request.plan_id) : undefined;
-  const options = plans.filter((p) => p.active || p.id === requestPlan?.id);
-  const defaultPlan = requestPlan?.code ?? options[1]?.code ?? options[0]?.code ?? "";
-
   const [login, setLogin] = React.useState(request?.email?.toLowerCase() ?? "");
   const [loginTouched, setLoginTouched] = React.useState(!!request);
   const [password, setPassword] = React.useState(() => generatePassword());
@@ -129,21 +115,20 @@ function CompanyForm({
       if (!o.owner_name || o.owner_name.length < 3) throw new Error("Indique o nome do responsável.");
       if (!LOGIN_PATTERN.test(ownerLogin)) throw new Error("Acesso inválido: use letras, números, ponto, hífen ou um email (mínimo 3 caracteres).");
       if (password.length < 8) throw new Error("A palavra-passe deve ter pelo menos 8 caracteres.");
-      const trial = Math.max(0, Math.min(90, Number(o.trial_days ?? 30) || 0));
 
       const existing = must(await sb().from("users").select("id").eq("email", ownerLogin).maybeSingle());
       if (existing) throw new Error(`O acesso "${ownerLogin}" já existe. Escolha outro utilizador para o responsável.`);
 
       await rpc<string>("ps_admin_create_company", {
         p_name: o.name,
-        p_plan_code: o.plan_code ?? null,
+        p_plan_code: null,
         p_owner_name: o.owner_name,
         p_owner_login: ownerLogin,
         p_owner_password: password,
         p_nuit: o.nuit ?? null,
         p_email: o.email ?? null,
         p_phone: o.phone ?? null,
-        p_trial_days: trial,
+        p_trial_days: 0,
         p_request: request?.id ?? null,
       });
       const data: Credentials = { company: o.name, login: ownerLogin, password };
@@ -165,8 +150,7 @@ function CompanyForm({
       ) : null}
 
       <fieldset className="grid gap-4 sm:grid-cols-2">
-        <legend className="mb-3 flex items-center gap-2 text-[15px] font-bold tracking-[-0.01em]">
-          <span className="stem text-primary" aria-hidden />
+        <legend className="mb-3 text-[15px] font-bold tracking-[-0.01em]">
           Empresa
         </legend>
         <Field label="Nome da empresa" className="sm:col-span-2">
@@ -189,23 +173,10 @@ function CompanyForm({
         <Field label="Email geral" className="sm:col-span-2">
           <Input name="email" type="email" defaultValue={request?.email ?? ""} />
         </Field>
-        <Field label="Plano">
-          <Select name="plan_code" defaultValue={defaultPlan} required>
-            {options.map((p) => (
-              <option key={p.id} value={p.code}>
-                {planLabel(p)}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Dias experimentais" hint="0 = activa de imediato">
-          <Input name="trial_days" type="number" min={0} max={90} defaultValue={30} />
-        </Field>
       </fieldset>
 
       <fieldset className="grid gap-4 rounded-xl bg-surface p-4 sm:grid-cols-2 sm:p-5">
-        <legend className="float-left mb-1 flex w-full items-center gap-2 text-[15px] font-bold tracking-[-0.01em] sm:col-span-2">
-          <span className="stem text-primary" aria-hidden />
+        <legend className="float-left mb-1 w-full text-[15px] font-bold tracking-[-0.01em] sm:col-span-2">
           Responsável da empresa
         </legend>
         <Field label="Nome" className="sm:col-span-2">

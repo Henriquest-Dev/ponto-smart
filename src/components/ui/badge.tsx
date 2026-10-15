@@ -21,11 +21,10 @@ const text: Record<Tone, string> = {
   primary: "text-primary",
 };
 
-/** Estado: haste arredondada (como no logótipo) seguida do texto. */
+/** Estado: etiqueta pequena com fundo suave. */
 export function Badge({ tone = "neutral", className, children, ...props }: React.ComponentProps<"span"> & { tone?: Tone }) {
   return (
-    <span className={cn("inline-flex items-center gap-1.5 text-[12.5px] font-bold whitespace-nowrap", text[tone], className)} {...props}>
-      <span className="stem" aria-hidden />
+    <span className={cn("inline-flex h-6 items-center rounded-md px-2 text-[12px] font-bold whitespace-nowrap", chip[tone], className)} {...props}>
       {children}
     </span>
   );

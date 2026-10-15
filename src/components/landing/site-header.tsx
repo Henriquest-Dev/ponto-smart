@@ -9,15 +9,14 @@ export function SiteHeader() {
   const { state } = useSession();
   const loggedIn = state.status === "ready";
   return (
-    <header className="sticky top-0 z-40 bg-canvas/85 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-4 sm:px-6">
         <Link href="/" aria-label="Horbit, página inicial">
           <Wordmark className="h-7" />
         </Link>
-        <nav className="hidden items-center gap-7 text-[14.5px] font-bold text-muted md:flex" aria-label="Secções">
-          <a href="#como-funciona" className="hover:text-foreground">Como funciona</a>
-          <a href="#precos" className="hover:text-foreground">Preços</a>
-          <a href="#confianca" className="hover:text-foreground">Segurança</a>
+        <nav className="hidden items-center gap-7 text-[14.5px] font-bold text-muted md:flex" aria-label="Navegação">
+          <a href="#pedir-conta" className="hover:text-foreground">Guia</a>
+          <Link href="/comecar/" className="hover:text-foreground">Apresentação</Link>
         </nav>
         <div className="ml-auto flex items-center gap-2">
           {loggedIn ? (

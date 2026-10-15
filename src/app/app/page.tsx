@@ -1,6 +1,5 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { LiveTimer, ThickBar } from "@/components/collab/motion";
 import { DAILY_COLS, clockState, loadMonthDays, loadMyPayslips, loadPendingDays, summarize, useTitle, type DailyRow, type EventStatus, type MyStatus } from "@/components/collab/shared";
@@ -138,7 +137,6 @@ function TodayCard({
   o: { state: "off" | "working" | "break"; events: DayEvent[]; daily: DailyRow | null; schedule: { start: string; end: string } | null };
   tz: string;
 }) {
-  const reduce = useReducedMotion();
   const validEvents = o.events.filter((e) => e.status !== "rejected");
   const openIn = [...validEvents].reverse().find((e) => e.type === "in");
   const stateInfo = {
@@ -163,21 +161,11 @@ function TodayCard({
     .join(", ");
 
   return (
-    <motion.div
-      initial={reduce ? false : { opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: "easeOut" }}
-      className="overflow-hidden rounded-xl bg-foreground text-white"
-    >
+    <div className="overflow-hidden rounded-xl bg-foreground text-white">
       <div className="p-6 sm:p-7">
         <div className="flex items-center justify-between gap-3">
           <span className="inline-flex items-center gap-2 text-[14px] font-bold">
-            <motion.span
-              className={cn("stem", stateInfo.color)}
-              aria-hidden
-              animate={o.state === "working" && !reduce ? { scaleY: [1, 1.5, 1] } : undefined}
-              transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
-            />
+            <span className={cn("stem", stateInfo.color)} aria-hidden />
             {stateInfo.label}
           </span>
           <span className="text-[13px] font-bold text-white/60 tabular">
@@ -198,12 +186,7 @@ function TodayCard({
         {shiftPct !== null ? (
           <div className="mt-6">
             <div className="h-2.5 overflow-hidden rounded-full bg-white/12">
-              <motion.div
-                className="h-full rounded-full bg-primary"
-                initial={{ width: reduce ? `${shiftPct}%` : "0%" }}
-                animate={{ width: `${shiftPct}%` }}
-                transition={reduce ? { duration: 0 } : { duration: 0.9, delay: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
-              />
+              <div className="h-full rounded-full bg-primary" style={{ width: `${shiftPct}%` }} />
             </div>
             <div className="mt-2 flex justify-between text-[12px] font-bold text-white/50 tabular">
               <span>{o.schedule!.start}</span>
@@ -214,14 +197,14 @@ function TodayCard({
         ) : null}
 
         <div className="mt-7 grid gap-2 sm:grid-cols-2">
-          <motion.div whileTap={reduce ? undefined : { scale: 0.98 }} className={cn(o.state !== "working" && "sm:col-span-2")}>
+          <div className={cn(o.state !== "working" && "sm:col-span-2")}>
             <Link
               href="/app/marcar/"
               className="flex h-12 w-full items-center justify-center rounded-lg bg-primary text-[16px] font-bold text-white transition-colors hover:bg-primary-hover"
             >
               {o.state === "off" ? "Marcar entrada" : o.state === "break" ? "Terminar intervalo" : "Marcar saída"}
             </Link>
-          </motion.div>
+          </div>
           {o.state === "working" ? (
             <Link
               href="/app/marcar/?tipo=intervalo"
@@ -235,25 +218,19 @@ function TodayCard({
 
       {o.events.length ? (
         <ol className="space-y-0 border-t border-white/10 px-6 py-4 sm:px-7">
-          {o.events.map((e, i) => (
-            <motion.li
-              key={e.id}
-              initial={reduce ? false : { opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 + i * 0.06 }}
-              className="flex items-center gap-3 py-2"
-            >
+          {o.events.map((e) => (
+            <li key={e.id} className="flex items-center gap-3 py-2">
               <span className={cn("stem", e.status === "rejected" ? "text-white/25" : e.type === "in" || e.type === "break_end" ? "text-primary" : "text-white/60")} aria-hidden />
               <span className="flex-1 text-[14px] font-bold">{EVENT_TYPE_LABEL[e.type]}</span>
               {e.status !== "accepted" ? (
                 <span className={cn("text-[12.5px] font-bold", e.status === "review" ? "text-[#ffc56b]" : "text-[#ff8a92]")}>{EVENT_STATUS[e.status].label}</span>
               ) : null}
               <span className="text-[15px] font-bold tabular">{formatTime(e.occurred_at, tz)}</span>
-            </motion.li>
+            </li>
           ))}
         </ol>
       ) : null}
-    </motion.div>
+    </div>
   );
 }
 

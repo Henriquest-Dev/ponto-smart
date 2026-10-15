@@ -3,7 +3,7 @@
 import Link from "next/link";
 import * as React from "react";
 import { CompanyDialog } from "@/components/admin/company-form";
-import { companyStatus, loadOverview, mrr } from "@/components/admin/data";
+import { companyStatus, loadOverview } from "@/components/admin/data";
 import { GroupedBars, Legend, SmoothArea } from "@/components/charts/charts";
 import { CHART_COLORS } from "@/components/charts/colors";
 import { Badge } from "@/components/ui/badge";
@@ -24,8 +24,7 @@ export default function PlatformOverviewPage() {
 
   const companies = data?.companies ?? [];
   const pending = (data?.requests ?? []).filter((r) => r.status === "pending");
-  const active = companies.filter((c) => c.status === "active").length;
-  const trial = companies.filter((c) => c.status === "trial").length;
+  const active = companies.filter((c) => c.status === "active" || c.status === "trial").length;
   const suspended = companies.filter((c) => c.status === "suspended").length;
   const employees = companies.filter((c) => c.status === "active" || c.status === "trial").reduce((s, c) => s + c.employees, 0);
   const activity = data?.activity ?? [];
@@ -64,9 +63,9 @@ export default function PlatformOverviewPage() {
           <Skeleton className="h-[118px] rounded-xl" />
         ) : (
           <StatRow>
-            <Stat label="Empresas activas" value={active} hint={`${trial} em período experimental${suspended ? `, ${suspended} suspensas` : ""}`} />
+            <Stat label="Empresas activas" value={active} hint={suspended ? `${suspended} suspensas` : "Com acesso ao Horbit"} />
             <Stat label="Colaboradores" value={formatNumber(employees)} hint="Activos nas empresas com acesso" />
-            <Stat label="Receita recorrente" value={`${formatNumber(Math.round(mrr(companies)))} MZN`} hint="Por mês, empresas activas e experimentais" />
+            <Stat label="Marcações hoje" value={formatNumber(today?.events ?? 0)} hint={`${formatNumber(events30)} nos últimos 30 dias`} />
             <Stat label="Pedidos pendentes" value={pending.length} hint={pending[0] ? `Último: ${formatDateTime(pending[0].created_at)}` : "Nenhum por tratar"} />
           </StatRow>
         )}
@@ -153,7 +152,6 @@ export default function PlatformOverviewPage() {
                 <THead>
                   <tr>
                     <TH>Empresa</TH>
-                    <TH>Plano</TH>
                     <TH>Colaboradores</TH>
                     <TH>Última marcação</TH>
                     <TH>Estado</TH>
@@ -168,7 +166,6 @@ export default function PlatformOverviewPage() {
                           <span className="block font-bold">{c.name}</span>
                           <span className="block font-mono text-[12px] text-muted">{c.owner_login ?? "Sem responsável"}</span>
                         </TD>
-                        <TD className="text-muted">{c.plan ?? "—"}</TD>
                         <TD className="tabular">{c.employees}</TD>
                         <TD className="text-muted">{c.last_activity ? formatDateTime(c.last_activity) : "Sem marcações"}</TD>
                         <TD>
@@ -184,7 +181,7 @@ export default function PlatformOverviewPage() {
         </section>
       </PageBody>
 
-      {data ? <CompanyDialog open={creating} onOpenChange={setCreating} plans={data.plans} onCreated={reload} /> : null}
+      {data ? <CompanyDialog open={creating} onOpenChange={setCreating} onCreated={reload} /> : null}
     </>
   );
 }

@@ -77,21 +77,12 @@ export async function loadOverview(): Promise<Overview> {
   };
 }
 
-/** Empresas que contam para a receita recorrente (activas e em período experimental). */
-export function billable(c: AdminCompany) {
-  return c.status === "active" || c.status === "trial";
-}
-
-export function mrr(companies: AdminCompany[]) {
-  return companies.filter(billable).reduce((s, c) => s + Number(c.price_monthly ?? 0), 0);
-}
-
 /* ------------------------------------------------------------------ */
 /* Rótulos                                                             */
 /* ------------------------------------------------------------------ */
 
 export const COMPANY_STATUS: Record<string, { label: string; tone: Tone }> = {
-  trial: { label: "Experimental", tone: "info" },
+  trial: { label: "Activa", tone: "success" },
   active: { label: "Activa", tone: "success" },
   suspended: { label: "Suspensa", tone: "danger" },
   cancelled: { label: "Cancelada", tone: "neutral" },

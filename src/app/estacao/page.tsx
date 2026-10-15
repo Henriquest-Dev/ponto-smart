@@ -1,6 +1,5 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
@@ -102,7 +101,6 @@ function StationDisplay({ stationId, company, timeZone }: { stationId: string; c
   const [now, setNow] = React.useState(() => Date.now());
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const alive = React.useRef(true);
-  const reduce = useReducedMotion();
   const [fullscreen, setFullscreen] = React.useState(false);
 
   React.useEffect(() => {
@@ -222,49 +220,25 @@ function StationDisplay({ stationId, company, timeZone }: { stationId: string; c
         <div className="flex shrink-0 flex-col items-center">
           <div className="rounded-xl bg-background p-5 text-foreground sm:p-7">
             <div className="relative size-[min(78vw,46vh,560px)] lg:size-[min(40vw,64vh,600px)]">
-              <AnimatePresence initial={false}>
-                {qr ? (
-                  <motion.div
-                    key={qr.issuedAt}
-                    className="absolute inset-0 [&_svg]:size-full"
-                    initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 1.03 }}
-                    transition={{ duration: reduce ? 0.15 : 0.45, ease: [0.22, 1, 0.36, 1] }}
-                    dangerouslySetInnerHTML={{ __html: qr.svg }}
-                    aria-label="QR Code de marcação de ponto"
-                    role="img"
-                  />
-                ) : (
-                  <motion.div
-                    key="loading"
-                    className="absolute inset-0 flex items-center justify-center rounded-xl bg-surface-2"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    <span className="spinner text-[32px] text-primary" aria-hidden />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {qr ? (
+                <div
+                  key={qr.issuedAt}
+                  className="absolute inset-0 [&_svg]:size-full"
+                  dangerouslySetInnerHTML={{ __html: qr.svg }}
+                  aria-label="QR Code de marcação de ponto"
+                  role="img"
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-surface-2">
+                  <span className="spinner text-[32px] text-primary" aria-hidden />
+                </div>
+              )}
             </div>
           </div>
 
           <div className="mt-6 w-full">
             <div className="h-3.5 w-full overflow-hidden rounded-full bg-background/15" aria-hidden>
-              {qr ? (
-                reduce ? (
-                  <div className="h-full rounded-full bg-primary" style={{ width: `${progress * 100}%` }} />
-                ) : (
-                  <motion.div
-                    key={qr.issuedAt}
-                    className="h-full origin-left rounded-full bg-primary"
-                    initial={{ scaleX: progress }}
-                    animate={{ scaleX: 0 }}
-                    transition={{ duration: remaining, ease: "linear" }}
-                  />
-                )
-              ) : null}
+              {qr ? <div className="h-full rounded-full bg-primary" style={{ width: `${progress * 100}%` }} /> : null}
             </div>
             <p className="mt-3 text-center text-[15px] font-bold text-background/70 tabular" aria-live="off">
               {qr ? (

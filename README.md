@@ -12,7 +12,7 @@ Controlo de ponto por QR Code e localização, assiduidade, justificações, sal
 Executar por esta ordem (copiar o ficheiro todo, colar, *Run*):
 
 1. `supabase/01_esquema.sql` — tabelas (só numa base vazia; se já correu, saltar).
-2. `supabase/04_parte1.sql` a `supabase/04_parte5.sql`, por esta ordem — login, regras de acesso, funções, Storage e auditoria. Podem ser executados de novo sempre que forem actualizados.
+2. `supabase/04_parte1.sql` a `supabase/04_parte6.sql`, por esta ordem — login, regras de acesso, funções, Storage, auditoria e o assistente do Super Admin. Podem ser executados de novo sempre que forem actualizados.
 3. Criar o Super Admin (substituir utilizador, nome e palavra-passe):
 
 ```sql
@@ -30,8 +30,9 @@ Opcional: em *Database → Extensions* activar **pg_cron** e voltar a correr o `
 
 ### 2. Supabase → Edge Functions (assistente)
 
-1. *Edge Functions → Deploy a new function → Via Editor*, nome **assistente**, colar `supabase/functions/assistente/index.ts`, *Deploy*.
+1. *Edge Functions → Deploy a new function → Via Editor*, nome **assistente**, colar `supabase/functions/assistente/index.ts`, *Deploy*. Quando o ficheiro mudar, abrir a função, colar a versão nova e *Deploy* outra vez.
 2. *Edge Functions → Secrets*: adicionar `GEMINI_API_KEY` com a chave do Google AI Studio.
+3. O mesmo assistente serve o painel da empresa (*Assistente*) e o Super Admin (*Plataforma → Assistente*).
 
 ### 3. GitHub Pages
 
@@ -59,4 +60,4 @@ npm run typecheck
 npm run build      # gera ./out (site estático)
 ```
 
-Convenções do código cliente: `docs/FRONTEND.md`. Arquitectura: `docs/ARQUITECTURA.md`.
+Convenções do código cliente: `docs/FRONTEND.md`. Arquitectura: `docs/ARQUITECTURA.md`. Regras visuais: `docs/DESIGN.md`. Prompts das ilustrações: `docs/PROMPTS-ILUSTRACOES.md`.

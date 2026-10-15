@@ -3,17 +3,17 @@
 import * as React from "react";
 import { toast } from "sonner";
 import { ErrorBlock, LoadingBlock, NoAccess } from "@/components/company/p2-shared";
-import { Badge, type Tone } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { ActionForm, SubmitButton } from "@/components/ui/form";
 import { Field, Input, Select } from "@/components/ui/input";
-import { Avatar, DescriptionList, EmptyState, Notice } from "@/components/ui/misc";
+import { Avatar, EmptyState, Notice } from "@/components/ui/misc";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { Table, TableWrap, TD, TH, THead, TR } from "@/components/ui/table";
 import { Tabs } from "@/components/ui/tabs";
-import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import { ROLE_LABEL } from "@/lib/labels";
 import { attempt, formObject } from "@/lib/result";
 import { errorMessage, must, sb } from "@/lib/sb/client";
@@ -62,47 +62,18 @@ type CompanyRow = {
   settings: CompanySettings & Record<string, unknown>;
 };
 
-type Subscription = {
-  status: string;
-  billing_cycle: string;
-  current_period_start: string;
-  current_period_end: string;
-  subscription_plans: { name: string; price_monthly: number | string; currency: string; max_employees: number; modules: string[] } | null;
-};
-
-const SUB_STATUS: Record<string, { label: string; tone: Tone }> = {
-  trialing: { label: "Período experimental", tone: "info" },
-  active: { label: "Activa", tone: "success" },
-  past_due: { label: "Pagamento em atraso", tone: "warning" },
-  cancelled: { label: "Cancelada", tone: "danger" },
-};
-
 function CompanyTab() {
-  const { companyId, tz } = useCompany();
+  const { companyId } = useCompany();
   const { refresh } = useSession();
   const data = useData(async () => {
-    const [c, s, n] = await Promise.all([
-      sb().from("companies").select("name,legal_name,nuit,email,phone,address,timezone,currency,status,settings").eq("id", companyId).single(),
-      sb()
-        .from("subscriptions")
-        .select("status,billing_cycle,current_period_start,current_period_end,subscription_plans(name,price_monthly,currency,max_employees,modules)")
-        .eq("company_id", companyId)
-        .order("created_at", { ascending: false })
-        .limit(1),
-      sb().from("employees").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("status", "active"),
-    ]);
-    return {
-      company: must(c) as CompanyRow,
-      subscription: ((s.data ?? [])[0] ?? null) as unknown as Subscription | null,
-      employees: n.count ?? null,
-    };
+    const c = await sb().from("companies").select("name,legal_name,nuit,email,phone,address,timezone,currency,status,settings").eq("id", companyId).single();
+    return { company: must(c) as CompanyRow };
   }, [companyId]);
 
   if (data.error) return <ErrorBlock message={data.error} />;
   if (!data.data) return <LoadingBlock rows={3} />;
   const c = data.data.company;
   const st = c.settings ?? {};
-  const sub = data.data.subscription;
 
   const save = (_p: unknown, fd: FormData) =>
     attempt(async () => {
@@ -184,39 +155,6 @@ function CompanyTab() {
         <div className="xl:col-span-2"><SubmitButton>Guardar definições</SubmitButton></div>
       </ActionForm>
 
-      <Card>
-        <CardHeader>
-          <div>
-            <CardTitle>Subscrição</CardTitle>
-            <CardDescription>Para mudar de plano, contacte o suporte do Horbit.</CardDescription>
-          </div>
-          {sub ? <Badge tone={SUB_STATUS[sub.status]?.tone}>{SUB_STATUS[sub.status]?.label ?? sub.status}</Badge> : null}
-        </CardHeader>
-        <CardContent>
-          {sub ? (
-            <DescriptionList
-              items={[
-                ["Plano", sub.subscription_plans?.name ?? "—"],
-                [
-                  "Preço",
-                  sub.subscription_plans
-                    ? `${formatMoney(sub.subscription_plans.price_monthly, sub.subscription_plans.currency)} / ${sub.billing_cycle === "yearly" ? "ano" : "mês"}`
-                    : "—",
-                ],
-                ["Período actual", `${formatDate(sub.current_period_start, tz)} a ${formatDate(sub.current_period_end, tz)}`],
-                [
-                  "Colaboradores",
-                  sub.subscription_plans
-                    ? `${data.data.employees ?? "—"} de ${sub.subscription_plans.max_employees} incluídos`
-                    : String(data.data.employees ?? "—"),
-                ],
-              ]}
-            />
-          ) : (
-            <p className="text-[13px] text-muted">Sem subscrição registada.</p>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }
@@ -233,7 +171,7 @@ type Member = {
 };
 
 const ROLE_INFO: { code: string; description: string }[] = [
-  { code: "owner", description: "Controlo total da empresa, incluindo subscrição e proprietários." },
+  { code: "owner", description: "Controlo total da empresa, incluindo definições e proprietários." },
   { code: "admin", description: "Gere a empresa, utilizadores, locais e políticas." },
   { code: "hr", description: "Colaboradores, assiduidade, justificações e preparação salarial." },
   { code: "finance", description: "Aprovação salarial, recibos e registo de pagamentos." },

@@ -1,6 +1,5 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { FloatField } from "@/components/brand/float-field";
@@ -91,24 +90,13 @@ export function LoginForm() {
     if (err) fail("Código inválido. Confirme a hora do telemóvel e tente novamente.");
   }
 
-  const errorBox = (
-    <AnimatePresence initial={false}>
-      {error ? (
-        <motion.div
-          key={error}
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          exit={{ opacity: 0, height: 0 }}
-          className="overflow-hidden"
-          role="alert"
-        >
-          <p className="rounded-lg border-l-4 border-danger bg-danger-soft px-4 py-3 text-[13.5px] font-bold text-[#8e1f27]">
-            {error}
-          </p>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
-  );
+  const errorBox = error ? (
+    <div key={error} role="alert">
+      <p className="rounded-lg border-l-4 border-danger bg-danger-soft px-4 py-3 text-[13.5px] font-bold text-[#8e1f27]">
+        {error}
+      </p>
+    </div>
+  ) : null;
 
   if (state.status === "mfa") {
     return (
@@ -135,13 +123,7 @@ export function LoginForm() {
         text={remembered ? `Continue como ${remembered} ou use outra conta.` : "Use o utilizador e a palavra-passe que recebeu da sua empresa."}
       />
       {errorBox}
-      <motion.div
-        key={shakeKey}
-        className={cn("space-y-3", shakeKey && "shake")}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: "easeOut" }}
-      >
+      <div key={shakeKey} className={cn("space-y-3", shakeKey && "shake")}>
         <FloatField
           label="Utilizador ou email"
           name="login"
@@ -174,7 +156,7 @@ export function LoginForm() {
           }
           hint={caps ? <span className="font-bold text-warning">As maiúsculas estão activas.</span> : null}
         />
-      </motion.div>
+      </div>
 
       <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[14px] font-medium">
         <Checkbox name="remember" defaultChecked={!!remembered} />
@@ -193,45 +175,23 @@ export function LoginForm() {
 function Heading({ title, text }: { title: string; text: string }) {
   return (
     <div className="mb-2">
-      <motion.h1
-        className="text-[28px] leading-[1.1] font-bold tracking-[-0.02em] sm:text-[32px]"
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-      >
-        {title}
-      </motion.h1>
-      <motion.p
-        className="mt-2 text-[15px] leading-relaxed text-muted"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.4, delay: 0.1 }}
-      >
-        {text}
-      </motion.p>
+      <h1 className="text-[28px] leading-[1.1] font-bold tracking-[-0.02em] sm:text-[32px]">{title}</h1>
+      <p className="mt-2 text-[15px] leading-relaxed text-muted">{text}</p>
     </div>
   );
 }
 
 function SubmitButton({ busy, done, label }: { busy: boolean; done: boolean; label: string }) {
   return (
-    <motion.button
+    <button
       type="submit"
       disabled={busy || done}
-      whileTap={{ scale: 0.98 }}
-      animate={{ backgroundColor: done ? "#16834f" : "#673fec" }}
-      className="relative flex h-12 w-full items-center justify-center gap-3 overflow-hidden rounded-lg text-[15px] font-bold text-white disabled:cursor-default"
+      className={cn(
+        "relative flex h-12 w-full items-center justify-center gap-3 overflow-hidden rounded-lg text-[15px] font-bold text-white transition-colors disabled:cursor-default",
+        done ? "bg-success" : "bg-primary",
+      )}
     >
-      {busy && !done ? (
-        <motion.span
-          aria-hidden
-          className="absolute inset-y-0 left-0 bg-white/15"
-          initial={{ width: "0%" }}
-          animate={{ width: "90%" }}
-          transition={{ duration: 2.4, ease: [0.1, 0.6, 0.2, 1] }}
-        />
-      ) : null}
       <span className="relative">{done ? "Sessão iniciada" : busy ? "A verificar…" : label}</span>
-    </motion.button>
+    </button>
   );
 }

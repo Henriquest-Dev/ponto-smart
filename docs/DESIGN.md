@@ -12,8 +12,9 @@ Marca: **Horbit** (nunca "PontoSmart"). Tipo de letra: M PLUS Rounded 1c (já gl
 - Listas de texto: separadas por linhas (`border-b border-border`), sem marcadores decorativos.
 
 ## Imagens
-- Ilustrações 3D renderizadas em `public/media/*.webp` e o vídeo `horbit-hero.(webm|mp4)`. Usar `Illustration`/`HeroVideo` de `@/components/brand/media` (tratam do `basePath`). Fundo das ilustrações: `#efebfb`.
-- Estados vazios: `EmptyState` (já mostra `empty.webp`).
+- Página inicial = guia prático com capturas reais em `public/guia/` (principal 1600×1000, detalhe 640×800 sobreposto). Usar `Picture` de `@/components/brand/media` (trata do `basePath`).
+- Apresentação (`/comecar/`): `public/onboarding/1–3.webp` (1080×1080, fundo violeta `#673FEC`). Podem ser substituídas pelas ilustrações cartoon de `docs/PROMPTS-ILUSTRACOES.md`.
+- Sem animações decorativas (a biblioteca `motion` foi removida). Só transições curtas de cor/largura em resposta a acções.
 
 ## Proibido (aspecto genérico de "site feito por IA")
 - Ícones (`lucide-react` foi removido), emojis, "icon chips", setas "→" em botões, estrelas, brilhos.

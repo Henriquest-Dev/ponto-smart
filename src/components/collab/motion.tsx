@@ -1,56 +1,28 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
-/** Carregamento: hastes arredondadas a pulsar em sequência (como o logótipo). */
+/** Carregamento: spinner simples. */
 export function StemLoader({
   className,
-  count = 5,
 }: {
   className?: string;
   count?: number;
 }) {
-  const reduce = useReducedMotion();
   return (
     <span
       role="status"
       aria-label="A carregar"
-      className={cn(
-        "inline-flex h-10 items-center gap-[5px] text-primary",
-        className,
-      )}
+      className={cn("inline-flex h-10 items-center", className)}
     >
-      {Array.from({ length: count }, (_, i) => (
-        <motion.span
-          key={i}
-          className="block w-[6px] rounded-full bg-current"
-          initial={{ height: 12 }}
-          animate={
-            reduce
-              ? { height: 20, opacity: 0.4 + (i % 2) * 0.4 }
-              : { height: [12, 36, 12] }
-          }
-          transition={
-            reduce
-              ? { duration: 0 }
-              : {
-                  duration: 0.9,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: i * 0.11,
-                }
-          }
-        />
-      ))}
+      <span className="spinner" />
     </span>
   );
 }
 
-/** Moldura de leitura sobre a câmara: cantos feitos de hastes e uma haste que varre o código. */
+/** Moldura de leitura sobre a câmara: cantos feitos de hastes (estática). */
 export function ScanFrame({ found = false }: { found?: boolean }) {
-  const reduce = useReducedMotion();
   const corner = "absolute block rounded-full bg-white";
   const corners: [string, string][] = [
     ["left-0 top-0 h-[6px] w-12", "left-0 top-0 h-12 w-[6px]"],
@@ -59,15 +31,9 @@ export function ScanFrame({ found = false }: { found?: boolean }) {
     ["right-0 bottom-0 h-[6px] w-12", "right-0 bottom-0 h-12 w-[6px]"],
   ];
   return (
-    <motion.div
+    <div
       aria-hidden
       className="pointer-events-none absolute inset-[13%] rounded-xl shadow-[0_0_0_999px_rgb(13_14_22/0.5)]"
-      animate={reduce ? undefined : { scale: found ? 0.94 : [1, 0.975, 1] }}
-      transition={
-        found
-          ? { duration: 0.2 }
-          : { duration: 2.4, repeat: Infinity, ease: "easeInOut" }
-      }
     >
       {corners.map(([h, v], i) => (
         <span key={i}>
@@ -75,19 +41,11 @@ export function ScanFrame({ found = false }: { found?: boolean }) {
           <span className={cn(corner, v, found && "bg-success")} />
         </span>
       ))}
-      {reduce ? null : (
-        <motion.span
-          className="absolute inset-x-6 block h-[5px] rounded-full bg-primary shadow-[0_0_18px_4px_rgb(103_63_236/0.55)]"
-          initial={{ top: "12%" }}
-          animate={{ top: ["12%", "86%", "12%"] }}
-          transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
-        />
-      )}
-    </motion.div>
+    </div>
   );
 }
 
-/** Progresso por passos: hastes horizontais grossas que se preenchem. */
+/** Progresso por passos: hastes horizontais que se preenchem. */
 export function StemSteps({
   labels,
   current,
@@ -95,7 +53,6 @@ export function StemSteps({
   labels: string[];
   current: number;
 }) {
-  const reduce = useReducedMotion();
   return (
     <ol
       className="grid gap-2"
@@ -110,15 +67,9 @@ export function StemSteps({
         return (
           <li key={l} aria-current={active ? "step" : undefined}>
             <div className="relative h-1 overflow-hidden rounded-full bg-surface-2">
-              <motion.div
-                className="absolute inset-y-0 left-0 rounded-full bg-primary"
-                initial={false}
-                animate={{ width: done ? "100%" : active ? "55%" : "0%" }}
-                transition={
-                  reduce
-                    ? { duration: 0 }
-                    : { type: "spring", stiffness: 140, damping: 22 }
-                }
+              <div
+                className="absolute inset-y-0 left-0 rounded-full bg-primary transition-[width] duration-300"
+                style={{ width: done ? "100%" : active ? "55%" : "0%" }}
               />
             </div>
             <p
@@ -179,7 +130,7 @@ export function LiveTimer({
   );
 }
 
-/** Barra de progresso grossa e arredondada, animada ao aparecer. */
+/** Barra de progresso fina e arredondada. */
 export function ThickBar({
   value,
   tone = "primary",
@@ -189,7 +140,6 @@ export function ThickBar({
   tone?: "primary" | "success" | "warning";
   className?: string;
 }) {
-  const reduce = useReducedMotion();
   const pct = Math.max(0, Math.min(100, value));
   const fill = {
     primary: "bg-primary",
@@ -199,7 +149,7 @@ export function ThickBar({
   return (
     <div
       className={cn(
-        "h-2.5 overflow-hidden rounded-full bg-surface-2",
+        "h-1.5 overflow-hidden rounded-full bg-surface-2",
         className,
       )}
       role="progressbar"
@@ -207,13 +157,9 @@ export function ThickBar({
       aria-valuemin={0}
       aria-valuemax={100}
     >
-      <motion.div
+      <div
         className={cn("h-full rounded-full", fill)}
-        initial={{ width: reduce ? `${pct}%` : "0%" }}
-        animate={{ width: `${pct}%` }}
-        transition={
-          reduce ? { duration: 0 } : { duration: 0.8, ease: [0.2, 0.8, 0.2, 1] }
-        }
+        style={{ width: `${pct}%` }}
       />
     </div>
   );

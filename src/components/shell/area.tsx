@@ -128,7 +128,7 @@ function adminNav() {
     { href: "/admin/", label: "Visão geral" },
     { href: "/admin/empresas/", label: "Empresas" },
     { href: "/admin/pedidos/", label: "Pedidos de conta" },
-    { href: "/admin/planos/", label: "Planos" },
+    { href: "/admin/assistente/", label: "Assistente" },
     { href: "/admin/auditoria/", label: "Auditoria" },
   ];
   return { root: "/admin/", sections: [{ items }], tabs: items.slice(0, 4) };

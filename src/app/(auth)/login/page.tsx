@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Illustration } from "@/components/brand/media";
+import { Picture } from "@/components/brand/media";
 import { Wordmark } from "@/components/shell/logo";
+import { FirstVisit } from "./first-visit";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Entrar" };
@@ -10,6 +11,7 @@ export const metadata: Metadata = { title: "Entrar" };
 export default function LoginPage() {
   return (
     <div className="min-h-dvh bg-background lg:grid lg:grid-cols-[minmax(440px,1fr)_1.1fr]">
+      <FirstVisit />
       {/* Formulário */}
       <section className="flex min-h-dvh flex-col px-5 py-6 sm:px-10 lg:px-16 lg:py-10">
         <Link href="/" aria-label="Horbit, página inicial" className="w-fit">
@@ -30,16 +32,16 @@ export default function LoginPage() {
         </p>
       </section>
 
-      {/* Ilustração (só em ecrãs largos) */}
-      <aside className="hidden flex-col justify-between bg-[#efebfb] px-14 py-12 lg:flex">
-        <p className="text-[13px] font-bold text-[#5b5470]">Ponto, assiduidade e salários</p>
-        <Illustration name="login" priority className="mx-auto h-auto w-full max-w-[620px]" />
-        <div>
-          <p className="max-w-md text-[24px] leading-[1.2] font-bold tracking-[-0.02em] text-foreground">
-            Cada marcação confirma o código, a hora e o local.
-          </p>
-          <p className="mt-3 max-w-md text-[14px] leading-relaxed text-[#5b5470]">
-            O telemóvel lê o QR da estação e o Horbit verifica se a pessoa está dentro do perímetro antes de registar.
+      {/* Apresentação (só em ecrãs largos) */}
+      <aside className="hidden flex-col justify-center bg-[#16131f] px-14 py-12 text-white lg:flex">
+        <Picture src="/onboarding/1.webp" alt="" width={1080} height={1080} priority className="mx-auto aspect-square h-auto w-full max-w-[520px] rounded-2xl bg-primary" />
+        <div className="mx-auto mt-10 w-full max-w-[520px]">
+          <p className="text-[24px] leading-[1.2] font-bold tracking-[-0.02em]">Cada marcação confirma o código, a hora e o local.</p>
+          <p className="mt-3 text-[14px] leading-relaxed text-white/60">
+            O telemóvel lê o QR da estação e o Horbit verifica se a pessoa está dentro do perímetro antes de registar.{" "}
+            <Link href="/comecar/" className="font-bold text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">
+              Ver a apresentação
+            </Link>
           </p>
         </div>
       </aside>

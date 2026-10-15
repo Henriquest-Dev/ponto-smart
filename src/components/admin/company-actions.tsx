@@ -11,11 +11,10 @@ import { attempt } from "@/lib/result";
 import { errorMessage, rpc } from "@/lib/sb/client";
 import { PasswordInput } from "./company-form";
 import { CredentialsPanel, type Credentials } from "./credentials";
-import { generatePassword, type AdminCompany, type CompanyStatus, type Plan } from "./data";
+import { generatePassword, type AdminCompany, type CompanyStatus } from "./data";
 
 const STATUS_ACTIONS: { status: CompanyStatus; label: string; confirm?: (n: string) => string; done: string }[] = [
   { status: "active", label: "Activar", done: "Empresa activa." },
-  { status: "trial", label: "Marcar como experimental", done: "Empresa em período experimental." },
   {
     status: "suspended",
     label: "Suspender",
@@ -33,7 +32,7 @@ const STATUS_ACTIONS: { status: CompanyStatus; label: string; confirm?: (n: stri
 ];
 
 /** Menu de acções de uma empresa: estado e reposição do acesso do responsável. */
-export function CompanyActions({ company, plans = [], onChanged }: { company: AdminCompany; plans?: Plan[]; onChanged: () => void }) {
+export function CompanyActions({ company, onChanged }: { company: AdminCompany; onChanged: () => void }) {
   const [resetOpen, setResetOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
 
@@ -43,20 +42,6 @@ export function CompanyActions({ company, plans = [], onChanged }: { company: Ad
     try {
       await rpc("ps_admin_set_company_status", { p_company: company.id, p_status: a.status });
       toast.success(a.done);
-      onChanged();
-    } catch (err) {
-      toast.error(errorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function setPlan(p: Plan) {
-    if (!window.confirm(`Mudar ${company.name} para o plano ${p.name}?`)) return;
-    setBusy(true);
-    try {
-      await rpc("ps_admin_set_plan", { p_company: company.id, p_plan_code: p.code });
-      toast.success(`Plano alterado para ${p.name}.`);
       onChanged();
     } catch (err) {
       toast.error(errorMessage(err));
@@ -76,7 +61,7 @@ export function CompanyActions({ company, plans = [], onChanged }: { company: Ad
         </DropdownTrigger>
         <DropdownContent>
           <DropdownLabel>Estado da empresa</DropdownLabel>
-          {STATUS_ACTIONS.filter((a) => a.status !== company.status).map((a) => (
+          {STATUS_ACTIONS.filter((a) => a.status !== (company.status === "trial" ? "active" : company.status)).map((a) => (
             <DropdownItem
               key={a.status}
               onSelect={() => void setStatus(a)}
@@ -85,19 +70,6 @@ export function CompanyActions({ company, plans = [], onChanged }: { company: Ad
               {a.label}
             </DropdownItem>
           ))}
-          {plans.filter((p) => p.active && p.code !== company.plan_code).length ? (
-            <>
-              <DropdownSeparator />
-              <DropdownLabel>Mudar de plano</DropdownLabel>
-              {plans
-                .filter((p) => p.active && p.code !== company.plan_code)
-                .map((p) => (
-                  <DropdownItem key={p.code} onSelect={() => void setPlan(p)}>
-                    {p.name}
-                  </DropdownItem>
-                ))}
-            </>
-          ) : null}
           <DropdownSeparator />
           <DropdownItem onSelect={() => setResetOpen(true)} disabled={!company.owner_login}>
             Nova palavra-passe do responsável

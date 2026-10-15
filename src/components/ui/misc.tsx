@@ -34,8 +34,6 @@ export function EmptyState({
 }) {
   return (
     <div className={cn("flex flex-col items-center justify-center rounded-xl border border-dashed border-border-strong px-6 py-10 text-center", className)}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/media/empty.webp`} alt="" width={92} height={128} className="mb-4 h-24 w-auto" />
       <p className="text-[15px] font-bold">{title}</p>
       {description ? <p className="mt-1 max-w-sm text-[13.5px] leading-relaxed text-muted">{description}</p> : null}
       {action ? <div className="mt-4">{action}</div> : null}
