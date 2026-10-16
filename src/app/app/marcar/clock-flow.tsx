@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Notice } from "@/components/ui/misc";
@@ -26,6 +25,7 @@ type ClockResult = {
   duplicate: boolean;
   distanceM?: number | null;
   location?: string | null;
+  workedMinutes?: number | null;
 };
 type ClockResponse = { ok: true; result: ClockResult } | { ok: false; error: { message: string } };
 
@@ -35,18 +35,21 @@ const TYPE_LABEL = { in: "Entrada", out: "Saída", break_start: "Início de inte
 
 export function ClockFlow({
   initialToken,
+  initialLink = null,
   state,
   wantsBreak,
   timeZone,
   devicePolicy,
 }: {
   initialToken: string | null;
+  /** Marcação por link (dia especial): id do link em vez do QR Code. */
+  initialLink?: string | null;
   state: "off" | "working" | "break" | null;
   wantsBreak: boolean;
   timeZone: string;
   devicePolicy: "off" | "warn" | "require";
 }) {
-  const [step, setStep] = useState<Step>(initialToken ? "locating" : "intro");
+  const [step, setStep] = useState<Step>(initialToken || initialLink ? "locating" : "intro");
   const [token, setToken] = useState<string | null>(initialToken);
   const [fix, setFix] = useState<Fix>(null);
   const [liveAccuracy, setLiveAccuracy] = useState<number | null>(null);
@@ -204,13 +207,13 @@ export function ClockFlow({
   /* ----------------------------- Envio ------------------------------ */
   const submit = useCallback(
     async (opts?: { requestReview?: boolean }) => {
-      if (!token || inflightRef.current) return;
+      if ((!token && !initialLink) || inflightRef.current) return;
       inflightRef.current = true;
       setStep("submitting");
       try {
         idemRef.current ??= newKey();
-        const result = await rpc<ClockResult>("ps_clock", {
-          p_token: token,
+        const result = await rpc<ClockResult>(initialLink && !token ? "ps_clock_link" : "ps_clock", {
+          ...(initialLink && !token ? { p_link: initialLink } : { p_token: token }),
           p_lat: fix?.latitude ?? null,
           p_lng: fix?.longitude ?? null,
           p_accuracy: fix?.accuracy ?? null,
@@ -230,7 +233,7 @@ export function ClockFlow({
         inflightRef.current = false;
       }
     },
-    [token, fix, devicePolicy, wantsBreak, note],
+    [token, initialLink, fix, devicePolicy, wantsBreak, note],
   );
 
   useEffect(() => {
@@ -511,27 +514,44 @@ function Result({
     );
   }
 
+  return <ClockedPopup result={r} time={time} />;
+}
+
+const hoursLabel = (min: number) => `${Math.floor(min / 60)}h ${String(min % 60).padStart(2, "0")}min`;
+
+/** Pop-up de confirmação: "Entrada registada" ou "Saída registada", com as horas trabalhadas no dia. */
+function ClockedPopup({ result: r, time }: { result: ClockResult; time: string }) {
   const ok = r.status === "accepted";
+  const worked = r.workedMinutes ?? 0;
+  const title = r.duplicate ? "Já estava registado" : ok ? `${TYPE_LABEL[r.type]} registada` : "Marcação em revisão";
   return (
-    <div className="mt-10 flex flex-1 flex-col items-center text-center">
-      <ResultMark tone={ok ? "success" : "primary"} />
-      <p className="mt-6 text-[15px] font-bold text-muted">
-        {TYPE_LABEL[r.type]}
-      </p>
-      <p className="text-[72px] leading-none font-bold tracking-[-0.02em] tabular">
-        {time}
-      </p>
-      <div>
-        <Badge tone={ok ? "success" : "primary"} className="mt-3 text-[14px]">
-          {ok ? "Marcação validada" : "Em revisão"}
-        </Badge>
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-[#16131f]/55 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="clock-title">
+      <div className="w-full max-w-sm rounded-2xl bg-background p-6 text-center shadow-[0_30px_80px_-30px_rgb(22_19_31/0.6)]">
+        <span
+          aria-hidden
+          className={cn("mx-auto flex size-16 items-center justify-center rounded-full", ok ? "bg-success-soft text-success" : "bg-primary-soft text-primary")}
+        >
+          <svg viewBox="0 0 24 24" className="size-8" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+            {ok ? <path d="M5 12.5l4.5 4.5L19 7.5" /> : <path d="M12 7v5l3 2" />}
+          </svg>
+        </span>
+        <p id="clock-title" className="mt-4 text-[22px] font-bold tracking-[-0.02em]">
+          {title}
+        </p>
+        <p className="mt-1 text-[56px] leading-none font-bold tracking-[-0.02em] tabular">{time}</p>
+        {r.type === "out" && worked > 0 ? (
+          <p className="mt-3 text-[15px]">
+            Hoje trabalhou <span className="font-bold tabular">{hoursLabel(worked)}</span>
+          </p>
+        ) : null}
+        <p className="mt-2 text-[13.5px] leading-relaxed text-muted">
+          {ok ? (r.location ? `Em ${r.location}. ` : "") : ""}
+          {ok ? (r.type === "in" ? "Bom trabalho!" : r.type === "out" ? "Até amanhã." : r.message) : r.message}
+        </p>
+        <Button size="lg" className="mt-6 w-full" asChild>
+          <Link href="/app/">Concluir</Link>
+        </Button>
       </div>
-      <p className="mt-4 max-w-xs text-[14px] leading-relaxed text-muted">
-        {r.message}
-      </p>
-      <Button size="lg" className="mt-auto h-14 w-full text-[16px] font-bold" asChild>
-        <Link href="/app/">Concluir</Link>
-      </Button>
     </div>
   );
 }

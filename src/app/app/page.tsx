@@ -76,6 +76,12 @@ export default function EmployeeHome() {
     return { latest: slips[0] ?? null, pendingDays };
   }, [companyId, employeeId]);
 
+  // Marcação por link (dias especiais): só existe depois de correr o 04_parte7.sql; sem ele, fica vazio.
+  const links = useData(
+    () => rpc<ClockLinkView[]>("ps_my_clock_links", { p_company: companyId }).catch(() => [] as ClockLinkView[]),
+    [companyId],
+  );
+
   const month = useData(async () => {
     const ym = localDate(new Date(), tz).slice(0, 7);
     return summarize(await loadMonthDays(companyId, employeeId, ym));
@@ -96,6 +102,8 @@ export default function EmployeeHome() {
       </div>
 
       {overview.error ? <Notice tone="danger">{overview.error}</Notice> : null}
+
+      {links.data?.length ? <SpecialDayLinks links={links.data} /> : null}
 
       <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
         {o ? <TodayCard o={o} tz={tz} /> : <Skeleton className="h-[380px] rounded-xl" />}
@@ -337,6 +345,37 @@ function MonthBlock({ m }: { m: ReturnType<typeof summarize> }) {
           {m.late} {m.late === 1 ? "atraso" : "atrasos"} este mês
         </p>
       </div>
+    </div>
+  );
+}
+
+type ClockLinkView = { id: string; start: string; end: string; note: string | null; location: string; open: boolean };
+
+/** Dia especial: botão de marcar ponto sem QR Code, só dentro das horas definidas pela empresa. */
+function SpecialDayLinks({ links }: { links: ClockLinkView[] }) {
+  return (
+    <div className="space-y-2">
+      {links.map((l) => (
+        <div key={l.id} className="flex flex-col gap-3 rounded-xl border border-primary/30 bg-primary-soft px-5 py-4 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1">
+            <p className="text-[15px] font-bold">Hoje, marcação pelo telemóvel</p>
+            <p className="mt-0.5 text-[13.5px] text-muted">
+              Das {l.start} às {l.end}, {l.location}
+              {l.note ? `. ${l.note}` : ""}
+            </p>
+          </div>
+          {l.open ? (
+            <Link
+              href={`/app/marcar/?link=${l.id}`}
+              className="flex h-11 items-center justify-center rounded-lg bg-primary px-5 text-[14px] font-bold text-white hover:bg-primary-hover"
+            >
+              Marcar ponto
+            </Link>
+          ) : (
+            <span className="text-[13px] font-bold text-muted">Disponível a partir das {l.start}</span>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

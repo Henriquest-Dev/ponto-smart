@@ -11,8 +11,9 @@ DECLARE
   v_company uuid;
 BEGIN
   IF auth.uid() IS NULL THEN RETURN COALESCE(NEW, OLD); END IF;  -- tarefas internas não geram ruído
-  IF TG_OP = 'UPDATE' AND (v_old - 'last_seen_at' - 'updated_at') = (v_new - 'last_seen_at' - 'updated_at') THEN
-    RETURN NEW;  -- só mudou "visto em"/"actualizado em"
+  IF TG_OP = 'UPDATE' AND (v_old - 'last_seen_at' - 'updated_at' - 'static_token' - 'static_token_hash')
+                        = (v_new - 'last_seen_at' - 'updated_at' - 'static_token' - 'static_token_hash') THEN
+    RETURN NEW;  -- só mudou "visto em", "actualizado em" ou o código do QR (este tem registo próprio)
   END IF;
   IF TG_TABLE_NAME = 'companies' THEN v_company := COALESCE(NEW.id, OLD.id);
   ELSE v_company := COALESCE(v_new ->> 'company_id', v_old ->> 'company_id')::uuid; END IF;
@@ -66,10 +67,8 @@ BEGIN
   PERFORM ps_require(v_st.id IS NOT NULL AND ps_has_perm(v_st.company_id, 'locations.manage'), 'Sem permissão para gerir o QR Code.');
   IF (p_start IS NULL) <> (p_end IS NULL) THEN RAISE EXCEPTION 'Indique a hora de início e a hora de fim.' USING ERRCODE = '22023'; END IF;
   IF p_start IS NOT NULL AND p_end <= p_start THEN RAISE EXCEPTION 'A hora de fim tem de ser depois da hora de início.' USING ERRCODE = '22023'; END IF;
+  -- O registo na auditoria é feito pelo gatilho da tabela (alteração das horas do QR Code).
   UPDATE attendance_stations SET window_start = p_start, window_end = p_end WHERE id = v_st.id;
-  PERFORM ps_audit_log(v_st.company_id, 'qr.window_changed', 'attendance_station', v_st.id::text,
-                       jsonb_build_object('start', to_char(v_st.window_start, 'HH24:MI'), 'end', to_char(v_st.window_end, 'HH24:MI')),
-                       jsonb_build_object('start', to_char(p_start, 'HH24:MI'), 'end', to_char(p_end, 'HH24:MI'), 'station', v_st.name));
 END $$;
 
 -- 3. Marcação por link (dias especiais): janela com data e horas em que o botão aparece aos colaboradores.
