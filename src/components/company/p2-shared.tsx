@@ -33,6 +33,11 @@ export async function fetchAll<T>(build: () => RangeQuery<T>, pageSize = 1000, m
   return out;
 }
 
+/** Ligação para o relatório mensal de um colaborador (mês opcional, YYYY-MM). */
+export function employeeReportHref(id: string, ym?: string) {
+  return `/empresa/relatorios/colaborador/?id=${id}${ym ? `&mes=${ym}` : ""}`;
+}
+
 /** Divide uma lista em blocos (para filtros `in` com muitos ids). */
 export function chunks<T>(list: T[], size = 150): T[][] {
   const out: T[][] = [];

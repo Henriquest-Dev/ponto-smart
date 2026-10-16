@@ -106,11 +106,18 @@ export default function CompanyDashboard() {
       title="Painel"
       description={company.companyName}
       actions={
-        can("reports.view", "reports.export") ? (
-          <Button variant="outline" asChild>
-            <Link href="/empresa/relatorios/">Relatórios</Link>
-          </Button>
-        ) : null
+        <>
+          {can("locations.manage") ? (
+            <Button asChild>
+              <Link href="/empresa/qr/">QR Code</Link>
+            </Button>
+          ) : null}
+          {can("reports.view", "reports.export") ? (
+            <Button variant="outline" asChild>
+              <Link href="/empresa/relatorios/">Relatórios</Link>
+            </Button>
+          ) : null}
+        </>
       }
     />
   );
@@ -274,7 +281,7 @@ export default function CompanyDashboard() {
               <span className="font-bold text-foreground tabular">{dash.activeEmployees}</span> colaboradores activos
             </span>
           </div>
-          <TodayTable rows={rows} linkable={can("employees.view")} />
+          <TodayTable rows={rows} linkable={can("employees.view")} reportable={can("reports.view")} />
         </section>
       </PageBody>
     </>

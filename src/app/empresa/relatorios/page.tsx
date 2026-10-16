@@ -1,18 +1,22 @@
 "use client";
 
+import Link from "next/link";
 import * as React from "react";
 import { Legend, SmoothArea } from "@/components/charts/charts";
 import { CHART_COLORS } from "@/components/charts/colors";
 import { exportAttendance, exportEmployees, exportPayrollRun } from "@/components/company/p2-reports";
-import { ErrorBlock, fetchAll, NoAccess, todayIn } from "@/components/company/p2-shared";
+import { employeeReportHref, ErrorBlock, fetchAll, monthBounds, NoAccess, todayIn } from "@/components/company/p2-shared";
 import { ActionButton } from "@/components/ui/action-button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { MonthPicker, shiftMonth } from "@/components/ui/month-picker";
-import { Skeleton } from "@/components/ui/misc";
+import { Input } from "@/components/ui/input";
+import { EmptyState, Skeleton } from "@/components/ui/misc";
+import { Pagination } from "@/components/ui/pagination";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { Stat, StatRow } from "@/components/ui/stat";
-import { formatMoney, MONTHS_PT } from "@/lib/format";
+import { Table, TableWrap, TD, TH, THead, TR } from "@/components/ui/table";
+import { formatMinutes, formatMoney, MONTHS_PT } from "@/lib/format";
 import { RUN_STATUS } from "@/lib/labels";
 import { attempt } from "@/lib/result";
 import { must, sb } from "@/lib/sb/client";
@@ -121,6 +125,8 @@ function Reports() {
           )}
         </Card>
 
+        <EmployeeReports />
+
         {exp ? (
           <Card>
             <div className="px-5 pt-5 sm:px-6 sm:pt-6">
@@ -211,5 +217,207 @@ function Reports() {
         ) : null}
       </PageBody>
     </>
+  );
+}
+
+type EmpRow = { id: string; full_name: string; employee_code: string; job_title: string | null; departments: { name: string } | null };
+type EmpDaily = { employee_id: string; status: string; first_in: string | null; worked_minutes: number; overtime_minutes: number; late_minutes: number };
+type EmpSummary = {
+  id: string;
+  name: string;
+  code: string;
+  department: string | null;
+  days: number;
+  worked: number;
+  overtime: number;
+  late: number;
+  lateMinutes: number;
+  justified: number;
+  unjustified: number;
+};
+
+const PAGE = 25;
+
+/** Resumo do mês por colaborador activo, com ligação ao relatório individual. */
+function EmployeeReports() {
+  const { companyId, tz } = useCompany();
+  const thisMonth = todayIn(tz).slice(0, 7);
+  const [month, setMonth] = React.useState(thisMonth);
+  const [q, setQ] = React.useState("");
+  const [page, setPage] = React.useState(1);
+
+  const data = useData(async () => {
+    const { from, to } = monthBounds(month);
+    const [emps, daily] = await Promise.all([
+      fetchAll(() =>
+        sb()
+          .from("employees")
+          .select("id,full_name,employee_code,job_title,departments(name)")
+          .eq("company_id", companyId)
+          .eq("status", "active")
+          .order("full_name")
+          .order("id"),
+      ),
+      fetchAll(() =>
+        sb()
+          .from("attendance_daily")
+          .select("employee_id,status,first_in,worked_minutes,overtime_minutes,late_minutes")
+          .eq("company_id", companyId)
+          .gte("work_date", from)
+          .lte("work_date", to)
+          .order("work_date")
+          .order("id"),
+      ),
+    ]);
+    const map = new Map<string, EmpSummary>();
+    for (const e of emps as unknown as EmpRow[]) {
+      map.set(e.id, {
+        id: e.id,
+        name: e.full_name,
+        code: e.employee_code,
+        department: e.departments?.name ?? null,
+        days: 0,
+        worked: 0,
+        overtime: 0,
+        late: 0,
+        lateMinutes: 0,
+        justified: 0,
+        unjustified: 0,
+      });
+    }
+    for (const d of daily as EmpDaily[]) {
+      const s = map.get(d.employee_id);
+      if (!s) continue;
+      if (d.first_in) s.days++;
+      s.worked += d.worked_minutes;
+      s.overtime += d.overtime_minutes;
+      if (d.status === "late") {
+        s.late++;
+        s.lateMinutes += d.late_minutes;
+      }
+      if (d.status === "justified") s.justified++;
+      if (d.status === "unjustified") s.unjustified++;
+    }
+    return [...map.values()];
+  }, [companyId, month]);
+
+  const filtered = React.useMemo(() => {
+    const term = q.trim().toLowerCase();
+    const list = data.data ?? [];
+    return term ? list.filter((r) => `${r.name} ${r.code}`.toLowerCase().includes(term)) : list;
+  }, [data.data, q]);
+  const pages = Math.max(1, Math.ceil(filtered.length / PAGE));
+  const current = Math.min(page, pages);
+  const shown = filtered.slice((current - 1) * PAGE, current * PAGE);
+
+  return (
+    <Card>
+      <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h2 className="text-[18px] font-bold tracking-[-0.01em]">Relatório por colaborador</h2>
+          <p className="mt-0.5 text-[13px] text-muted">Escolha um colaborador para ver o relatório do mês, dia a dia.</p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <MonthPicker
+            value={month}
+            onChange={(m) => {
+              setMonth(m);
+              setPage(1);
+            }}
+            max={thisMonth}
+          />
+          <div className="sm:w-60">
+            <Input
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Pesquisar nome ou número"
+              aria-label="Pesquisar colaborador"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4 sm:p-5">
+        {data.error ? (
+          <ErrorBlock message={data.error} />
+        ) : data.loading && !data.data ? (
+          <Skeleton className="h-40 w-full rounded-lg" />
+        ) : filtered.length === 0 ? (
+          <EmptyState title={data.data?.length ? "Nenhum colaborador corresponde à pesquisa" : "Sem colaboradores activos"} />
+        ) : (
+          <>
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background md:hidden">
+              {shown.map((r) => (
+                <li key={r.id}>
+                  <Link href={employeeReportHref(r.id, month)} className="block px-4 py-3 hover:bg-surface">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="truncate text-[14px] font-bold">{r.name}</p>
+                      <span className="shrink-0 text-[13px] font-bold tabular">{formatMinutes(r.worked)}</span>
+                    </div>
+                    <p className="mt-0.5 truncate text-[12.5px] text-muted">
+                      Nº {r.code}
+                      {r.department ? `, ${r.department}` : ""}
+                    </p>
+                    <p className="mt-1 text-[12.5px] text-muted tabular">
+                      {r.days} dias, {formatMinutes(r.overtime)} extra, {r.late} atrasos ({r.lateMinutes} min), faltas: {r.justified} just., {r.unjustified} injust.
+                    </p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <TableWrap className="hidden md:block">
+              <Table>
+                <THead>
+                  <tr>
+                    <TH>Colaborador</TH>
+                    <TH className="text-right">Dias</TH>
+                    <TH className="text-right">Horas</TH>
+                    <TH className="text-right">Extra</TH>
+                    <TH className="text-right">Atrasos</TH>
+                    <TH className="text-right">Faltas just.</TH>
+                    <TH className="text-right">Faltas injust.</TH>
+                  </tr>
+                </THead>
+                <tbody>
+                  {shown.map((r) => (
+                    <TR key={r.id}>
+                      <TD>
+                        <Link href={employeeReportHref(r.id, month)} className="block min-w-0 hover:underline">
+                          <span className="block truncate text-[14px] font-bold text-foreground">{r.name}</span>
+                          <span className="block truncate text-[12.5px] text-muted">
+                            Nº {r.code}
+                            {r.department ? `, ${r.department}` : ""}
+                          </span>
+                        </Link>
+                      </TD>
+                      <TD className="text-right tabular">{r.days}</TD>
+                      <TD className="text-right font-bold tabular">{formatMinutes(r.worked)}</TD>
+                      <TD className="text-right tabular">{r.overtime ? formatMinutes(r.overtime) : <span className="text-subtle">—</span>}</TD>
+                      <TD className="text-right tabular">
+                        {r.late ? (
+                          <span>
+                            {r.late} <span className="text-[12px] text-warning">({r.lateMinutes} min)</span>
+                          </span>
+                        ) : (
+                          <span className="text-subtle">—</span>
+                        )}
+                      </TD>
+                      <TD className="text-right tabular">{r.justified || <span className="text-subtle">—</span>}</TD>
+                      <TD className={r.unjustified ? "text-right font-bold text-danger tabular" : "text-right tabular"}>
+                        {r.unjustified || <span className="font-normal text-subtle">—</span>}
+                      </TD>
+                    </TR>
+                  ))}
+                </tbody>
+              </Table>
+            </TableWrap>
+            <Pagination page={current} pages={pages} onChange={setPage} />
+          </>
+        )}
+      </div>
+    </Card>
   );
 }

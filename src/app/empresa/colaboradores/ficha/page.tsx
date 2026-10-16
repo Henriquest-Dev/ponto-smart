@@ -11,6 +11,7 @@ import {
   type EmployeeRecord,
 } from "@/components/company/p1-employee-forms";
 import { CONTRACT_LABEL, EMPLOYEE_STATUS, LoadingRows, todayIn, useOrgOptions } from "@/components/company/p1-shared";
+import { employeeReportHref } from "@/components/company/p2-shared";
 import { ActionButton } from "@/components/ui/action-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -123,6 +124,11 @@ export default function EmployeeDetailPage() {
         actions={
           <>
             {back}
+            {can("reports.view") ? (
+              <Button variant="outline" size="sm" asChild>
+                <Link href={employeeReportHref(e.id)}>Relatório do mês</Link>
+              </Button>
+            ) : null}
             {can("employees.manage") && org.data ? <EditEmployee employee={e} org={org.data} onSaved={main.reload} /> : null}
           </>
         }

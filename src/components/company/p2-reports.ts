@@ -223,3 +223,68 @@ export async function exportPayrollRun(runId: string, companyName: string) {
   ]);
   downloadBlob(blob, `salarios-${year}-${String(month).padStart(2, "0")}-v${run.version}.xlsx`);
 }
+
+export type EmployeeReportDay = {
+  date: string;
+  weekday: string;
+  in: string;
+  out: string;
+  breakMinutes: number;
+  workedMinutes: number;
+  lateMinutes: number;
+  overtimeMinutes: number;
+  status: string;
+};
+
+/** Relatório mensal de um colaborador (indicadores e detalhe diário), a partir das linhas já calculadas na página. */
+export async function exportEmployeeReport(
+  companyId: string,
+  companyName: string,
+  employee: { id: string; name: string; code: string; department: string; jobTitle: string },
+  ym: string,
+  summary: [string, string | number][],
+  days: EmployeeReportDay[],
+) {
+  const { year, month } = monthBounds(ym);
+  const label = periodLabel(year, month);
+  const blob = await buildWorkbook([
+    {
+      name: "Resumo",
+      title: `${companyName} — ${employee.name} (Nº ${employee.code}) — ${label}`,
+      columns: [
+        { header: "Indicador", key: "k", width: 28 },
+        { header: "Valor", key: "v", width: 22 },
+      ],
+      rows: [
+        { k: "Colaborador", v: employee.name },
+        { k: "Nº", v: employee.code },
+        { k: "Departamento", v: employee.department },
+        { k: "Função", v: employee.jobTitle },
+        ...summary.map(([k, v]) => ({ k, v })),
+      ],
+    },
+    {
+      name: "Detalhe diário",
+      title: `Registos diários — ${employee.name} — ${label}`,
+      columns: [
+        { header: "Data", key: "date", width: 12 }, { header: "Dia", key: "weekday", width: 8 },
+        { header: "Entrada", key: "in", width: 10 }, { header: "Saída", key: "out", width: 10 },
+        { header: "Intervalos (min)", key: "breaks" }, { header: "Horas", key: "hours", numFmt: "0.00" },
+        { header: "Atraso (min)", key: "late" }, { header: "Extra (min)", key: "overtime" }, { header: "Estado", key: "status", width: 20 },
+      ],
+      rows: days.map((d) => ({
+        date: d.date,
+        weekday: d.weekday,
+        in: d.in,
+        out: d.out,
+        breaks: d.breakMinutes,
+        hours: d.workedMinutes / 60,
+        late: d.lateMinutes,
+        overtime: d.overtimeMinutes,
+        status: d.status,
+      })),
+    },
+  ]);
+  downloadBlob(blob, `assiduidade-${employee.code}-${ym}.xlsx`);
+  void rpc("ps_log_export", { p_company: companyId, p_report: "assiduidade_colaborador", p_details: { month: ym, employee: employee.id } }).catch(() => {});
+}

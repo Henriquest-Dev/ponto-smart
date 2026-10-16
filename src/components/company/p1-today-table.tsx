@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, EmptyState } from "@/components/ui/misc";
 import { Table, TableWrap, TD, TH, THead, TR } from "@/components/ui/table";
 import { Tabs } from "@/components/ui/tabs";
+import { employeeReportHref } from "./p2-shared";
 
 export type TodayRow = {
   id: string;
@@ -47,7 +48,7 @@ function Wrap({ linkable, id, className, children }: { linkable: boolean; id: st
   );
 }
 
-export function TodayTable({ rows, linkable }: { rows: TodayRow[]; linkable: boolean }) {
+export function TodayTable({ rows, linkable, reportable = false }: { rows: TodayRow[]; linkable: boolean; reportable?: boolean }) {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
   const filtered = useMemo(() => {
@@ -102,6 +103,7 @@ export function TodayTable({ rows, linkable }: { rows: TodayRow[]; linkable: boo
                   <TH>Entrada</TH>
                   <TH>Saída</TH>
                   <TH>Estado</TH>
+                  {reportable ? <TH className="text-right">Relatório</TH> : null}
                 </tr>
               </THead>
               <tbody>
@@ -126,6 +128,13 @@ export function TodayTable({ rows, linkable }: { rows: TodayRow[]; linkable: boo
                         {r.lateMinutes ? <span className="text-[12px] font-bold text-warning tabular">+{r.lateMinutes} min</span> : null}
                       </StatusDot>
                     </TD>
+                    {reportable ? (
+                      <TD className="text-right">
+                        <Link href={employeeReportHref(r.id)} className="text-[13px] font-bold text-muted hover:text-foreground hover:underline">
+                          Ver mês
+                        </Link>
+                      </TD>
+                    ) : null}
                   </TR>
                 ))}
               </tbody>

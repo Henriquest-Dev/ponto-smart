@@ -41,6 +41,7 @@ const BY_HREF: Record<string, Icon> = {
   "/empresa/colaboradores/": UsersThree,
   "/empresa/assiduidade/": CalendarCheck,
   "/empresa/justificacoes/": FileText,
+  "/empresa/qr/": QrCode,
   "/empresa/salarios/": Wallet,
   "/empresa/relatorios/": ChartBar,
   "/empresa/horarios/": ClockUser,
