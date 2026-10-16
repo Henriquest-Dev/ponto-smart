@@ -12,11 +12,11 @@ const AI_FUNCTION = process.env.NEXT_PUBLIC_AI_FUNCTION ?? "Ponto-ai";
 
 export type MailRequest = {
   companyId?: string | null;
-  kind: "credentials" | "message" | "test";
-  to: string | string[];
+  kind: "credentials" | "message" | "test" | "company";
+  to?: string | string[];
   data?: { name?: string; company?: string; login?: string; password?: string; url?: string; role?: string; owner?: boolean; subject?: string; text?: string };
 };
-export type MailResult = { ok: true; via: string } | { ok: false; error: string; notConfigured?: boolean };
+export type MailResult = { ok: true; via: string; sent?: number; to?: string[] } | { ok: false; error: string; notConfigured?: boolean };
 
 export function loginUrl() {
   return typeof window === "undefined" ? "" : `${window.location.origin}${withBase("/login/")}`;
@@ -35,7 +35,8 @@ export async function sendMail(req: MailRequest): Promise<MailResult> {
       }
       return { ok: false, error: errorMessage(error) };
     }
-    return { ok: true, via: (data as { via?: string })?.via ?? "gmail" };
+    const d = (data ?? {}) as { via?: string; sent?: number; to?: string[] };
+    return { ok: true, via: d.via ?? "smtp", sent: d.sent, to: d.to };
   } catch (e) {
     return { ok: false, error: errorMessage(e) };
   }

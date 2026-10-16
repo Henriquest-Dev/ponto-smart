@@ -152,6 +152,7 @@ function companyNav(can: (...p: string[]) => boolean, company: Membership | null
   if (can("attendance.view")) operations.push({ href: "/empresa/assiduidade/", label: "Assiduidade" });
   if (can("absence.decide", "absence.decide.team")) operations.push({ href: "/empresa/justificacoes/", label: "Justificações" });
   if (can("locations.manage")) operations.push({ href: "/empresa/qr/", label: "QR Code" });
+  if (can("employees.manage")) operations.push({ href: "/empresa/comunicados/", label: "Comunicados" });
 
   const finance: NavItem[] = [];
   if (can("payroll.view"))

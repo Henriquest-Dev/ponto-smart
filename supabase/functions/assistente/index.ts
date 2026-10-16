@@ -544,6 +544,11 @@ type MailCfg = {
 };
 let mailCache: { at: number; cfg: MailCfg } | null = null;
 
+/** Conta Gmail do Horbit, integrada (envia tudo, sem nada para configurar). Os segredos SMTP_USER e SMTP_PASS
+ *  da Edge Function, se existirem, têm prioridade. Nunca escrever a palavra-passe no repositório. */
+const HORBIT_SMTP_USER = "";
+const HORBIT_SMTP_PASS = "";
+
 async function mailConfig(): Promise<MailCfg> {
   if (mailCache && Date.now() - mailCache.at < 60_000) return mailCache.cfg;
   let cfg: MailCfg = {};
@@ -553,10 +558,16 @@ async function mailConfig(): Promise<MailCfg> {
     const { data } = await admin.rpc("ps_mail_config");
     if (data) cfg = data as MailCfg;
   }
-  cfg.smtpUser ||= Deno.env.get("SMTP_USER");
-  cfg.smtpPass ||= Deno.env.get("SMTP_PASS");
-  cfg.smtpHost ||= Deno.env.get("SMTP_HOST") ?? "smtp.gmail.com";
-  cfg.smtpPort ||= Number(Deno.env.get("SMTP_PORT") ?? 465);
+  const user = Deno.env.get("SMTP_USER") || HORBIT_SMTP_USER;
+  const pass = Deno.env.get("SMTP_PASS") || HORBIT_SMTP_PASS;
+  if (user && pass) {
+    cfg.smtpUser = user;
+    cfg.smtpPass = pass.replace(/\s+/g, "");
+    cfg.smtpHost = Deno.env.get("SMTP_HOST") || "smtp.gmail.com";
+    cfg.smtpPort = Number(Deno.env.get("SMTP_PORT") || 465);
+  }
+  cfg.smtpHost ||= "smtp.gmail.com";
+  cfg.smtpPort ||= 465;
   cfg.url ||= Deno.env.get("MAIL_SCRIPT_URL");
   cfg.secret ||= Deno.env.get("MAIL_SCRIPT_SECRET");
   mailCache = { at: Date.now(), cfg };
@@ -655,7 +666,17 @@ const esc = (t: unknown) =>
   String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 /** Email com o aspecto do Horbit (HTML simples, compatível com o Gmail) e a versão em texto. */
-function mailBody(o: { title: string; paragraphs: string[]; rows?: [string, string][]; button?: { label: string; url: string }; after?: string[]; footer?: string }) {
+type CompanyInfo = { name: string; email: string | null; phone: string | null; address: string | null; nuit: string | null };
+
+function mailBody(o: {
+  title: string;
+  paragraphs: string[];
+  rows?: [string, string][];
+  button?: { label: string; url: string };
+  after?: string[];
+  footer?: string;
+  company?: CompanyInfo | null;
+}) {
   const p = (t: string) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.55;color:#2a2540">${esc(t).replace(/\n/g, "<br>")}</p>`;
   const rows = o.rows?.length
     ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 20px;border:1px solid #e4e1ee;border-radius:12px;border-collapse:separate">
@@ -668,25 +689,52 @@ ${o.rows.map(([k, v], i) => `<tr><td style="padding:12px 16px;${i ? "border-top:
   const html = `<!doctype html><html><body style="margin:0;padding:0;background:#f4f3f8">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f3f8;padding:24px 12px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;font-family:Arial,Helvetica,sans-serif">
-<tr><td style="background:#1a1530;padding:20px 28px;color:#ffffff;font-size:20px;font-weight:bold;letter-spacing:-0.3px">Horbit</td></tr>
+<tr><td style="background:#1a1530;padding:20px 28px;color:#ffffff"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td style="font-size:20px;font-weight:bold;letter-spacing:-0.3px;color:#ffffff">Horbit</td>
+${o.company ? `<td align="right" style="font-size:13px;font-weight:bold;color:#cbbcff">${esc(o.company.name)}</td>` : ""}
+</tr></table></td></tr>
 <tr><td style="padding:28px">
 <h1 style="margin:0 0 16px;font-size:20px;line-height:1.3;color:#1a1530">${esc(o.title)}</h1>
 ${o.paragraphs.map(p).join("\n")}
 ${rows}${button}
 ${(o.after ?? []).map(p).join("\n")}
 </td></tr>
+${o.company ? `<tr><td style="padding:16px 28px;border-top:1px solid #eeecf4;font-size:12.5px;line-height:1.6;color:#4a4560"><b style="color:#1a1530">${esc(o.company.name)}</b>${companyLines(o.company).map((l) => `<br>${esc(l)}`).join("")}</td></tr>` : ""}
 <tr><td style="padding:16px 28px;background:#faf9fc;border-top:1px solid #eeecf4;font-size:12px;line-height:1.5;color:#8a869a">${esc(o.footer ?? "Horbit · ponto, assiduidade e salários")}</td></tr>
 </table></td></tr></table></body></html>`;
-  const text = [o.title, "", ...o.paragraphs, "", ...(o.rows ?? []).map(([k, v]) => `${k}: ${v}`), o.button ? `\n${o.button.label}: ${o.button.url}` : "", "", ...(o.after ?? [])]
+  const text = [
+    o.title,
+    "",
+    ...o.paragraphs,
+    "",
+    ...(o.rows ?? []).map(([k, v]) => `${k}: ${v}`),
+    o.button ? `\n${o.button.label}: ${o.button.url}` : "",
+    "",
+    ...(o.after ?? []),
+    ...(o.company ? ["", "—", o.company.name, ...companyLines(o.company)] : []),
+  ]
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
   return { html, text };
 }
 
+function companyLines(c: CompanyInfo) {
+  return [c.address, [c.phone ? `Tel. ${c.phone}` : null, c.email].filter(Boolean).join(" · "), c.nuit ? `NUIT ${c.nuit}` : null].filter(
+    (x): x is string => !!x,
+  );
+}
+
+// deno-lint-ignore no-explicit-any
+async function companyInfo(supabase: any, companyId?: string | null): Promise<CompanyInfo | null> {
+  if (!companyId) return null;
+  const { data } = await supabase.from("companies").select("name,email,phone,address,nuit").eq("id", companyId).maybeSingle();
+  return (data as CompanyInfo | null) ?? null;
+}
+
 type MailBody = {
   companyId?: string | null;
-  kind?: "credentials" | "message" | "test";
+  kind?: "credentials" | "message" | "test" | "company";
   to?: string | string[];
   data?: { name?: string; company?: string; login?: string; password?: string; url?: string; role?: string; owner?: boolean; subject?: string; text?: string };
 };
@@ -699,46 +747,79 @@ function loginLink(req: Request, url?: string) {
 }
 
 async function sendMailMode(req: Request, body: MailBody) {
-  const to = ([] as string[]).concat(body.to ?? []).map((e) => String(e).trim().toLowerCase()).filter(Boolean);
-  if (!to.length) return json({ error: "Sem destinatário." }, 400);
+  let to = ([] as string[]).concat(body.to ?? []).map((e) => String(e).trim().toLowerCase()).filter(Boolean);
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
     global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
   });
-  const auth = await supabase.rpc("ps_mail_authorize", { p_company: body.companyId ?? null, p_emails: to });
-  if (auth.error) return json({ error: auth.error.message }, 403);
+  // Teste do Super Admin sem destinatário: vai para a própria conta que envia.
+  if (body.kind === "test" && !to.length) {
+    const admin = await supabase.rpc("ps_mail_settings");
+    if (admin.error) return json({ error: admin.error.message }, 403);
+    const cfg = await mailConfig();
+    if (!cfg.smtpUser) return json({ error: "O envio de emails não está configurado.", notConfigured: true }, 501);
+    to = [cfg.smtpUser.toLowerCase()];
+  }
+  if (!to.length) return json({ error: "Sem destinatário." }, 400);
+  if (to.length > 500) return json({ error: "No máximo 500 destinatários de cada vez." }, 400);
+  const batches: string[][] = [];
+  for (let i = 0; i < to.length; i += 50) batches.push(to.slice(i, i + 50));
+  for (const b of batches) {
+    const auth = await supabase.rpc("ps_mail_authorize", { p_company: body.companyId ?? null, p_emails: b });
+    if (auth.error) return json({ error: auth.error.message }, 403);
+  }
   const d = body.data ?? {};
+  const company = await companyInfo(supabase, body.companyId);
+  const companyName = company?.name ?? d.company ?? "";
   let subject: string;
   let content: ReturnType<typeof mailBody>;
+  let replyTo = company?.email ?? undefined;
   if (body.kind === "credentials") {
     if (!d.login || !d.password) return json({ error: "Faltam o utilizador ou a palavra-passe." }, 400);
     const first = String(d.name ?? "").trim().split(/\s+/)[0] || "";
     const url = loginLink(req, d.url);
-    subject = d.owner ? `Horbit: a conta da ${d.company} está pronta` : `Horbit: o seu acesso${d.company ? ` à ${d.company}` : ""}`;
+    subject = d.owner ? `Horbit: a conta da ${companyName} está pronta` : `Horbit: o seu acesso${companyName ? ` à ${companyName}` : ""}`;
     content = mailBody({
-      title: d.owner ? `A conta da ${d.company} está pronta` : `Olá${first ? `, ${first}` : ""}! O seu acesso ao Horbit está pronto`,
+      title: d.owner ? `A conta da ${companyName} está pronta` : `Olá${first ? `, ${first}` : ""}! O seu acesso ao Horbit está pronto`,
       paragraphs: d.owner
-        ? [`Olá${first ? ` ${first}` : ""},`, `A conta da ${d.company} no Horbit está criada. Estas são as credenciais do responsável:`]
-        : [`${d.company ? `A ${d.company}` : "A sua empresa"} criou o seu acesso ao Horbit, onde marca o ponto e vê o seu histórico, as justificações e os recibos.`],
+        ? [`Olá${first ? ` ${first}` : ""},`, `A conta da ${companyName} no Horbit está criada. Estas são as credenciais do responsável:`]
+        : [`${companyName ? `A ${companyName}` : "A sua empresa"} criou o seu acesso ao Horbit, onde marca o ponto e vê o seu histórico, as justificações e os recibos.`],
       rows: [["Utilizador", String(d.login)], ["Palavra-passe", String(d.password)], ...(d.role ? ([["Perfil", String(d.role)]] as [string, string][]) : [])],
       button: url ? { label: "Entrar no Horbit", url } : undefined,
       after: d.owner
         ? ["No primeiro acesso, altere a palavra-passe em Conta > Segurança. Depois, em Colaboradores, crie os acessos da sua equipa: cada pessoa recebe o seu email automaticamente."]
         : ["Depois de entrar, mude a palavra-passe em Conta > Segurança. Este email é pessoal: não o reencaminhe."],
-      footer: `${d.company ? `${d.company} · ` : ""}Enviado pelo Horbit. Se não esperava este email, ignore-o.`,
+      company: company ?? (d.company ? { name: d.company, email: null, phone: null, address: null, nuit: null } : null),
+      footer: "Enviado pelo Horbit. Se não esperava este email, ignore-o.",
     });
   } else if (body.kind === "test") {
     subject = "Horbit: email de teste";
-    content = mailBody({ title: "O envio de emails está a funcionar", paragraphs: ["Este é um email de teste do Horbit. Se o recebeu, as credenciais e os avisos vão chegar às caixas de correio dos colaboradores."] });
+    content = mailBody({ title: "O envio de emails está a funcionar", paragraphs: ["Este é um email de teste do Horbit. As credenciais, os comunicados das empresas e os avisos chegam assim às caixas de correio."] });
   } else {
     const subj = String(d.subject ?? "").trim().slice(0, 150);
     const text = String(d.text ?? "").trim().slice(0, 8000);
     if (!subj || !text) return json({ error: "Indique o assunto e a mensagem." }, 400);
-    subject = subj;
-    content = mailBody({ title: subj, paragraphs: text.split(/\n{2,}/), footer: d.company ? `${d.company} · Enviado pelo Horbit` : undefined });
+    let after: string[] = [];
+    if (body.kind === "company") {
+      // Comunicado da empresa: diz quem escreveu e as respostas vão para essa pessoa (ou para o email da empresa).
+      const { data: u } = await supabase.auth.getUser();
+      const { data: me } = u?.user ? await supabase.from("users").select("name,email").eq("id", u.user.id).maybeSingle() : { data: null };
+      const sender = (me as { name?: string; email?: string } | null) ?? null;
+      if (sender?.name) after = [`Enviado por ${sender.name}${companyName ? `, ${companyName}` : ""}.`];
+      if (sender?.email && /@.+\./.test(sender.email) && !sender.email.endsWith("@pontosmart.app")) replyTo = sender.email;
+    }
+    subject = companyName && body.kind === "company" ? `${companyName}: ${subj}` : subj;
+    content = mailBody({ title: subj, paragraphs: text.split(/\n{2,}/), after, company, footer: "Enviado pelo Horbit." });
   }
-  const r = await deliver({ to, subject, ...content });
-  if (!r.ok) return json({ error: r.error, notConfigured: r.via === "none" }, r.via === "none" ? 501 : 502);
-  return json({ sent: to.length, via: r.via, quota: r.quota ?? null });
+  let sent = 0;
+  for (const b of batches) {
+    const r = await deliver({ to: b, subject, replyTo, ...content });
+    if (!r.ok) {
+      if (!sent) return json({ error: r.error, notConfigured: r.via === "none" }, r.via === "none" ? 501 : 502);
+      return json({ sent, error: `Enviados ${sent}; os restantes falharam: ${r.error}` }, 207);
+    }
+    sent += b.length;
+  }
+  return json({ sent, to: body.kind === "test" ? to : undefined, via: "smtp" });
 }
 
 /** Estado do envio (painel do Super Admin): testa a ligação ao Apps Script. */
@@ -777,10 +858,12 @@ async function notifyOwner(req: Request, body: { companyId?: string; subject?: s
   let emailError: string | null = null;
   let configured = true;
   if (emails.length) {
+    const company = await companyInfo(supabase, body.companyId);
     const content = mailBody({
       title: body.subject.trim(),
       paragraphs: body.message.trim().split(/\n{2,}/),
-      footer: `Assistente do Horbit · ${data?.company ?? ""}`,
+      company,
+      footer: "Aviso do assistente do Horbit.",
     });
     const r = await deliver({ to: emails, subject: `[Horbit] ${body.subject.trim()}`, ...content });
     if (r.ok) sent = emails.length;
