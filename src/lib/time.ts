@@ -82,3 +82,9 @@ export function monthRange(year: number, month: number): { from: string; to: str
 export function minutesBetween(a: Date, b: Date): number {
   return Math.round((b.getTime() - a.getTime()) / 60000);
 }
+
+/** Data e hora locais "AAAA-MM-DDTHH:MM" (para campos datetime-local) no fuso indicado. */
+export function localDateTimeInput(value: string | Date, timeZone = DEFAULT_TZ): string {
+  const d = typeof value === "string" ? new Date(value) : value;
+  return `${localDate(d, timeZone)}T${localTime(d, timeZone).slice(0, 5)}`;
+}

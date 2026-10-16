@@ -15,13 +15,16 @@ import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { Stat, StatRow } from "@/components/ui/stat";
 import { Table, TableWrap, TD, TH, THead, TR } from "@/components/ui/table";
 import { Tabs } from "@/components/ui/tabs";
+import { SlidersHorizontal } from "@phosphor-icons/react";
 import { buildWorkbook, downloadBlob } from "@/lib/excel";
+import { canShareFiles, shareFile } from "@/lib/share";
 import { formatDate, formatDateTime, periodLabel } from "@/lib/format";
 import { attempt } from "@/lib/result";
 import { rpc } from "@/lib/sb/client";
 import { useCompany } from "@/lib/sb/session";
 import { useData } from "@/lib/sb/use-data";
 import { cn } from "@/lib/utils";
+import { CustomFieldInputs, FieldsEditor, filledPairs, readExtra, showValue, useCustomFields, type CustomField, type Extra } from "./custom-fields";
 
 export type StockState = "ok" | "a_acabar" | "esgotado";
 export type StockItem = {
@@ -36,6 +39,7 @@ export type StockItem = {
   state: StockState;
   lastCountedAt: string | null;
   updatedAt: string;
+  extra?: Extra;
 };
 type Movement = { id: string; kind: "entrada" | "saida" | "contagem"; delta: number; balance: number; note: string | null; at: string; by: string | null; plate: string | null };
 type MonthRow = {
@@ -51,6 +55,7 @@ type MonthRow = {
   end: number;
   state: StockState;
   lastCountedAt: string | null;
+  extra?: Extra;
 };
 
 export const STOCK_STATE: Record<StockState, { label: string; tone: Tone }> = {
@@ -71,6 +76,8 @@ export function StockPage() {
   const { companyId } = useCompany();
   const [tab, setTab] = React.useState<"materiais" | "mes" | "arquivo">("materiais");
   const items = useData(() => loadStock(companyId), [companyId]);
+  const fields = useCustomFields("stock");
+  const fl = fields.data ?? [];
   const list = items.data ?? [];
   const low = list.filter((i) => i.state === "a_acabar").length;
   const out = list.filter((i) => i.state === "esgotado").length;
@@ -81,7 +88,21 @@ export function StockPage() {
       <PageHeader
         title="Estoque"
         description="Materiais da empresa: o que entra, o que se gasta e o que está a acabar."
-        actions={<ItemDialog categories={categories} onDone={items.reload} />}
+        actions={
+          <>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <SlidersHorizontal className="size-4" aria-hidden /> Personalizar campos
+                </Button>
+              </DialogTrigger>
+              <DialogContent title="Campos do estoque" description="Crie os campos de que precisa (fornecedor, referência, preço…). Aparecem no formulário, na lista e na planilha." wide>
+                <FieldsEditor entity="stock" title="Campos de cada material" onChange={fields.reload} />
+              </DialogContent>
+            </Dialog>
+            <ItemDialog categories={categories} fields={fl} onDone={() => { items.reload(); fields.reload(); }} />
+          </>
+        }
       />
       <PageBody>
         <StatRow>
@@ -112,10 +133,10 @@ export function StockPage() {
           !items.data && !items.error ? (
             <LoadingBlock rows={4} />
           ) : items.data ? (
-            <Materials items={list} categories={categories} reload={items.reload} />
+            <Materials items={list} categories={categories} fields={fl} reload={items.reload} />
           ) : null
         ) : tab === "mes" ? (
-          <MonthSummary />
+          <MonthSummary fields={fl} />
         ) : (
           <Archived onRestore={items.reload} />
         )}
@@ -124,12 +145,15 @@ export function StockPage() {
   );
 }
 
-function Materials({ items, categories, reload }: { items: StockItem[]; categories: string[]; reload: () => void }) {
+function Materials({ items, categories, fields, reload }: { items: StockItem[]; categories: string[]; fields: CustomField[]; reload: () => void }) {
+  const { company } = useCompany();
   const [q, setQ] = React.useState("");
   const [filter, setFilter] = React.useState<"todos" | "alerta">("todos");
   const t = q.trim().toLowerCase();
   const shown = items.filter(
-    (i) => (filter === "todos" || i.state !== "ok") && (!t || i.name.toLowerCase().includes(t) || (i.category ?? "").toLowerCase().includes(t)),
+    (i) =>
+      (filter === "todos" || i.state !== "ok") &&
+      (!t || i.name.toLowerCase().includes(t) || (i.category ?? "").toLowerCase().includes(t) || JSON.stringify(i.extra ?? {}).toLowerCase().includes(t)),
   );
 
   if (!items.length) {
@@ -137,7 +161,7 @@ function Materials({ items, categories, reload }: { items: StockItem[]; categori
       <EmptyState
         title="Ainda sem materiais"
         description="Adicione os materiais do estoque com a quantidade que existe hoje e o mínimo para o aviso de que está a acabar."
-        action={<ItemDialog categories={categories} onDone={reload} />}
+        action={<ItemDialog categories={categories} fields={fields} onDone={reload} />}
       />
     );
   }
@@ -176,6 +200,11 @@ function Materials({ items, categories, reload }: { items: StockItem[]; categori
                       .filter(Boolean)
                       .join(" · ")}
                   </p>
+                  {filledPairs(fields, i.extra, company.currency).length ? (
+                    <p className="mt-0.5 text-[12.5px] text-muted">
+                      {filledPairs(fields, i.extra, company.currency).map(([k, v]) => `${k}: ${v}`).join(" · ")}
+                    </p>
+                  ) : null}
                 </div>
                 <p className={cn("text-[22px] leading-none font-bold tabular md:text-right", i.state === "esgotado" && "text-danger")}>
                   {qty(i.quantity)} <span className="text-[13px] font-medium text-muted">{i.unit}</span>
@@ -185,7 +214,7 @@ function Materials({ items, categories, reload }: { items: StockItem[]; categori
                   <MoveDialog item={i} kind="saida" onDone={reload} />
                   <MoveDialog item={i} kind="contagem" onDone={reload} />
                   <HistoryDialog item={i} />
-                  <ItemDialog item={i} categories={categories} onDone={reload} />
+                  <ItemDialog item={i} categories={categories} fields={fields} onDone={reload} />
                 </div>
               </li>
             ))}
@@ -196,7 +225,7 @@ function Materials({ items, categories, reload }: { items: StockItem[]; categori
   );
 }
 
-function ItemDialog({ item, categories, onDone }: { item?: StockItem; categories: string[]; onDone: () => void }) {
+function ItemDialog({ item, categories, fields, onDone }: { item?: StockItem; categories: string[]; fields: CustomField[]; onDone: () => void }) {
   const { companyId } = useCompany();
   const [open, setOpen] = React.useState(false);
   return (
@@ -213,7 +242,7 @@ function ItemDialog({ item, categories, onDone }: { item?: StockItem; categories
               await rpc("ps_stock_save", {
                 p_company: companyId,
                 p_id: item?.id ?? null,
-                p: { name: g("name"), category: g("category"), unit: g("unit"), minQuantity: g("min").replace(",", "."), quantity: g("quantity").replace(",", "."), notes: g("notes") },
+                p: { name: g("name"), category: g("category"), unit: g("unit"), minQuantity: g("min").replace(",", "."), quantity: g("quantity").replace(",", "."), notes: g("notes"), extra: readExtra(fd, fields) },
               });
               onDone();
               return item ? "Material actualizado." : "Material adicionado.";
@@ -242,7 +271,8 @@ function ItemDialog({ item, categories, onDone }: { item?: StockItem; categories
               <Input name="min" inputMode="decimal" defaultValue={item ? String(item.minQuantity) : "0"} />
             </Field>
           </div>
-          <Field label="Notas"><Textarea name="notes" defaultValue={item?.notes ?? ""} className="min-h-16" placeholder="Fornecedor, referência, onde está guardado…" /></Field>
+          <CustomFieldInputs fields={fields} values={item?.extra} />
+          <Field label="Notas"><Textarea name="notes" defaultValue={item?.notes ?? ""} className="min-h-16" placeholder="Onde está guardado, observações…" /></Field>
           <SubmitButton className="w-full">{item ? "Guardar" : "Adicionar material"}</SubmitButton>
           {item ? (
             <ActionButton
@@ -356,13 +386,13 @@ function HistoryDialog({ item }: { item: StockItem }) {
   );
 }
 
-function MonthSummary() {
+function MonthSummary({ fields }: { fields: CustomField[] }) {
   const { companyId, company, tz } = useCompany();
   const [month, setMonth] = React.useState(currentMonth(tz));
   const data = useData(() => rpc<MonthRow[]>("ps_stock_month", { p_company: companyId, p_month: month }), [companyId, month]);
   const [y, m] = month.split("-").map(Number);
 
-  const exportExcel = () =>
+  const exportExcel = (mode: "download" | "share") =>
     attempt(async () => {
       const rows = (data.data ?? []).map((r) => ({
         name: r.name,
@@ -374,6 +404,7 @@ function MonthSummary() {
         acertos: Number(r.acertos),
         end: Number(r.end),
         state: STOCK_STATE[r.state].label,
+        ...Object.fromEntries(fields.map((f) => [f.id, showValue(f, r.extra?.[f.id], company.currency)])),
       }));
       const blob = await buildWorkbook([
         {
@@ -389,10 +420,15 @@ function MonthSummary() {
             { header: "Acertos (contagem)", key: "acertos", width: 18 },
             { header: "Fim do mês", key: "end", width: 14 },
             { header: "Estado", key: "state", width: 16 },
+            ...fields.map((f) => ({ header: f.label, key: f.id, width: 18 })),
           ],
           rows,
         },
       ]);
+      if (mode === "share") {
+        const r = await shareFile(blob, `estoque-${month}.xlsx`, `Estoque — ${periodLabel(y, m)}`);
+        return r === "shared" ? "Planilha enviada." : r === "cancelled" ? undefined : "Planilha descarregada.";
+      }
       downloadBlob(blob, `estoque-${month}.xlsx`);
       return "Planilha descarregada.";
     });
@@ -401,9 +437,16 @@ function MonthSummary() {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <MonthPicker value={month} onChange={setMonth} max={currentMonth(tz)} />
-        <ActionButton size="sm" variant="outline" disabled={!data.data?.length} action={exportExcel}>
-          Exportar Excel
-        </ActionButton>
+        <div className="flex flex-wrap gap-2">
+          <ActionButton size="sm" variant="outline" disabled={!data.data?.length} action={() => exportExcel("download")}>
+            Descarregar Excel
+          </ActionButton>
+          {canShareFiles() ? (
+            <ActionButton size="sm" disabled={!data.data?.length} action={() => exportExcel("share")}>
+              Enviar planilha
+            </ActionButton>
+          ) : null}
+        </div>
       </div>
       {data.error ? <ErrorBlock message={data.error} /> : null}
       {!data.data && !data.error ? <LoadingBlock rows={4} /> : null}

@@ -11,6 +11,7 @@ export type VehicleVisit = {
   mileage: number | null;
   amount: number | null;
   by: string | null;
+  extra?: Record<string, unknown>;
   materials: { movementId: string; itemId: string; name: string; unit: string; quantity: number }[];
 };
 export type Vehicle = {
@@ -21,20 +22,96 @@ export type Vehicle = {
   ownerPhone: string | null;
   color: string | null;
   notes: string | null;
+  extra?: Record<string, unknown>;
   createdAt: string;
   createdBy: string | null;
+  coverId?: string | null;
+  photos?: { id: string; key: string; thumb: string | null; at: string }[];
   visits: VehicleVisit[];
 };
 
 export type ReportOptions = {
-  title: string;
   visitIds: string[];
   owner: boolean;
   materials: boolean;
   amounts: boolean;
   mileage: boolean;
-  note: string;
+  extras: boolean;
 };
+
+/** Documento do relatório: todo o texto pode ser editado antes de gerar o PDF. */
+export type ReportDoc = {
+  company: string;
+  title: string;
+  subtitle: string;
+  plate: string;
+  vehicleName: string;
+  info: { label: string; value: string }[];
+  sections: { heading: string; side: string; body: string; amount: string }[];
+  totalLabel: string;
+  total: string;
+  note: string;
+  signatures: boolean;
+  sigLeft: string;
+  sigRight: string;
+  footer: string;
+  /** Campos de texto que continuam editáveis no PDF descarregado (Adobe Reader, navegador, etc.). */
+  editable: boolean;
+};
+
+type Pairs = (extra: Record<string, unknown> | undefined) => [string, string][];
+
+/** Monta o texto inicial do relatório a partir dos dados da viatura. */
+export function buildReportDoc(
+  v: Vehicle,
+  o: ReportOptions,
+  ctx: { company: string; currency: string; tz: string; author: string; vehiclePairs?: Pairs; visitPairs?: Pairs },
+): ReportDoc {
+  const visits = v.visits.filter((x) => o.visitIds.includes(x.id)).sort((a, b) => a.enteredAt.localeCompare(b.enteredAt));
+  let total = 0;
+  const sections = visits.map((vis, i) => {
+    const lines: string[] = [];
+    if (vis.services.length) lines.push(`Trabalhos: ${vis.services.join(", ")}`);
+    if (o.mileage && vis.mileage) lines.push(`Quilómetros: ${vis.mileage.toLocaleString("pt-PT")} km`);
+    if (o.extras) for (const [k, val] of ctx.visitPairs?.(vis.extra) ?? []) lines.push(`${k}: ${val}`);
+    if (vis.by) lines.push(`Responsável: ${vis.by}`);
+    if (vis.description) lines.push("", vis.description);
+    if (o.materials && vis.materials.length) {
+      lines.push("", "Materiais usados:");
+      for (const m of vis.materials) lines.push(`- ${m.name}: ${Number(m.quantity).toLocaleString("pt-PT")} ${m.unit}`);
+    }
+    if (!lines.length) lines.push("Sem trabalhos registados.");
+    if (o.amounts && vis.amount) total += Number(vis.amount);
+    return {
+      heading: `Entrada ${i + 1} · ${formatDateTime(vis.enteredAt, ctx.tz)}`,
+      side: vis.status === "concluida" ? `Concluída${vis.finishedAt ? ` a ${formatDateTime(vis.finishedAt, ctx.tz)}` : ""}` : "Em curso",
+      body: lines.join("\n"),
+      amount: o.amounts && vis.amount ? formatMoney(vis.amount, ctx.currency) : "",
+    };
+  });
+  const info: { label: string; value: string }[] = [{ label: "Proprietário", value: v.ownerName }];
+  if (o.owner && v.ownerPhone) info.push({ label: "Contacto", value: v.ownerPhone });
+  if (v.color) info.push({ label: "Cor", value: v.color });
+  if (o.extras) for (const [label, value] of ctx.vehiclePairs?.(v.extra) ?? []) info.push({ label, value });
+  info.push({ label: "Primeira entrada", value: formatDateTime(v.createdAt, ctx.tz) });
+  return {
+    company: ctx.company,
+    title: "Relatório da viatura",
+    subtitle: `Emitido a ${formatDateTime(new Date(), ctx.tz)} por ${ctx.author}`,
+    plate: v.plate,
+    vehicleName: v.name,
+    info,
+    sections,
+    totalLabel: "Total",
+    total: o.amounts && total > 0 ? formatMoney(total, ctx.currency) : "",
+    note: "",
+    signatures: true,
+    sigLeft: "A oficina",
+    sigRight: "O cliente",
+    footer: `${ctx.company} · ${v.plate}`,
+    editable: false,
+  };
+}
 
 const INK = rgb(0.09, 0.1, 0.16);
 const MUTED = rgb(0.42, 0.44, 0.52);
@@ -46,7 +123,7 @@ const SOFT = rgb(0.97, 0.97, 0.99);
 const safe = (t: string) => t.replace(/[^\n -ÿ€]/g, "");
 
 /** Parte um texto em linhas que cabem na largura. */
-function wrap(value: string, font: PDFFont, size: number, width: number): string[] {
+export function wrap(value: string, font: PDFFont, size: number, width: number): string[] {
   const out: string[] = [];
   for (const para of safe(value).split(/\n/)) {
     let line = "";
@@ -70,17 +147,15 @@ function wrap(value: string, font: PDFFont, size: number, width: number): string
   return out;
 }
 
-/** Relatório da viatura em PDF (A4), com as entradas escolhidas. */
-export async function renderVehicleReport(
-  v: Vehicle,
-  o: ReportOptions,
-  ctx: { company: string; currency: string; tz: string; author: string },
-): Promise<Uint8Array> {
+/** Gera o PDF (A4) a partir do documento editado. */
+export async function renderReportDoc(d: ReportDoc, photo?: Uint8Array | null): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
-  pdf.setTitle(`${o.title} ${v.plate}`);
+  pdf.setTitle(`${d.title} ${d.plate}`);
   pdf.setProducer("Horbit");
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const form = d.editable ? pdf.getForm() : null;
+  let fieldN = 0;
   const W = 595.28;
   const H = 841.89;
   const L = 48;
@@ -93,125 +168,148 @@ export async function renderVehicleReport(
     const s = safe(value);
     page.drawText(s, { x: R - font.widthOfTextAtSize(s, size), y, size, font, color });
   };
-  const ensure = (need: number) => {
-    if (y - need > 60) return;
+  const newPage = () => {
     page = pdf.addPage([W, H]);
     y = H - 52;
-    text(`${v.plate} · ${v.name}`, L, 8.5, bold, MUTED);
+    text(`${d.plate} · ${d.vehicleName}`, L, 8.5, bold, MUTED);
     y -= 22;
   };
-  const para = (value: string, x: number, width: number, size = 9.5, font = regular, color = INK, lh = 13) => {
-    for (const line of wrap(value, font, size, width)) {
+  const ensure = (need: number) => {
+    if (y - need < 60) newPage();
+  };
+  /** Bloco de texto: desenhado, ou como campo editável no PDF. */
+  const block = (value: string, x: number, width: number, size = 9.5, lh = 13) => {
+    const lines = wrap(value, regular, size, width);
+    const height = lines.length * lh + 6;
+    if (form && height < H - 140) {
+      ensure(height);
+      const f = form.createTextField(`texto_${++fieldN}`);
+      f.enableMultiline();
+      f.setText(safe(value));
+      f.addToPage(page, { x: x - 2, y: y - height + lh, width: width + 4, height, borderWidth: 0, backgroundColor: rgb(1, 1, 1), font: regular });
+      f.setFontSize(size);
+      y -= height;
+      return;
+    }
+    for (const line of lines) {
       ensure(lh);
-      text(line, x, size, font, color);
+      text(line, x, size);
       y -= lh;
     }
   };
 
   // Cabeçalho
-  text(ctx.company, L, 14, bold);
-  right(o.title.toUpperCase(), 10.5, bold, ACCENT);
+  text(d.company, L, 14, bold);
+  right(d.title.toUpperCase(), 10.5, bold, ACCENT);
   y -= 15;
-  text(`Emitido a ${formatDateTime(new Date(), ctx.tz)} por ${ctx.author}`, L, 8.5, regular, MUTED);
+  if (d.subtitle) text(d.subtitle, L, 8.5, regular, MUTED);
   y -= 22;
   page.drawLine({ start: { x: L, y }, end: { x: R, y }, thickness: 1, color: LINE });
   y -= 26;
 
-  // Matrícula em destaque e dados da viatura
-  const plate = safe(v.plate);
+  // Foto de perfil à direita, matrícula e dados à esquerda
+  let photoBottom = y;
+  if (photo) {
+    try {
+      const img = await pdf.embedJpg(photo).catch(() => pdf.embedPng(photo));
+      const maxW = 190;
+      const maxH = 140;
+      const s = Math.min(maxW / img.width, maxH / img.height);
+      const w = img.width * s;
+      const h = img.height * s;
+      page.drawImage(img, { x: R - w, y: y + 22 - h, width: w, height: h });
+      photoBottom = y + 22 - h - 12;
+    } catch {
+      // foto ilegível: segue sem ela
+    }
+  }
+  const leftW = photo ? R - L - 210 : R - L;
+  const plate = safe(d.plate);
   const pw = bold.widthOfTextAtSize(plate, 18) + 28;
   page.drawRectangle({ x: L, y: y - 9, width: pw, height: 30, color: rgb(1, 0.85, 0.2), borderColor: INK, borderWidth: 1.2 });
-  page.drawText(plate, { x: L + 14, y: y, size: 18, font: bold, color: INK });
-  page.drawText(safe(v.name), { x: L + pw + 14, y: y + 2, size: 14, font: bold, color: INK });
-  y -= 40;
+  page.drawText(plate, { x: L + 14, y, size: 18, font: bold, color: INK });
+  y -= 30;
+  for (const line of wrap(d.vehicleName, bold, 13, leftW)) {
+    text(line, L, 13, bold);
+    y -= 16;
+  }
+  y -= 10;
+  const colW = photo ? leftW : (R - L) / 2 - 10;
+  d.info
+    .filter((i) => i.label.trim() || i.value.trim())
+    .forEach((it, i) => {
+      const twoCols = !photo;
+      const col = twoCols && i % 2 === 1 ? L + (R - L) / 2 : L;
+      if (twoCols && i % 2 === 1) y += 30;
+      ensure(30);
+      text(it.label.toUpperCase(), col, 7, regular, MUTED);
+      y -= 12;
+      text(wrap(it.value, bold, 10, colW)[0] ?? "", col, 10, bold);
+      y -= 18;
+    });
+  y = Math.min(y, photoBottom) - 10;
 
-  const info: [string, string][] = [
-    ["Proprietário", v.ownerName],
-    ...(o.owner && v.ownerPhone ? ([["Contacto", v.ownerPhone]] as [string, string][]) : []),
-    ...(v.color ? ([["Cor", v.color]] as [string, string][]) : []),
-    ["Primeira entrada", formatDateTime(v.createdAt, ctx.tz)],
-    ["Entradas no relatório", String(o.visitIds.length)],
-  ];
-  info.forEach(([k, val], i) => {
-    const col = i % 2 === 0 ? L : 310;
-    if (i % 2 === 0 && i > 0) y -= 30;
-    page.drawText(safe(k.toUpperCase()), { x: col, y, size: 7, font: regular, color: MUTED });
-    page.drawText(safe(val).slice(0, 48), { x: col, y: y - 12, size: 10, font: bold, color: INK });
-  });
-  y -= 44;
-
-  // Entradas na oficina
-  const visits = v.visits.filter((x) => o.visitIds.includes(x.id)).sort((a, b) => a.enteredAt.localeCompare(b.enteredAt));
-  let total = 0;
-  visits.forEach((vis, idx) => {
+  // Entradas
+  for (const s of d.sections) {
     ensure(70);
     page.drawRectangle({ x: L, y: y - 7, width: R - L, height: 24, color: SOFT });
-    text(`Entrada ${idx + 1} · ${formatDateTime(vis.enteredAt, ctx.tz)}`, L + 10, 10, bold);
-    right(
-      vis.status === "concluida" ? `Concluída${vis.finishedAt ? ` a ${formatDateTime(vis.finishedAt, ctx.tz)}` : ""}` : "Em curso",
-      8.5,
-      regular,
-      vis.status === "concluida" ? MUTED : ACCENT,
-    );
+    text(s.heading, L + 10, 10, bold);
+    if (s.side) right(s.side, 8.5, regular, /curso/i.test(s.side) ? ACCENT : MUTED);
     y -= 28;
-    const facts = [
-      vis.services.length ? `Trabalhos: ${vis.services.join(", ")}` : null,
-      o.mileage && vis.mileage ? `Quilómetros: ${vis.mileage.toLocaleString("pt-PT")} km` : null,
-      vis.by ? `Responsável: ${vis.by}` : null,
-    ].filter(Boolean) as string[];
-    for (const f of facts) para(f, L + 10, R - L - 20, 9.5, regular, INK);
-    if (vis.description) {
-      y -= 3;
-      para(vis.description, L + 10, R - L - 20, 9.5, regular, INK);
-    }
-    if (o.materials && vis.materials.length) {
-      y -= 4;
-      ensure(14);
-      text("Materiais usados", L + 10, 8.5, bold, MUTED);
-      y -= 13;
-      for (const m of vis.materials) para(`- ${m.name}: ${Number(m.quantity).toLocaleString("pt-PT")} ${m.unit}`, L + 16, R - L - 30, 9, regular, INK, 12);
-    }
-    if (o.amounts && vis.amount) {
-      total += Number(vis.amount);
+    block(s.body, L + 10, R - L - 20);
+    if (s.amount.trim()) {
       y -= 2;
       ensure(14);
       text("Valor", L + 10, 9.5, bold);
-      right(formatMoney(vis.amount, ctx.currency), 9.5, bold, INK);
+      right(s.amount, 9.5, bold, INK);
       y -= 13;
     }
-    if (!facts.length && !vis.description && !(o.materials && vis.materials.length)) para("Sem trabalhos registados.", L + 10, R - L - 20, 9.5, regular, MUTED);
     y -= 14;
-  });
+  }
 
-  if (o.amounts && total > 0 && visits.length > 1) {
+  if (d.total.trim()) {
     ensure(30);
     page.drawLine({ start: { x: L, y: y + 6 }, end: { x: R, y: y + 6 }, thickness: 1, color: LINE });
     y -= 8;
-    text("Total", L, 11, bold);
-    right(formatMoney(total, ctx.currency), 11, bold, INK);
+    text(d.totalLabel || "Total", L, 11, bold);
+    right(d.total, 11, bold, INK);
     y -= 22;
   }
 
-  if (o.note.trim()) {
+  if (d.note.trim() || form) {
     ensure(40);
     text("Observações", L, 10, bold);
     y -= 15;
-    para(o.note.trim(), L, R - L, 9.5);
+    block(d.note.trim() || " ", L, R - L);
     y -= 8;
   }
 
-  // Assinaturas
-  ensure(70);
-  y -= 30;
-  page.drawLine({ start: { x: L, y }, end: { x: L + 200, y }, thickness: 0.8, color: MUTED });
-  page.drawLine({ start: { x: R - 200, y }, end: { x: R, y }, thickness: 0.8, color: MUTED });
-  y -= 12;
-  text("A oficina", L, 8.5, regular, MUTED);
-  page.drawText("O cliente", { x: R - 200, y, size: 8.5, font: regular, color: MUTED });
+  if (d.signatures) {
+    ensure(70);
+    y -= 30;
+    page.drawLine({ start: { x: L, y }, end: { x: L + 200, y }, thickness: 0.8, color: MUTED });
+    page.drawLine({ start: { x: R - 200, y }, end: { x: R, y }, thickness: 0.8, color: MUTED });
+    y -= 12;
+    text(d.sigLeft, L, 8.5, regular, MUTED);
+    page.drawText(safe(d.sigRight), { x: R - 200, y, size: 8.5, font: regular, color: MUTED });
+  }
 
+  form?.updateFieldAppearances(regular);
   const pages = pdf.getPages();
   pages.forEach((p, i) =>
-    p.drawText(safe(`Horbit · ${v.plate} · página ${i + 1} de ${pages.length}`), { x: L, y: 30, size: 7.5, font: regular, color: MUTED }),
+    p.drawText(safe(`${d.footer} · página ${i + 1} de ${pages.length}`), { x: L, y: 30, size: 7.5, font: regular, color: MUTED }),
   );
   return pdf.save();
+}
+
+/** Atalho: relatório com o texto automático (sem edição). */
+export async function renderVehicleReport(
+  v: Vehicle,
+  o: ReportOptions & { title?: string; note?: string },
+  ctx: { company: string; currency: string; tz: string; author: string },
+): Promise<Uint8Array> {
+  const d = buildReportDoc(v, o, ctx);
+  if (o.title) d.title = o.title;
+  if (o.note) d.note = o.note;
+  return renderReportDoc(d);
 }

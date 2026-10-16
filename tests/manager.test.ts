@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { describeAudit } from "@/lib/audit-text";
-import { renderVehicleReport, type Vehicle } from "@/lib/domain/vehicle-pdf";
+import { buildReportDoc, renderReportDoc, renderVehicleReport, type Vehicle } from "@/lib/domain/vehicle-pdf";
 import { hasModule } from "@/lib/manager-modules";
 
 const vehicle: Vehicle = {
@@ -40,11 +40,30 @@ describe("painel do gerente", () => {
   it("relatório da viatura gera um PDF (texto longo parte em linhas e páginas)", async () => {
     const bytes = await renderVehicleReport(
       vehicle,
-      { title: "Relatório da viatura", visitIds: ["a"], owner: true, materials: true, amounts: true, mileage: true, note: "Garantia de 3 meses." },
+      { title: "Relatório da viatura", visitIds: ["a"], owner: true, materials: true, amounts: true, mileage: true, extras: true, note: "Garantia de 3 meses." },
       { company: "Oficina Teste", currency: "MZN", tz: "Africa/Maputo", author: "Celso" },
     );
     expect(new TextDecoder().decode(bytes.slice(0, 5))).toBe("%PDF-");
     expect(bytes.length).toBeGreaterThan(1500);
+  });
+
+  it("relatório editado: o texto mudado vai para o PDF, que pode ter campos editáveis", async () => {
+    const d = buildReportDoc(
+      { ...vehicle, extra: { f1: "2019" } },
+      { visitIds: ["a"], owner: true, materials: true, amounts: true, mileage: true, extras: true },
+      { company: "Oficina", currency: "MZN", tz: "Africa/Maputo", author: "Celso", vehiclePairs: (e) => (e?.f1 ? [["Ano", String(e.f1)]] : []) },
+    );
+    expect(d.info.some((i) => i.label === "Ano" && i.value === "2019")).toBe(true);
+    expect(d.sections[0].body).toContain("Pneu 195/65 R15: 2 un");
+    d.title = "Orçamento";
+    d.sections[0].body = "Texto escrito à mão.";
+    d.editable = true;
+    const bytes = await renderReportDoc(d);
+    const { PDFDocument } = await import("pdf-lib");
+    const pdf = await PDFDocument.load(bytes);
+    const fields = pdf.getForm().getFields();
+    expect(fields.length).toBe(2);
+    expect(pdf.getForm().getTextField("texto_1").getText()).toBe("Texto escrito à mão.");
   });
 
   it("auditoria em português", () => {

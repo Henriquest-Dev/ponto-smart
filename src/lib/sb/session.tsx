@@ -28,6 +28,8 @@ export type CompanySettings = {
   duplicateWindowMinutes?: number;
   payrollDailyDivisor?: number;
   requireMfaForAdmins?: boolean;
+  /** Lista de trabalhos da Oficina, editável pelo gerente. */
+  workshopServices?: string[];
 };
 
 export type RoleCode = "owner" | "admin" | "hr" | "finance" | "supervisor" | "manager" | "employee";
