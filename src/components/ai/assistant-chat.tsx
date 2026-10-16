@@ -61,7 +61,10 @@ export function AssistantChat({
     return (data ?? []).map((c) => ({ ...c, messages: normalize(c.messages) })) as Conversation[];
   }, [companyId, userId]);
 
-  React.useEffect(() => end.current?.scrollIntoView({ behavior: "smooth", block: "end" }), [messages, busy]);
+  React.useEffect(() => {
+    // Bloco sem retorno: em navegadores recentes scrollIntoView devolve uma Promise, que o React trataria como limpeza.
+    end.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, busy]);
 
   const open = (c: Conversation | null) => {
     if (busy) return;

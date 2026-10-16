@@ -26,6 +26,10 @@ type ClockResult = {
   distanceM?: number | null;
   location?: string | null;
   workedMinutes?: number | null;
+  /** Metros além do limite (já descontada a margem), precisão usada e raio do local. */
+  outsideM?: number | null;
+  accuracyM?: number | null;
+  radiusM?: number | null;
 };
 type ClockResponse = { ok: true; result: ClockResult } | { ok: false; error: { message: string } };
 
@@ -250,6 +254,14 @@ export function ClockFlow({
     setStep("scanning");
   };
 
+  /** Volta a medir o GPS e reenvia, sem ler o QR Code outra vez. */
+  const retryGps = () => {
+    idemRef.current = newKey();
+    setResponse(null);
+    setFix(null);
+    setStep("locating");
+  };
+
   const requestReview = () => {
     idemRef.current = newKey();
     void submit({ requestReview: true }).then(() => undefined);
@@ -368,7 +380,17 @@ export function ClockFlow({
           ) : null}
 
           {step === "result" && response ? (
-            <Result response={response} timeZone={timeZone} fix={fix} note={note} setNote={setNote} onRetry={restart} onReview={requestReview} />
+            <Result
+              response={response}
+              timeZone={timeZone}
+              fix={fix}
+              note={note}
+              setNote={setNote}
+              byLink={!!initialLink && !token}
+              onRetry={restart}
+              onRetryGps={retryGps}
+              onReview={requestReview}
+            />
           ) : null}
       </div>
     </div>
@@ -449,7 +471,9 @@ function Result({
   fix,
   note,
   setNote,
+  byLink,
   onRetry,
+  onRetryGps,
   onReview,
 }: {
   response: ClockResponse;
@@ -457,10 +481,13 @@ function Result({
   fix: Fix;
   note: string;
   setNote: (v: string) => void;
+  byLink: boolean;
   onRetry: () => void;
+  onRetryGps: () => void;
   onReview: () => void;
 }) {
   if (!response.ok) {
+    const qrProblem = !byLink && /QR Code|estação/i.test(response.error.message);
     return (
       <div className="mt-12 flex flex-1 flex-col items-center text-center">
         <ResultMark tone="danger" />
@@ -470,8 +497,13 @@ function Result({
         <p className="mt-2 max-w-xs text-[14px] leading-relaxed text-muted">
           {response.error.message}
         </p>
-        <Button size="lg" className="mt-auto h-14 w-full text-[16px] font-bold" onClick={onRetry}>
-          Ler QR Code novamente
+        {qrProblem ? (
+          <p className="mt-3 max-w-xs text-[13px] leading-relaxed text-subtle">
+            Se o QR Code continuar a falhar, peça ao responsável o link de reserva de hoje.
+          </p>
+        ) : null}
+        <Button size="lg" className="mt-auto h-14 w-full text-[16px] font-bold" onClick={byLink ? onRetryGps : onRetry}>
+          {byLink ? "Tentar novamente" : "Ler QR Code novamente"}
         </Button>
       </div>
     );
@@ -490,12 +522,27 @@ function Result({
           <p className="mx-auto mt-2 max-w-xs text-[14px] leading-relaxed text-muted">
             {r.message}
           </p>
-          {fix ? (
-            <p className="mt-2 text-[13px] text-subtle">
-              Precisão do GPS: <span className="font-bold tabular">±{Math.round(fix.accuracy)} m</span>
-            </p>
-          ) : null}
         </div>
+        <dl className="mt-5 grid grid-cols-3 overflow-hidden rounded-xl border border-border text-center">
+          <div className="px-2 py-3">
+            <dt className="text-[11.5px] text-muted">Distância ao local</dt>
+            <dd className="mt-0.5 text-[17px] font-bold tabular">{r.outsideM != null ? `${r.outsideM} m` : "—"}</dd>
+          </div>
+          <div className="border-x border-border px-2 py-3">
+            <dt className="text-[11.5px] text-muted">Raio do local</dt>
+            <dd className="mt-0.5 text-[17px] font-bold tabular">{r.radiusM != null ? `${r.radiusM} m` : "—"}</dd>
+          </div>
+          <div className="px-2 py-3">
+            <dt className="text-[11.5px] text-muted">Precisão GPS</dt>
+            <dd className="mt-0.5 text-[17px] font-bold tabular">
+              {r.accuracyM != null ? `±${r.accuracyM} m` : fix ? `±${Math.round(fix.accuracy)} m` : "—"}
+            </dd>
+          </div>
+        </dl>
+        <p className="mt-3 text-[13px] leading-relaxed text-muted">
+          Se já está no local, aproxime-se da entrada, saia para o ar livre ou junto a uma janela e tente de novo: o GPS fica mais preciso
+          em poucos segundos.
+        </p>
         <div className="mt-7 space-y-2">
           <label htmlFor="note" className="text-[13px] font-bold">
             Está no local? Explique e peça revisão
@@ -503,8 +550,8 @@ function Result({
           <Textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ex.: estou no armazém lateral, o sinal GPS é fraco." maxLength={300} />
         </div>
         <div className="mt-auto grid gap-2 pt-6">
-          <Button size="lg" onClick={onRetry}>
-            Tentar novamente
+          <Button size="lg" onClick={onRetryGps}>
+            Medir a localização de novo
           </Button>
           <Button size="lg" variant="outline" onClick={onReview} disabled={note.trim().length < 5}>
             Pedir revisão

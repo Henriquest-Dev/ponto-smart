@@ -31,7 +31,9 @@ export function LoginForm() {
   const [remembered, setRemembered] = useState<string | null>(null);
   const passRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => setRemembered(readRemembered()), []);
+  useEffect(() => {
+    setRemembered(readRemembered());
+  }, []);
 
   // Já com sessão (ou acabou de entrar): seguir para a área certa.
   useEffect(() => {

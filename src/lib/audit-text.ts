@@ -91,6 +91,8 @@ const EXPLICIT: Record<string, AuditCategory> = {
   "clock_link.created": "Assiduidade",
   "clock_link.updated": "Assiduidade",
   "clock_link.deleted": "Assiduidade",
+  "clock_link.shown": "Assiduidade",
+  "clock_link.hidden": "Assiduidade",
 };
 
 /** Todas as acções conhecidas de uma categoria (para filtrar na base de dados). */
@@ -583,6 +585,16 @@ function describeExplicit(row: AuditRowInput, ctx: AuditContext): AuditText | nu
       if (note) changes.push({ label: "Nota", before: "—", after: note });
       const verb = row.action === "clock_link.created" ? "criou" : row.action === "clock_link.updated" ? "alterou" : "removeu";
       return out(`${verb} uma marcação por link${when}`);
+    }
+    case "clock_link.shown":
+    case "clock_link.hidden": {
+      const d = str(after.date);
+      const when = d ? ` de ${formatDay(d)}` : "";
+      return out(
+        row.action === "clock_link.shown"
+          ? `mostrou aos colaboradores o link de reserva${when}`
+          : `deixou de mostrar aos colaboradores o link de reserva${when}`,
+      );
     }
   }
   return null;

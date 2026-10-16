@@ -17,16 +17,40 @@ import { errorMessage, must, rpc, sb } from "@/lib/sb/client";
 import { useCompany } from "@/lib/sb/session";
 import { useData, withBase } from "@/lib/sb/use-data";
 
-type Station = { id: string; name: string; location_id: string; active: boolean; window_start: string | null; window_end: string | null };
+type Station = {
+  id: string;
+  name: string;
+  location_id: string;
+  active: boolean;
+  rotation_seconds: number;
+  window_start: string | null;
+  window_end: string | null;
+};
 type Location = { id: string; name: string };
 type FixedQr = { token: string; station: string; location: string; company: string; windowStart: string | null; windowEnd: string | null };
 type ClockLink = { id: string; location_id: string; work_date: string; start_time: string; end_time: string; note: string | null; require_gps: boolean };
+type DailyLink = { id: string; stationId: string; station: string; location: string; date: string; start: string; end: string; shown: boolean; open: boolean };
 
 const hhmm = (t: string | null) => (t ? t.slice(0, 5) : null);
 const linkUrl = (id: string) => (typeof window === "undefined" ? "" : `${window.location.origin}${withBase(`/app/marcar/?link=${id}`)}`);
 
 /** Link para copiar ou enviar (WhatsApp / partilha do telemóvel). */
-function ShareLink({ url, label, hint, message, compact }: { url: string; label?: string; hint?: string; message: string; compact?: boolean }) {
+function ShareLink({
+  url,
+  label,
+  hint,
+  message,
+  compact,
+  copyOnly,
+}: {
+  url: string;
+  label?: string;
+  hint?: string;
+  message: string;
+  compact?: boolean;
+  /** Só copiar (sem WhatsApp nem partilha). */
+  copyOnly?: boolean;
+}) {
   const [copied, setCopied] = React.useState(false);
   const copy = async () => {
     try {
@@ -48,12 +72,14 @@ function ShareLink({ url, label, hint, message, compact }: { url: string; label?
           <Button size="sm" variant={copied ? "outline" : "primary"} onClick={copy}>
             {copied ? "Copiado" : "Copiar link"}
           </Button>
-          <Button size="sm" variant="outline" asChild>
-            <a href={`https://wa.me/?text=${encodeURIComponent(message)}`} target="_blank" rel="noreferrer">
-              Enviar por WhatsApp
-            </a>
-          </Button>
-          {canShare ? (
+          {copyOnly ? null : (
+            <Button size="sm" variant="outline" asChild>
+              <a href={`https://wa.me/?text=${encodeURIComponent(message)}`} target="_blank" rel="noreferrer">
+                Enviar por WhatsApp
+              </a>
+            </Button>
+          )}
+          {canShare && !copyOnly ? (
             <Button size="sm" variant="ghost" onClick={() => void navigator.share({ text: message }).catch(() => undefined)}>
               Partilhar
             </Button>
@@ -74,18 +100,25 @@ export default function QrPage() {
 function QrManager() {
   const { companyId, tz } = useCompany();
   const data = useData(async () => {
-    const [st, loc, links] = await Promise.all([
-      sb().from("attendance_stations").select("id,name,location_id,active,window_start,window_end").eq("company_id", companyId).order("name"),
+    const [st, loc, links, daily] = await Promise.all([
+      sb().from("attendance_stations").select("id,name,location_id,active,rotation_seconds,window_start,window_end").eq("company_id", companyId).order("name"),
       sb().from("work_locations").select("id,name").eq("company_id", companyId).eq("active", true).order("name"),
       sb()
         .from("clock_links")
         .select("id,location_id,work_date,start_time,end_time,note,require_gps")
         .eq("company_id", companyId)
+        .eq("kind", "manual")
         .gte("work_date", new Date().toLocaleDateString("sv-SE", { timeZone: tz }))
         .order("work_date")
         .order("start_time"),
+      rpc<DailyLink[]>("ps_daily_links", { p_company: companyId }).then(
+        (d) => ({ list: d ?? [], missing: false }),
+        () => ({ list: [] as DailyLink[], missing: true }),
+      ),
     ]);
     return {
+      daily: daily.list,
+      dailyMissing: daily.missing,
       stations: must(st) as Station[],
       locations: must(loc) as Location[],
       links: (links.error ? [] : links.data) as ClockLink[],
@@ -99,7 +132,7 @@ function QrManager() {
 
   return (
     <>
-      <PageHeader title="QR Code" description="O código fixo da empresa para marcar o ponto e as marcações por link em dias especiais." />
+      <PageHeader title="QR Code" description="QR dinâmico no ecrã da entrada, QR fixo impresso e, se o QR falhar, o link de reserva do dia." />
       <PageBody>
         {data.error ? <Notice tone="danger">{data.error}</Notice> : null}
         {data.loading && !data.data ? (
@@ -127,15 +160,127 @@ function QrManager() {
                 </Select>
               </Field>
             ) : null}
+            <DynamicQrCard station={station} />
             <FixedQrCard key={station.id} station={station} onChanged={data.reload} />
+            {data.data ? (
+              <DailyLinkCard
+                link={data.data.daily.find((d) => d.stationId === station.id) ?? null}
+                missing={data.data.dailyMissing}
+                onChanged={data.reload}
+              />
+            ) : null}
           </>
         )}
 
-        {data.data ? (
-          <LinksCard links={data.data.links} locations={data.data.locations} missing={data.data.linksMissing} onChanged={data.reload} tz={tz} />
-        ) : null}
+        {data.data?.links.length ? <LinksCard links={data.data.links} locations={data.data.locations} onChanged={data.reload} tz={tz} /> : null}
       </PageBody>
     </>
+  );
+}
+
+/* ----------------------------- QR Code dinâmico ----------------------------- */
+
+function DynamicQrCard({ station }: { station: Station }) {
+  const { can } = useCompany();
+  const screen = typeof window === "undefined" ? "" : `${window.location.origin}${withBase(`/estacao/?id=${station.id}`)}`;
+  return (
+    <Card>
+      <CardHeader>
+        <div>
+          <CardTitle>QR Code dinâmico de {station.name}</CardTitle>
+          <CardDescription>
+            Para um tablet ou computador na entrada. O código muda a cada {station.rotation_seconds || 30} segundos, por isso uma fotografia
+            do código não serve para marcar fora do local. É a opção mais segura; o colaborador lê o código no Horbit, em Marcar ponto.
+          </CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {can("stations.display") ? (
+          <Button asChild>
+            <a href={withBase(`/estacao/?id=${station.id}`)} target="_blank" rel="noreferrer">
+              Abrir ecrã do QR dinâmico
+            </a>
+          </Button>
+        ) : (
+          <Notice tone="info">O seu papel não permite abrir o ecrã da estação. Peça a quem gere a empresa.</Notice>
+        )}
+        <ShareLink
+          url={screen}
+          copyOnly
+          label="Link do ecrã"
+          message={screen}
+          hint="Abra este link no tablet da entrada, com a sua conta. O ecrã fica em ecrã inteiro e renova o código sozinho."
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------ Link de reserva do dia ------------------------ */
+
+function DailyLinkCard({ link, missing, onChanged }: { link: DailyLink | null; missing: boolean; onChanged: () => void }) {
+  const [busy, setBusy] = React.useState(false);
+  const day = link ? new Date(`${link.date}T12:00:00`).toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" }) : "";
+  const url = link ? linkUrl(link.id) : "";
+  const allDay = link?.start === "00:00" && link?.end === "23:59";
+  const hours = link ? (allDay ? "durante todo o dia" : `das ${link.start} às ${link.end}`) : "";
+
+  const toggle = async (shown: boolean) => {
+    if (!link) return;
+    setBusy(true);
+    try {
+      await rpc("ps_daily_link_show", { p_link: link.id, p_shown: shown });
+      toast.success(shown ? "O botão Marcar ponto aparece hoje no painel dos colaboradores." : "O botão deixou de aparecer aos colaboradores.");
+      onChanged();
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div>
+          <CardTitle>Link de reserva de hoje</CardTitle>
+          <CardDescription>
+            Só para quando o QR Code falha: ecrã desligado, sem internet na entrada, código danificado ou câmara avariada. É criado
+            automaticamente todos os dias e deixa de funcionar no fim do dia; amanhã há um link novo.
+          </CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {missing ? (
+          <Notice tone="warning">Corra o script supabase/04_parte8.sql no Supabase para activar o link de reserva diário.</Notice>
+        ) : !link ? (
+          <p className="text-[13.5px] text-muted">A estação está inactiva, por isso não há link de reserva.</p>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[14.5px] font-bold tabular">
+                Válido hoje, {day}, {hours}
+              </p>
+              {link.open ? <Badge tone="success">Aberto agora</Badge> : <Badge>Fora do horário</Badge>}
+            </div>
+            <ShareLink
+              url={url}
+              message={`O QR Code está com problemas hoje. Marque o ponto no Horbit por este link (válido só hoje, ${day}, ${hours}): ${url}`}
+              hint="Quem abrir o link entra no Horbit e marca o ponto. A localização continua a ser verificada e a marcação fica identificada como feita por link."
+            />
+            <label className="flex min-h-10 cursor-pointer items-start gap-3 rounded-xl border border-border p-3.5 text-[14px]">
+              <Checkbox className="mt-0.5" checked={link.shown} disabled={busy} onChange={(e) => void toggle(e.target.checked)} />
+              <span>
+                <span className="block font-bold">Mostrar o botão Marcar ponto aos colaboradores hoje</span>
+                <span className="mt-0.5 block text-[12.5px] leading-relaxed text-muted">
+                  Em vez de enviar o link, o botão aparece no painel de cada colaborador até ao fim do dia. Amanhã volta a ficar desligado.
+                </span>
+              </span>
+            </label>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -286,41 +431,11 @@ function FixedQrCard({ station, onChanged }: { station: Station; onChanged: () =
   );
 }
 
-/* ------------------------ Marcação por link ------------------------ */
+/* ------------------- Marcações por link agendadas (dias especiais) ------------------- */
 
-function LinksCard({
-  links,
-  locations,
-  missing,
-  onChanged,
-  tz,
-}: {
-  links: ClockLink[];
-  locations: Location[];
-  missing: boolean;
-  onChanged: () => void;
-  tz: string;
-}) {
-  const { companyId } = useCompany();
+function LinksCard({ links, locations, onChanged, tz }: { links: ClockLink[]; locations: Location[]; onChanged: () => void; tz: string }) {
   const today = new Date().toLocaleDateString("sv-SE", { timeZone: tz });
   const locName = (id: string) => locations.find((l) => l.id === id)?.name ?? "Local";
-
-  const save = (_p: unknown, fd: FormData) =>
-    attempt(async () => {
-      const o = formObject(fd);
-      await rpc("ps_clock_link_save", {
-        p_company: companyId,
-        p_id: null,
-        p_location: o.location,
-        p_date: o.date,
-        p_start: o.start,
-        p_end: o.end,
-        p_note: o.note ?? null,
-        p_require_gps: fd.get("gps") === "on",
-      });
-      onChanged();
-      return { ok: true, message: "Marcação por link criada. Os colaboradores vêem o botão no painel durante esse horário." };
-    });
 
   const remove = async (l: ClockLink) => {
     if (!window.confirm("Remover esta marcação por link?")) return;
@@ -337,83 +452,39 @@ function LinksCard({
     <Card>
       <CardHeader>
         <div>
-          <CardTitle>Marcação por link (dias especiais)</CardTitle>
-          <CardDescription>
-            Para dias com horário diferente: no dia e horas escolhidos aparece um botão &quot;Marcar ponto&quot; no painel dos colaboradores, sem
-            precisar do QR Code.
-          </CardDescription>
+          <CardTitle>Marcações por link agendadas</CardTitle>
+          <CardDescription>Criadas pelo assistente para dias especiais. No dia e horas indicados aparece o botão Marcar ponto aos colaboradores.</CardDescription>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {missing ? (
-          <Notice tone="warning">Corra o script supabase/04_parte7.sql no Supabase para activar a marcação por link.</Notice>
-        ) : null}
-        {links.length ? (
-          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
-            {links.map((l) => (
-              <li key={l.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3.5">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[14.5px] font-bold tabular">
-                    {l.work_date === today ? "Hoje" : new Date(`${l.work_date}T12:00:00`).toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long" })}
-                    , das {hhmm(l.start_time)} às {hhmm(l.end_time)}
-                  </p>
-                  <p className="text-[12.5px] text-muted">
-                    {locName(l.location_id)}
-                    {l.note ? `, ${l.note}` : ""}
-                    {l.require_gps ? "" : ", sem verificação de localização"}
-                  </p>
-                </div>
-                {l.work_date === today ? <Badge tone="success">Hoje</Badge> : <Badge>Agendada</Badge>}
-                <Button size="sm" variant="ghost" onClick={() => remove(l)}>
-                  Remover
-                </Button>
-                <div className="w-full">
-                  <ShareLink
-                    url={linkUrl(l.id)}
-                    compact
-                    message={`Marcação de ponto no Horbit em ${new Date(`${l.work_date}T12:00:00`).toLocaleDateString("pt-PT", { day: "numeric", month: "long" })}, das ${hhmm(l.start_time)} às ${hhmm(l.end_time)}: ${linkUrl(l.id)}`}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-[13.5px] text-muted">Nenhuma marcação por link agendada.</p>
-        )}
-
-        {locations.length ? (
-          <ActionForm action={save} className="grid gap-3 rounded-xl border border-border p-4 sm:grid-cols-2 lg:grid-cols-4">
-            <p className="text-[14px] font-bold sm:col-span-2 lg:col-span-4">Nova marcação por link</p>
-            <Field label="Dia">
-              <Input type="date" name="date" required min={today} defaultValue={today} />
-            </Field>
-            <Field label="Das">
-              <Input type="time" name="start" required defaultValue="08:00" />
-            </Field>
-            <Field label="Às">
-              <Input type="time" name="end" required defaultValue="17:30" />
-            </Field>
-            <Field label="Local">
-              <Select name="location" required defaultValue={locations[0]?.id}>
-                {locations.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Motivo (opcional)" className="sm:col-span-2">
-              <Input name="note" maxLength={200} placeholder="Ex.: inventário, entrada às 08:00" />
-            </Field>
-            <label className="flex min-h-10 cursor-pointer items-center gap-3 self-end text-[14px] font-medium sm:col-span-2">
-              <Checkbox name="gps" defaultChecked />
-              Exigir que estejam no local (GPS)
-            </label>
-            <div className="sm:col-span-2 lg:col-span-4">
-              <SubmitButton>Criar marcação por link</SubmitButton>
-            </div>
-          </ActionForm>
-        ) : null}
+      <CardContent>
+        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+          {links.map((l) => (
+            <li key={l.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-[14.5px] font-bold tabular">
+                  {l.work_date === today ? "Hoje" : new Date(`${l.work_date}T12:00:00`).toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long" })}
+                  , das {hhmm(l.start_time)} às {hhmm(l.end_time)}
+                </p>
+                <p className="text-[12.5px] text-muted">
+                  {locName(l.location_id)}
+                  {l.note ? `, ${l.note}` : ""}
+                  {l.require_gps ? "" : ", sem verificação de localização"}
+                </p>
+              </div>
+              {l.work_date === today ? <Badge tone="success">Hoje</Badge> : <Badge>Agendada</Badge>}
+              <Button size="sm" variant="ghost" onClick={() => remove(l)}>
+                Remover
+              </Button>
+              <div className="w-full">
+                <ShareLink
+                  url={linkUrl(l.id)}
+                  compact
+                  message={`Marcação de ponto no Horbit em ${new Date(`${l.work_date}T12:00:00`).toLocaleDateString("pt-PT", { day: "numeric", month: "long" })}, das ${hhmm(l.start_time)} às ${hhmm(l.end_time)}: ${linkUrl(l.id)}`}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
       </CardContent>
     </Card>
   );

@@ -1,6 +1,6 @@
 /* Horbit — service worker mínimo.
  * Rede primeiro. Só guarda activos estáticos e a página offline; nunca dados (esses vêm do Supabase). */
-const CACHE = "pontosmart-static-v2";
+const CACHE = "pontosmart-static-v3";
 const BASE = new URL(self.registration.scope).pathname.replace(/\/$/, "");
 const OFFLINE_URL = `${BASE}/offline.html`;
 
@@ -29,8 +29,10 @@ self.addEventListener("fetch", (event) => {
         (hit) =>
           hit ||
           fetch(req).then((res) => {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy));
+            if (res.ok) {
+              const copy = res.clone();
+              caches.open(CACHE).then((c) => c.put(req, copy));
+            }
             return res;
           }),
       ),

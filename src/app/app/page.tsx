@@ -349,7 +349,7 @@ function MonthBlock({ m }: { m: ReturnType<typeof summarize> }) {
   );
 }
 
-type ClockLinkView = { id: string; start: string; end: string; note: string | null; location: string; open: boolean };
+type ClockLinkView = { id: string; start: string; end: string; note: string | null; location: string; open: boolean; kind?: "manual" | "daily" };
 
 /** Dia especial: botão de marcar ponto sem QR Code, só dentro das horas definidas pela empresa. */
 function SpecialDayLinks({ links }: { links: ClockLinkView[] }) {
@@ -358,10 +358,11 @@ function SpecialDayLinks({ links }: { links: ClockLinkView[] }) {
       {links.map((l) => (
         <div key={l.id} className="flex flex-col gap-3 rounded-xl border border-primary/30 bg-primary-soft px-5 py-4 sm:flex-row sm:items-center">
           <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-bold">Hoje, marcação pelo telemóvel</p>
+            <p className="text-[15px] font-bold">{l.kind === "daily" ? "QR Code indisponível hoje" : "Hoje, marcação pelo telemóvel"}</p>
             <p className="mt-0.5 text-[13.5px] text-muted">
-              Das {l.start} às {l.end}, {l.location}
-              {l.note ? `. ${l.note}` : ""}
+              {l.kind === "daily"
+                ? `Marque o ponto por aqui${l.start === "00:00" && l.end === "23:59" ? "" : `, das ${l.start} às ${l.end}`}. Continua a ser preciso estar em ${l.location}.`
+                : `Das ${l.start} às ${l.end}, ${l.location}${l.note ? `. ${l.note}` : ""}`}
             </p>
           </div>
           {l.open ? (

@@ -86,7 +86,6 @@ function StationGate() {
   if (station === undefined) return <Centered><span className="spinner text-[28px] text-primary" role="status" aria-label="A carregar" /></Centered>;
   if (station === null) return <Problem title="Estação não encontrada" message="A estação não existe ou não pertence a nenhuma das suas empresas." />;
   if (!station.active) return <Problem title="Estação inactiva" message="Active a estação em Locais e estações para mostrar o código." />;
-  if (station.qr_mode !== "dynamic") return <Problem title="Estação com QR fixo" message="Esta estação usa um QR impresso. Gere-o em Locais e estações." />;
 
   const membership = me.memberships.find((m) => m.companyId === station.company_id);
   if (!membership?.permissions.includes("stations.display")) {

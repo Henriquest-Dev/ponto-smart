@@ -59,7 +59,14 @@ async function execute(a: AiAction, companyId: string, go: (href: string) => voi
     case "rever_marcacao":
       await rpc("ps_review_event", { p_event: g.id, p_decision: g.decisao === "aceitar" ? "accepted" : "rejected", p_reason: g.fundamento });
       return g.decisao === "aceitar" ? "Marcação aceite." : "Marcação rejeitada.";
-    case "criar_marcacao_por_link":
+    case "criar_marcacao_por_link": {
+      // Para hoje usa o link de reserva do dia (já existe) e mostra o botão aos colaboradores.
+      const daily = await rpc<{ id: string; date: string }[]>("ps_daily_links", { p_company: companyId }).catch(() => []);
+      const today = daily.find((d) => d.date === g.dia);
+      if (today) {
+        await rpc("ps_daily_link_show", { p_link: today.id, p_shown: true });
+        return "Link de reserva de hoje activado: os colaboradores já vêem o botão Marcar ponto.";
+      }
       await rpc("ps_clock_link_save", {
         p_company: companyId,
         p_id: null,
@@ -71,6 +78,7 @@ async function execute(a: AiAction, companyId: string, go: (href: string) => voi
         p_require_gps: true,
       });
       return "Marcação por link criada.";
+    }
     case "definir_horario_qr":
       await rpc("ps_station_set_window", { p_station: await firstId("attendance_stations", companyId), p_start: g.das ?? null, p_end: g.as ?? null });
       return "Horário do QR Code actualizado.";
@@ -96,7 +104,9 @@ export function AiActions({
   const router = useRouter();
   const [busy, setBusy] = React.useState<number | null>(null);
   const [list, setList] = React.useState(actions);
-  React.useEffect(() => setList(actions), [actions]);
+  React.useEffect(() => {
+    setList(actions);
+  }, [actions]);
 
   const mark = (i: number, state: AiAction["state"]) => {
     const next = list.map((a, j) => (j === i ? { ...a, state } : a));
