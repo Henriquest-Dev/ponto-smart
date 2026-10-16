@@ -4,6 +4,7 @@ import Link from "next/link";
 import * as React from "react";
 import { AiActions, askAssistant, NOT_ACTIVE, type AiAction, type AiReply } from "@/components/ai/actions";
 import { RichText } from "@/components/ai/assistant-chat";
+import { OrbiVideo } from "@/components/ai/orbi-eye";
 import { canSpeak, speak, stopSpeaking } from "@/components/ai/voice";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/misc";
@@ -76,11 +77,14 @@ export function AiInsights({ companyId, tz }: { companyId: string; tz: string })
   return (
     <section className="rounded-xl border border-border bg-background p-5 sm:p-6" aria-live="polite">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="flex min-w-0 items-start gap-3">
+          <OrbiVideo size={44} className="-my-1 shrink-0" label="" />
+          <div className="min-w-0">
           <h2 className="text-[16px] font-bold">Análise do assistente</h2>
           <p className="mt-0.5 text-[12.5px] text-muted">
             {data ? `Feita às ${data.at} com os dados da empresa. As acções só acontecem quando confirmar.` : "O assistente está a rever a assiduidade de hoje."}
           </p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           {ttsOk && data ? (

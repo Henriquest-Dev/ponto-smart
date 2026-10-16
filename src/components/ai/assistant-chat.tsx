@@ -4,6 +4,8 @@ import { Microphone } from "@phosphor-icons/react";
 import * as React from "react";
 import { toast } from "sonner";
 import { AiActions, askAssistant, NOT_ACTIVE, type AiAction, type AiActionsHandle, type AiReply } from "@/components/ai/actions";
+import { OrbiEye } from "@/components/ai/orbi-eye";
+import type { OrbiApi } from "@/components/ai/orbi";
 import { canListen, canSpeak, listen, speak, stopSpeaking, voiceCommand } from "@/components/ai/voice";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
@@ -53,6 +55,7 @@ export function AssistantChat({
   const [busy, setBusy] = React.useState(false);
   const [inactive, setInactive] = React.useState(false);
   const end = React.useRef<HTMLDivElement>(null);
+  const orbi = React.useRef<OrbiApi | null>(null);
   // Refs para o ciclo de voz (que corre fora do ciclo de render).
   const messagesRef = React.useRef<Msg[]>([]);
   const cidRef = React.useRef<string | null>(null);
@@ -85,6 +88,15 @@ export function AssistantChat({
     if (error) return [] as Conversation[]; // o histórico é opcional
     return (data ?? []).map((c) => ({ ...c, messages: normalize(c.messages) })) as Conversation[];
   }, [companyId, userId]);
+
+  // O Orbi olha para cada resposta nova e pisca.
+  React.useEffect(() => {
+    const lastIdx = messages.length - 1;
+    if (lastIdx < 0 || messages[lastIdx].role !== "model") return;
+    const el = document.querySelector(`[data-msg="${lastIdx}"]`);
+    orbi.current?.lookAt(el);
+    orbi.current?.blink();
+  }, [messages]);
 
   React.useEffect(() => {
     // Bloco sem retorno: em navegadores recentes scrollIntoView devolve uma Promise, que o React trataria como limpeza.
@@ -271,9 +283,12 @@ export function AssistantChat({
           <section className="flex min-h-[calc(100dvh-16rem)] min-w-0 flex-col rounded-xl border border-border bg-background">
             <div className="flex-1 space-y-3 overflow-y-auto p-4 sm:p-6" aria-live="polite">
               {messages.length === 0 ? (
-                <div className="max-w-xl py-6 sm:py-10">
-                  <p className="text-[22px] leading-tight font-bold tracking-[-0.02em]">Em que posso ajudar?</p>
-                  <p className="mt-2 text-[13.5px] leading-relaxed text-muted">
+                <div className="mx-auto max-w-xl py-4 sm:py-8">
+                  <div className="mb-5 flex justify-center">
+                    <OrbiEye ref={orbi} size={128} thinking={busy || voice === "thinking"} />
+                  </div>
+                  <p className="text-center text-[22px] leading-tight font-bold tracking-[-0.02em]">Em que posso ajudar?</p>
+                  <p className="mt-2 text-center text-[13.5px] leading-relaxed text-muted">
                     {intro}
                   </p>
                   <p className="mt-7 text-[13px] font-bold">Pode começar por</p>
@@ -291,8 +306,14 @@ export function AssistantChat({
                   </div>
                 </div>
               ) : (
-                messages.map((m, i) => (
-                  <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
+                <>
+                <div className="sticky top-0 z-10 -mt-1 flex justify-center pb-1">
+                  <span className="rounded-full bg-background/90 p-1 backdrop-blur">
+                    <OrbiEye ref={orbi} size={56} thinking={busy || voice === "thinking"} />
+                  </span>
+                </div>
+                {messages.map((m, i) => (
+                  <div key={i} data-msg={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
                     <div
                       className={cn(
                         "max-w-[85%] rounded-xl px-4 py-3 text-[14px] leading-relaxed break-words sm:max-w-[75%]",
@@ -315,7 +336,8 @@ export function AssistantChat({
                       ) : null}
                     </div>
                   </div>
-                ))
+                ))}
+                </>
               )}
               {busy ? (
                 <div className="flex justify-start">
@@ -350,7 +372,12 @@ export function AssistantChat({
             >
               <Textarea
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  orbi.current?.follow(e.currentTarget);
+                }}
+                onFocus={(e) => orbi.current?.follow(e.currentTarget)}
+                onBlur={() => orbi.current?.follow(null)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();

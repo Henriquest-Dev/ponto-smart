@@ -4,6 +4,7 @@ import { Dialog as D } from "radix-ui";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
+import { AssistantFab } from "@/components/ai/orbi-eye";
 import { cn } from "@/lib/utils";
 import { LogoMark } from "./logo";
 import { NavIcon } from "./nav-icon";
@@ -23,10 +24,12 @@ type Props = {
   searchHref?: string;
   /** Acção central destacada (ex.: Marcar ponto). */
   centerAction?: { href: string; label: string };
+  /** Página do assistente: mostra o botão flutuante com o olho do Orbi. */
+  assistantHref?: string;
   children: React.ReactNode;
 };
 
-export function AppShell({ sections, root, subtitle, user, notifications, mobileTabs, searchHref, centerAction, children }: Props) {
+export function AppShell({ sections, root, subtitle, user, notifications, mobileTabs, searchHref, centerAction, assistantHref, children }: Props) {
   const [open, setOpen] = React.useState(false);
   const pathname = usePathname();
   const tabs = centerAction ? mobileTabs.slice(0, 4) : mobileTabs.slice(0, 3);
@@ -62,6 +65,8 @@ export function AppShell({ sections, root, subtitle, user, notifications, mobile
 
         <main className="relative flex-1 pb-28 lg:pb-0">{children}</main>
       </div>
+
+      {assistantHref ? <AssistantFab href={assistantHref} /> : null}
 
       {/* Navegação inferior (telemóvel): só texto, haste por cima do activo. */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-safe backdrop-blur lg:hidden" aria-label="Navegação rápida">

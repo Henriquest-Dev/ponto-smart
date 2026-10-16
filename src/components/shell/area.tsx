@@ -1,5 +1,6 @@
 "use client";
 
+import { OrbiVideo } from "@/components/ai/orbi-eye";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
@@ -21,7 +22,10 @@ function FullScreen({ children }: { children: React.ReactNode }) {
 export function LoadingScreen() {
   return (
     <FullScreen>
-      <span className="spinner text-[28px] text-primary" role="status" aria-label="A carregar" />
+      <div role="status" className="flex flex-col items-center">
+        <OrbiVideo size={88} label="" />
+        <span className="sr-only">A carregar</span>
+      </div>
     </FullScreen>
   );
 }
@@ -95,6 +99,7 @@ export function Area({ kind, children }: { kind: Kind; children: React.ReactNode
       mobileTabs={nav.tabs}
       centerAction={kind === "app" ? { href: "/app/marcar/", label: "Marcar ponto" } : undefined}
       searchHref={kind === "empresa" && can("employees.view") ? "/empresa/colaboradores/" : undefined}
+      assistantHref={kind === "admin" ? "/admin/assistente/" : kind === "empresa" && can("ai.use") ? "/empresa/assistente/" : undefined}
     >
       <React.Suspense fallback={null}>{children}</React.Suspense>
     </AppShell>
