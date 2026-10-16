@@ -3,6 +3,8 @@
  * reconhecimento de fala (Chrome, Edge, Safari, Samsung Internet) e leitura em voz alta (todos).
  */
 
+import { sb, SUPABASE_KEY, SUPABASE_URL } from "@/lib/sb/client";
+
 type Recognition = {
   lang: string;
   interimResults: boolean;
@@ -23,7 +25,7 @@ function recognitionClass(): (new () => Recognition) | null {
 }
 
 export const canListen = () => !!recognitionClass();
-export const canSpeak = () => typeof window !== "undefined" && "speechSynthesis" in window;
+export const canSpeak = () => typeof window !== "undefined" && ("speechSynthesis" in window || "Audio" in window);
 
 const ERRORS: Record<string, string> = {
   "not-allowed": "Permita o acesso ao microfone nas definições do navegador.",
@@ -84,10 +86,94 @@ function voice() {
   return voices.find((v) => v.lang === "pt-PT") ?? voices.find((v) => v.lang.startsWith("pt-PT")) ?? voices.find((v) => v.lang.startsWith("pt")) ?? null;
 }
 
-/** Lê o texto em voz alta (em partes curtas: alguns telemóveis cortam frases longas). Resolve quando acaba.
- *  onWord é chamado a cada palavra dita (para animar o olho e o fundo). */
-export function speak(text: string, onWord?: () => void): Promise<void> {
-  if (!canSpeak()) return Promise.resolve();
+/* ---------------- Voz neural (Fish Audio pelo OpenRouter, através da Edge Function) ---------------- */
+
+const AI_FUNCTION = process.env.NEXT_PUBLIC_AI_FUNCTION ?? "Ponto-ai";
+/** false quando a voz neural não está configurada no servidor: não volta a tentar nesta sessão. */
+let neuralOk = true;
+let current: { audio: HTMLAudioElement; stop: () => void } | null = null;
+let audioCtx: AudioContext | null = null;
+
+/** Pede o áudio (MP3) à Edge Function. null se não houver voz neural (usa-se a do navegador). */
+async function neuralAudio(text: string): Promise<Blob | null> {
+  if (!neuralOk) return null;
+  try {
+    const { data } = await sb().auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return null;
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/${AI_FUNCTION}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, apikey: SUPABASE_KEY },
+      body: JSON.stringify({ mode: "speak", text: text.slice(0, 1500) }),
+    });
+    if (res.status === 501 || res.status === 400) neuralOk = false; // sem chave do OpenRouter ou função antiga
+    if (!res.ok || !(res.headers.get("content-type") ?? "").startsWith("audio/")) return null;
+    return await res.blob();
+  } catch {
+    return null;
+  }
+}
+
+/** Toca o MP3 e chama onLevel com o volume (0–1) várias vezes por segundo, para animar o olho. */
+function playAudio(blob: Blob, onLevel?: (v: number) => void): Promise<boolean> {
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  let raf = 0;
+  let done = false;
+  return new Promise((resolve) => {
+    const finish = (ok: boolean) => {
+      if (done) return;
+      done = true;
+      cancelAnimationFrame(raf);
+      URL.revokeObjectURL(url);
+      if (current?.audio === audio) current = null;
+      resolve(ok);
+    };
+    current = {
+      audio,
+      stop: () => {
+        audio.pause();
+        finish(true);
+      },
+    };
+    audio.onended = () => finish(true);
+    audio.onerror = () => finish(false);
+    if (onLevel) {
+      try {
+        audioCtx ??= new AudioContext();
+        void audioCtx.resume();
+        const src = audioCtx.createMediaElementSource(audio);
+        const an = audioCtx.createAnalyser();
+        an.fftSize = 512;
+        src.connect(an);
+        an.connect(audioCtx.destination);
+        const buf = new Uint8Array(an.fftSize);
+        let last = 0;
+        const tick = (t: number) => {
+          an.getByteTimeDomainData(buf);
+          let sum = 0;
+          for (const v of buf) sum += ((v - 128) / 128) ** 2;
+          const rms = Math.sqrt(sum / buf.length);
+          if (t - last > 110 && rms > 0.04) {
+            last = t;
+            onLevel(Math.min(1, rms * 4));
+          }
+          raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+      } catch {
+        // sem Web Audio: toca na mesma, sem animação pelo volume
+      }
+    }
+    audio.play().catch(() => finish(false));
+  });
+}
+
+/** Voz do próprio navegador (reserva). */
+const hasSynth = () => typeof window !== "undefined" && "speechSynthesis" in window;
+
+function speakBrowser(text: string, onWord?: (strength?: number) => void): Promise<void> {
+  if (!hasSynth()) return Promise.resolve();
   const synth = window.speechSynthesis;
   synth.cancel();
   const parts = plain(text).match(/[^.!?]+[.!?]*/g)?.map((p) => p.trim()).filter(Boolean) ?? [];
@@ -114,8 +200,20 @@ export function speak(text: string, onWord?: () => void): Promise<void> {
   });
 }
 
+/** Lê o texto em voz alta com a voz neural (Fish Audio); se não estiver disponível, com a voz do navegador.
+ *  Resolve quando acaba. onWord recebe a intensidade (0–1) da fala, para animar o olho e o fundo. */
+export async function speak(text: string, onWord?: (strength?: number) => void): Promise<void> {
+  stopSpeaking();
+  const clean = plain(text);
+  if (!clean) return;
+  const blob = await neuralAudio(clean);
+  if (blob && (await playAudio(blob, onWord))) return;
+  await speakBrowser(clean, onWord);
+}
+
 export function stopSpeaking() {
-  if (canSpeak()) window.speechSynthesis.cancel();
+  current?.stop();
+  if (hasSynth()) window.speechSynthesis.cancel();
 }
 
 /** Comandos de voz curtos para as acções propostas. */

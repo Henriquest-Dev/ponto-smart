@@ -2,7 +2,8 @@
 // Super Admin (scope "platform"): conversa sobre a plataforma.
 // Empresa (scope "company"): gestor de RH — conversa, análise automática (mode "insights") e propostas de acções
 // que o utilizador confirma no ecrã (a função nunca altera dados: só propõe). Mode "notify": avisa o responsável
-// (notificação no Horbit e, se houver RESEND_API_KEY, email).
+// (notificação no Horbit e, se houver RESEND_API_KEY, email). Mode "speak": voz neural (Fish Audio pelo OpenRouter,
+// segredo OPENROUTER_API_KEY) — o Gemini é o cérebro, o Fish Audio é a voz.
 // Os dados vêm de ps_ai_platform_context / ps_ai_context com o login do próprio utilizador (as regras de acesso aplicam-se).
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -13,6 +14,7 @@ const CORS = {
 };
 const MODELS = [Deno.env.get("GEMINI_MODEL") ?? "gemini-flash-lite-latest", "gemini-flash-latest", "gemini-3.5-flash-lite"];
 const GEMINI = Deno.env.get("GEMINI_API_BASE") ?? "https://generativelanguage.googleapis.com/v1beta";
+const OPENROUTER = Deno.env.get("OPENROUTER_API_BASE") ?? "https://openrouter.ai/api/v1";
 
 type FileIn = { name?: string; mime?: string; data?: string };
 type Msg = { role: "user" | "model"; text: string; files?: FileIn[] };
@@ -445,6 +447,35 @@ async function notifyOwner(req: Request, body: { companyId?: string; subject?: s
   return json({ notified: data?.notified ?? 0, emails, sent, emailConfigured: !!resend, emailError });
 }
 
+/** Voz neural: transforma o texto da resposta em áudio MP3 (Fish Audio S2.1 Pro, pelo OpenRouter). */
+async function speakText(req: Request, body: { text?: string }) {
+  const key = Deno.env.get("OPENROUTER_API_KEY");
+  if (!key) return json({ error: "Voz neural não configurada (segredo OPENROUTER_API_KEY)." }, 501);
+  const text = String(body.text ?? "").trim().slice(0, 1500);
+  if (!text) return json({ error: "Sem texto para ler." }, 400);
+  // Só para quem tem sessão iniciada no Horbit (a chave do OpenRouter nunca sai do servidor).
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+  });
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth?.user) return json({ error: "Sessão expirada. Entre novamente." }, 401);
+  const voice = Deno.env.get("OPENROUTER_TTS_VOICE");
+  const res = await fetch(`${OPENROUTER}/audio/speech`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "X-Title": "Horbit" },
+    body: JSON.stringify({
+      model: Deno.env.get("OPENROUTER_TTS_MODEL") ?? "fish-audio/s2.1-pro-free",
+      input: text,
+      ...(voice ? { voice } : {}),
+      response_format: "mp3",
+    }),
+  });
+  if (!res.ok || !res.body) return json({ error: `Voz neural indisponível (${res.status}).` }, 502);
+  return new Response(res.body, {
+    headers: { ...CORS, "Content-Type": res.headers.get("content-type") ?? "audio/mpeg", "Cache-Control": "no-store" },
+  });
+}
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 }
@@ -457,9 +488,10 @@ Deno.serve(async (req) => {
     scope?: "company" | "platform";
     companyId?: string;
     messages?: Msg[];
-    mode?: "chat" | "insights" | "notify";
+    mode?: "chat" | "insights" | "notify" | "speak";
     subject?: string;
     message?: string;
+    text?: string;
   };
   try {
     body = await req.json();
@@ -467,6 +499,7 @@ Deno.serve(async (req) => {
     return json({ error: "Pedido inválido." }, 400);
   }
   if (body.mode === "notify") return notifyOwner(req, body);
+  if (body.mode === "speak") return speakText(req, body);
 
   const key = Deno.env.get("GEMINI_API_KEY");
   if (!key) return json({ error: "Falta a chave do Gemini (segredo GEMINI_API_KEY) na Edge Function." }, 500);

@@ -237,7 +237,7 @@ export function AssistantChat({
     if (!voiceOn.current) return;
     setVoice("speaking");
     setLastReply(text);
-    await speak(text, () => stage.current?.kick(0.8));
+    await speak(text, (n) => stage.current?.kick(n ?? 0.8));
   }
 
   /** Abre o ecrã de voz; o Orbi fala primeiro e depois fica a ouvir. */
