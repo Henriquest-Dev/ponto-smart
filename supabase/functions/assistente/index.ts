@@ -3,7 +3,8 @@
 // Empresa (scope "company"): gestor de RH — conversa, análise automática (mode "insights") e propostas de acções
 // que o utilizador confirma no ecrã (a função nunca altera dados: só propõe). Mode "notify": avisa o responsável
 // (notificação no Horbit e, se houver RESEND_API_KEY, email). Mode "speak": voz neural (Fish Audio pelo OpenRouter,
-// segredo OPENROUTER_API_KEY) — o Gemini é o cérebro, o Fish Audio é a voz.
+// segredo OPENROUTER_API_KEY) — o Gemini é o cérebro, o Fish Audio é a voz. Mode "memorize": guarda na memória
+// os factos duradouros de uma conversa (preferências, decisões), para o assistente se lembrar nas conversas seguintes.
 // Os dados vêm de ps_ai_platform_context / ps_ai_context com o login do próprio utilizador (as regras de acesso aplicam-se).
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -476,6 +477,70 @@ async function speakText(req: Request, body: { text?: string }) {
   });
 }
 
+/** Memória: extrai factos duradouros da conversa e guarda-os (ps_ai_memory_add, script 04_parte10.sql). */
+async function memorize(req: Request, body: { scope?: string; companyId?: string; messages?: Msg[]; explicit?: string }, key: string) {
+  const company = body.scope === "platform" ? null : body.companyId ?? null;
+  const convo = (body.messages ?? [])
+    .filter((m) => m?.text?.trim())
+    .slice(-14)
+    .map((m) => `${m.role === "user" ? "Utilizador" : "Assistente"}: ${m.text.slice(0, 1200)}`)
+    .join("\n");
+  if (!convo) return json({ saved: 0 });
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+  });
+  const known = await supabase.rpc("ps_ai_memories", { p_company: company });
+  if (known.error) return json({ error: known.error.message }, 403);
+  const existing = ((known.data ?? []) as { content: string }[]).map((m) => `- ${m.content}`).join("\n") || "(vazia)";
+  // Pedido explícito ("lembra-te que…"): se o modelo não extrair nada, guarda-se a própria frase.
+  const fallback = async () => {
+    const t = str(body.explicit)
+      .replace(/^(por favor,?\s*)?(lembra-te|lembre-se|lembra|memoriza|não te esqueças|nao te esquecas|anota|guarda)( de| que| isto| isso)?[:,]?\s*/i, "")
+      .slice(0, 300);
+    if (t.length < 3) return json({ saved: 0 });
+    const { data } = await supabase.rpc("ps_ai_memory_add", { p_company: company, p_items: [t.charAt(0).toUpperCase() + t.slice(1)] });
+    return json({ saved: data ?? 0 });
+  };
+  const prompt = [
+    "Lê a conversa entre um gestor e o assistente de RH do Horbit e extrai só factos duradouros que valha a pena lembrar em conversas futuras:",
+    "preferências da pessoa (como quer as respostas, horários, tom), decisões e regras da empresa, nomes e funções importantes, pedidos explícitos para lembrar algo.",
+    "Não guardes: dados do dia (presenças, atrasos de hoje), números que mudam, palavras-passe, dados bancários, NUIT, nem nada que já esteja na memória.",
+    "Cada facto numa frase curta em português de Portugal, na terceira pessoa (ex.: \"Prefere respostas curtas.\"). Máximo 5. Se não houver nada, devolve lista vazia.",
+    `Memória actual:\n${existing}`,
+    `Conversa:\n${convo}`,
+  ].join("\n\n");
+  for (const model of MODELS) {
+    const res = await fetch(`${GEMINI}/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 400,
+          responseMimeType: "application/json",
+          responseSchema: { type: "OBJECT", properties: { factos: { type: "ARRAY", items: { type: "STRING" } } }, required: ["factos"] },
+        },
+      }),
+    });
+    if (!res.ok) {
+      if (res.status === 429 || res.status === 503 || res.status === 404) continue;
+      return body.explicit ? fallback() : json({ saved: 0 });
+    }
+    try {
+      const out = await res.json();
+      const text = (out?.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? "").join("");
+      const factos = (JSON.parse(text)?.factos ?? []).map((x: unknown) => str(x)).filter((x: string) => x.length >= 3).slice(0, 5);
+      if (!factos.length) return body.explicit ? fallback() : json({ saved: 0 });
+      const { data, error } = await supabase.rpc("ps_ai_memory_add", { p_company: company, p_items: factos });
+      return json({ saved: error ? 0 : data ?? 0 });
+    } catch {
+      return body.explicit ? fallback() : json({ saved: 0 });
+    }
+  }
+  return body.explicit ? fallback() : json({ saved: 0 });
+}
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 }
@@ -488,7 +553,8 @@ Deno.serve(async (req) => {
     scope?: "company" | "platform";
     companyId?: string;
     messages?: Msg[];
-    mode?: "chat" | "insights" | "notify" | "speak";
+    mode?: "chat" | "insights" | "notify" | "speak" | "memorize";
+    explicit?: string;
     subject?: string;
     message?: string;
     text?: string;
@@ -503,6 +569,7 @@ Deno.serve(async (req) => {
 
   const key = Deno.env.get("GEMINI_API_KEY");
   if (!key) return json({ error: "Falta a chave do Gemini (segredo GEMINI_API_KEY) na Edge Function." }, 500);
+  if (body.mode === "memorize") return memorize(req, body, key);
   const platform = body.scope === "platform";
   const insights = !platform && body.mode === "insights";
   let messages = (body.messages ?? []).filter((m) => m?.text?.trim()).slice(-16);
@@ -532,6 +599,16 @@ Deno.serve(async (req) => {
     const extra = await supabase.rpc("ps_ai_context_extra", { p_company: body.companyId });
     if (!extra.error && extra.data) Object.assign(context, extra.data);
   }
+  // Memória (script 04_parte10.sql) e títulos das conversas anteriores desta pessoa.
+  const company = platform ? null : body.companyId ?? null;
+  const [mem, past] = await Promise.all([
+    supabase.rpc("ps_ai_memories", { p_company: company }),
+    (company ? supabase.from("ai_conversations").select("title,updated_at").eq("company_id", company) : supabase.from("ai_conversations").select("title,updated_at").is("company_id", null))
+      .order("updated_at", { ascending: false })
+      .limit(12),
+  ]);
+  const memory = mem.error ? [] : ((mem.data ?? []) as { content: string }[]).map((m) => m.content);
+  const history = past.error ? [] : ((past.data ?? []) as { title: string; updated_at: string }[]).map((c) => `${c.updated_at.slice(8, 10)}/${c.updated_at.slice(5, 7)}: ${c.title}`);
 
   const system = [
     "És o assistente do Horbit, um sistema de ponto, assiduidade e salários para empresas em Moçambique.",
@@ -540,7 +617,7 @@ Deno.serve(async (req) => {
       : "És o gestor de recursos humanos digital desta empresa, com acesso a toda a gestão: assiduidade, atrasos, faltas, justificações, marcações em revisão, fichas dos colaboradores, acessos ao Horbit, salários, horários, planilhas e auditoria. Fazes o trabalho: quando te pedem algo, preparas a acção. Estás a falar com alguém da gestão (responsável, RH, financeiro ou supervisor).",
     "Conversa de forma natural e simpática em português de Portugal: cumprimenta, responde a perguntas de seguimento, pede esclarecimento quando a pergunta é ambígua e lembra-te do que já foi dito nesta conversa.",
     "Sê directo e curto. Texto simples; listas com hífen quando ajudar; **negrito** só para números ou nomes importantes. Datas como 15/10 e horas como 07:30.",
-    "Para perguntas sobre dados, usa apenas o contexto JSON abaixo. Se o dado não estiver lá, diz que não o tens e indica a página do Horbit onde se vê.",
+    "Para perguntas sobre dados, usa apenas o contexto JSON abaixo e a memória. Se o dado não estiver lá ou estiver incompleto, diz que não o tens e indica a página do Horbit onde se vê. Nunca inventes horas, datas, nomes ou números.",
     platform
       ? "No contexto: marcacoesPorDia = últimos 14 dias."
       : "No contexto: hojeDetalhe = hoje (estado de cada pessoa); resumo e os números por departamento = últimos 30 dias; equipaEsteMes = mês corrente por pessoa; atrasos30dias = últimos 30 dias. Não confundas períodos: só digas \"hoje\" para dados de hojeDetalhe.",
@@ -558,9 +635,15 @@ Deno.serve(async (req) => {
           "As respostas podem ser lidas em voz alta: frases curtas e naturais, sem tabelas. Valores em MZN; não calculas taxas legais.",
         ].join(" "),
     platform ? GUIDE_PLATFORM : GUIDE_COMPANY,
+    memory.length
+      ? `O que já sabes desta pessoa (memória de conversas anteriores; usa com naturalidade quando for útil, sem a recitar):\n${memory.map((m) => `- ${m}`).join("\n")}`
+      : "",
+    history.length ? `Conversas anteriores desta pessoa contigo (data e assunto):\n${history.join("\n")}` : "",
     `Contexto de dados (${new Date().toISOString().slice(0, 10)}):`,
     JSON.stringify(context),
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
   const payload: Record<string, unknown> = {
     system_instruction: { parts: [{ text: system }] },

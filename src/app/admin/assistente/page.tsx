@@ -2,7 +2,6 @@
 
 import { AiBoundary } from "@/components/ai/ai-boundary";
 import { AssistantChat } from "@/components/ai/assistant-chat";
-import { PageHeader } from "@/components/ui/page-header";
 import { useQueryParam } from "@/lib/sb/use-data";
 import { useSession } from "@/lib/sb/session";
 
@@ -19,14 +18,14 @@ export default function AdminAssistantPage() {
   if (state.status !== "ready") return null;
   return (
     <>
-      <PageHeader title="Assistente" description="Converse sobre as empresas, os pedidos de acesso e a actividade da plataforma." />
       <AiBoundary>
         <AssistantChat
           scope={{ kind: "platform" }}
           userId={state.me.id}
+          userName={state.me.name}
           autoVoice={voz === "1"}
           suggestions={SUGGESTIONS}
-          intro="Uso o resumo da plataforma: empresas, pedidos de acesso, actividade e auditoria. Não vejo salários das empresas e não executo acções."
+          intro="Sou o Orbi. Conheço as empresas, os pedidos de acesso e a actividade da plataforma. Pergunte, anexe ficheiros ou faça uma chamada."
         />
       </AiBoundary>
     </>

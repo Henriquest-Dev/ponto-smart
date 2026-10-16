@@ -1,16 +1,16 @@
 "use client";
 
-import { Microphone, Paperclip, X } from "@phosphor-icons/react";
+import { ArrowUp, Brain, List, NotePencil, Paperclip, PhoneCall, SpeakerHigh, SpeakerSlash, Waveform, X } from "@phosphor-icons/react";
 import * as React from "react";
 import { toast } from "sonner";
-import { AiActions, askAssistant, NOT_ACTIVE, type AiAction, type AiActionsHandle, type AiReply } from "@/components/ai/actions";
-import { OrbiEye } from "@/components/ai/orbi-eye";
-import type { OrbiApi } from "@/components/ai/orbi";
+import { AI_FUNCTION, AiActions, askAssistant, NOT_ACTIVE, type AiAction, type AiActionsHandle, type AiReply } from "@/components/ai/actions";
 import { ACCEPT, addAttachments, fileSize, type Attachment } from "@/components/ai/attachments";
+import { ChatHistory, MemoryDialog, OrbiMark, type ConversationItem } from "@/components/ai/chat-parts";
+import type { OrbiApi } from "@/components/ai/orbi";
+import { OrbiEye } from "@/components/ai/orbi-eye";
 import { canListen, canSpeak, listen, speak, stopSpeaking, voiceCommand } from "@/components/ai/voice";
 import { VoiceStage, type VoiceStageHandle } from "@/components/ai/voice-stage";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/input";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Notice } from "@/components/ui/misc";
 import { errorMessage, sb } from "@/lib/sb/client";
 import { useData } from "@/lib/sb/use-data";
@@ -19,7 +19,6 @@ import { cn } from "@/lib/utils";
 type FileRef = { name: string; mime: string };
 /** hidden: mensagem interna (ex.: o pedido de saudação ao abrir a voz), não aparece no ecrã. */
 type Msg = { role: "user" | "model"; text: string; actions?: AiAction[]; files?: FileRef[]; hidden?: boolean };
-type Conversation = { id: string; title: string; messages: Msg[]; updated_at: string };
 
 export type AssistantScope = { kind: "company"; companyId: string } | { kind: "platform" };
 
@@ -57,19 +56,24 @@ async function ask(scope: AssistantScope, messages: Msg[], files: Attachment[] =
 const GREETING =
   "Abri agora a conversa por voz contigo. Cumprimenta-me com naturalidade e diz, em duas frases curtas, o que se passa neste momento na empresa (ou na plataforma). Depois pergunta em que posso ajudar. Sem listas.";
 
-/** Conversa com o assistente (empresa ou Super Admin), com histórico guardado por utilizador. */
+/** Pedidos explícitos para lembrar algo: a memória é actualizada logo a seguir. */
+const REMEMBER = /lembr[ae]|memoriz|n[aã]o te esque[cç]|guarda (isso|isto)|anota/i;
+
+/** Conversa com o Orbi (empresa ou Super Admin): histórico de todas as conversas, memória, anexos e chamada de voz. */
 export function AssistantChat({
   scope,
   userId,
+  userName,
   suggestions,
   intro,
   autoVoice = false,
 }: {
   scope: AssistantScope;
   userId: string;
+  userName?: string;
   suggestions: string[];
   intro: string;
-  /** Abrir logo a conversa por voz (vindo do olho flutuante). */
+  /** Abrir logo a chamada de voz (vindo do olho flutuante). */
   autoVoice?: boolean;
 }) {
   const companyId = scope.kind === "company" ? scope.companyId : null;
@@ -77,9 +81,13 @@ export function AssistantChat({
   const [messages, setMessages] = React.useState<Msg[]>([]);
   const [input, setInput] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+  const [opening, setOpening] = React.useState(false);
   const [inactive, setInactive] = React.useState(false);
+  const [historyOpen, setHistoryOpen] = React.useState(false);
   const end = React.useRef<HTMLDivElement>(null);
-  const orbi = React.useRef<OrbiApi | null>(null);
+  const box = React.useRef<HTMLTextAreaElement>(null);
+  const eyeTop = React.useRef<OrbiApi | null>(null);
+  const eyeBig = React.useRef<OrbiApi | null>(null);
   // Refs para o ciclo de voz (que corre fora do ciclo de render).
   const messagesRef = React.useRef<Msg[]>([]);
   const cidRef = React.useRef<string | null>(null);
@@ -111,22 +119,30 @@ export function AssistantChat({
     };
   }, []);
 
+  // Histórico: todas as conversas (só títulos; as mensagens carregam ao abrir).
   const convs = useData(async () => {
-    const base = sb().from("ai_conversations").select("id,title,messages,updated_at").eq("user_id", userId);
+    const base = sb().from("ai_conversations").select("id,title,updated_at").eq("user_id", userId);
     const { data, error } = await (companyId ? base.eq("company_id", companyId) : base.is("company_id", null))
       .order("updated_at", { ascending: false })
-      .limit(30);
-    if (error) return [] as Conversation[]; // o histórico é opcional
-    return (data ?? []).map((c) => ({ ...c, messages: normalize(c.messages) })) as Conversation[];
+      .limit(300);
+    if (error) return [] as ConversationItem[]; // o histórico é opcional
+    return (data ?? []) as ConversationItem[];
   }, [companyId, userId]);
+
+  const eyes = (fn: (o: OrbiApi) => void) => {
+    if (eyeTop.current) fn(eyeTop.current);
+    if (eyeBig.current) fn(eyeBig.current);
+  };
 
   // O Orbi olha para cada resposta nova e pisca.
   React.useEffect(() => {
     const lastIdx = messages.length - 1;
     if (lastIdx < 0 || messages[lastIdx].role !== "model") return;
     const el = document.querySelector(`[data-msg="${lastIdx}"]`);
-    orbi.current?.lookAt(el);
-    orbi.current?.blink();
+    eyes((o) => {
+      o.lookAt(el);
+      o.blink();
+    });
   }, [messages]);
 
   React.useEffect(() => {
@@ -134,16 +150,48 @@ export function AssistantChat({
     end.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, busy]);
 
-  const open = (c: Conversation | null) => {
+  // A caixa de mensagem cresce com o texto (até 7 linhas).
+  React.useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
+  }, [input]);
+
+  /** Actualiza a memória do Orbi com os factos desta conversa (em segundo plano). */
+  async function memorize(all: Msg[], explicit: string | null) {
+    const history = all.filter((m) => !m.hidden).map((m) => ({ role: m.role, text: m.text }));
+    if (history.length < 2) return;
+    try {
+      const { data } = await sb().functions.invoke(AI_FUNCTION, {
+        body: { mode: "memorize", scope: scope.kind, ...(companyId ? { companyId } : {}), messages: history, ...(explicit ? { explicit } : {}) },
+      });
+      if (explicit && (data as { saved?: number } | null)?.saved) toast.success("Guardado na memória do Orbi.");
+    } catch {
+      // a memória é opcional
+    }
+  }
+
+  const open = async (c: ConversationItem | null) => {
     if (busy) return;
     endVoice();
-    setCid(c?.id ?? null);
-    setMessages(c?.messages ?? []);
+    setHistoryOpen(false);
     setInput("");
+    if (!c) {
+      setCid(null);
+      setMessages([]);
+      return;
+    }
+    setCid(c.id);
+    setOpening(true);
+    const { data, error } = await sb().from("ai_conversations").select("messages").eq("id", c.id).maybeSingle();
+    setOpening(false);
+    if (error) return void toast.error(errorMessage(error));
+    setMessages(normalize((data as { messages?: unknown } | null)?.messages));
   };
 
   async function persist(id: string | null, all: Msg[]): Promise<string | null> {
-    const title = (all.find((m) => m.role === "user" && !m.hidden)?.text ?? "Conversa por voz").slice(0, 80);
+    const title = (all.find((m) => m.role === "user" && !m.hidden)?.text ?? "Chamada de voz").slice(0, 80);
     try {
       if (id) {
         await sb().from("ai_conversations").update({ messages: all, updated_at: new Date().toISOString() }).eq("id", id);
@@ -196,6 +244,9 @@ export function AssistantChat({
       }
       convs.reload();
       if (readAloud && !fromVoice) void speak(spoken(answer));
+      // Memória: logo quando a pessoa pede para lembrar; senão, de 6 em 6 mensagens.
+      const explicit = !opts.hidden && REMEMBER.test(t) ? t : null;
+      if (explicit || (!opts.hidden && all.filter((m) => !m.hidden).length % 6 === 0)) void memorize(all, explicit);
       return answer;
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Erro";
@@ -213,7 +264,6 @@ export function AssistantChat({
       setBusy(false);
     }
   }
-
   /* ------------------------------ Voz ------------------------------ */
   /** Fecha o ecrã de voz. */
   function endVoice() {
@@ -323,12 +373,27 @@ export function AssistantChat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoVoice, voiceOk.listen]);
 
-  const remove = async (c: Conversation) => {
+  const remove = async (c: ConversationItem) => {
     if (!window.confirm(`Apagar a conversa "${c.title}"?`)) return;
     const { error } = await sb().from("ai_conversations").delete().eq("id", c.id);
     if (error) return void toast.error(errorMessage(error));
-    if (c.id === cid) open(null);
+    if (c.id === cid) void open(null);
     convs.reload();
+  };
+
+  const rename = async (c: ConversationItem, title: string) => {
+    const { error } = await sb().from("ai_conversations").update({ title }).eq("id", c.id);
+    if (error) return void toast.error(errorMessage(error));
+    convs.reload();
+  };
+
+  const toggleRead = () => {
+    const v = !readAloud;
+    setReadAloud(v);
+    if (!v) stopSpeaking();
+    try {
+      localStorage.setItem("horbit-ler-respostas", v ? "1" : "0");
+    } catch {}
   };
 
   const list = convs.data ?? [];
@@ -345,224 +410,307 @@ export function AssistantChat({
     setMessages(all);
     void persist(cidRef.current, all);
   };
+  const title = cid ? (list.find((c) => c.id === cid)?.title ?? "Conversa") : "Nova conversa";
+  const first = userName?.trim().split(/\s+/)[0];
+  const thinking = busy || voice === "thinking";
+  const canSend = !busy && (!!input.trim() || files.length > 0);
+
+  const history = (
+    <ChatHistory list={list} loading={convs.loading} activeId={cid} onOpen={(c) => void open(c)} onRename={(c, t) => void rename(c, t)} onDelete={(c) => void remove(c)} />
+  );
+  const memoryButton = (
+    <button
+      type="button"
+      className="flex h-9 items-center gap-2 rounded-lg px-3 text-[13px] font-medium text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
+    >
+      <Brain className="size-4" aria-hidden />
+      Memória do Orbi
+    </button>
+  );
 
   return (
     <>
-      <div className="space-y-4 px-4 py-5 sm:px-6 lg:px-10 lg:py-7">
-        {inactive ? <Notice tone="warning" title="Assistente desactivado">{NOT_ACTIVE}</Notice> : null}
-        <div className="grid gap-6 lg:grid-cols-[250px_1fr]">
-          <aside className="min-w-0">
-            <div className="flex items-center justify-between gap-3 lg:block">
-              <h2 className="text-[15px] font-bold tracking-[-0.01em] lg:mb-3">Conversas</h2>
-              <Button variant="outline" size="sm" className="lg:w-full" onClick={() => open(null)} disabled={busy}>
-                Nova conversa
-              </Button>
+      <div className="flex h-[calc(100dvh-3.5rem)] min-h-0 bg-background lg:h-dvh">
+        {/* Histórico (computador) */}
+        <aside className="hidden w-[280px] shrink-0 flex-col border-r border-border bg-surface/60 lg:flex">
+          <div className="flex items-center gap-2.5 px-4 pt-5 pb-3">
+            <OrbiMark className="size-8" />
+            <div className="min-w-0">
+              <p className="text-[15px] leading-tight font-bold">Orbi</p>
+              <p className="text-[12px] text-muted">{scope.kind === "company" ? "Gestor de RH" : "Assistente da plataforma"}</p>
             </div>
-            {list.length ? (
-              <ul className="mt-3 flex gap-1 overflow-x-auto pb-1 scrollbar-none lg:mt-4 lg:block lg:space-y-0.5 lg:overflow-visible">
-                {list.map((c) => (
-                  <li key={c.id} className="group flex shrink-0 items-center gap-1 lg:shrink">
-                    <button
-                      type="button"
-                      onClick={() => open(c)}
-                      className={cn(
-                        "flex max-w-56 min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-medium text-muted transition-colors hover:bg-surface-2 hover:text-foreground lg:max-w-none",
-                        c.id === cid && "bg-surface-2 font-bold text-foreground",
-                      )}
-                    >
-                      <span className="truncate">{c.title}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => remove(c)}
-                      className="hidden shrink-0 cursor-pointer rounded-md px-2.5 py-1 text-[12px] font-bold text-subtle hover:bg-danger-soft hover:text-danger group-hover:block focus-visible:block"
-                    >
-                      Apagar
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-3 hidden text-[13px] text-muted lg:block">As conversas ficam guardadas aqui.</p>
-            )}
-          </aside>
+          </div>
+          <div className="px-3 pb-3">
+            <button
+              type="button"
+              onClick={() => void open(null)}
+              disabled={busy}
+              className="flex h-10 w-full items-center gap-2.5 rounded-xl border border-border bg-background px-3 text-[13.5px] font-bold shadow-[0_1px_2px_rgb(30_20_80/0.06)] transition-colors hover:bg-surface-2"
+            >
+              <NotePencil className="size-[18px]" aria-hidden />
+              Nova conversa
+            </button>
+          </div>
+          {history}
+          <div className="border-t border-border p-2">
+            <MemoryDialog companyId={companyId} trigger={memoryButton} />
+          </div>
+        </aside>
 
-          <section className="flex min-h-[calc(100dvh-16rem)] min-w-0 flex-col rounded-xl border border-border bg-background">
-            <div className="flex-1 space-y-3 overflow-y-auto p-4 sm:p-6" aria-live="polite">
-              {visible.length === 0 ? (
-                <div className="mx-auto max-w-xl py-4 sm:py-8">
-                  <div className="mb-5 flex justify-center">
-                    <OrbiEye ref={orbi} size={128} thinking={busy || voice === "thinking"} />
-                  </div>
-                  <p className="text-center text-[22px] leading-tight font-bold tracking-[-0.02em]">Em que posso ajudar?</p>
-                  <p className="mt-2 text-center text-[13.5px] leading-relaxed text-muted">
-                    {intro}
-                  </p>
-                  <p className="mt-7 text-[13px] font-bold">Pode começar por</p>
-                  <div className="mt-2.5 flex flex-wrap gap-2">
+        {/* Conversa */}
+        <section className="flex min-w-0 flex-1 flex-col">
+          <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-3 sm:px-5">
+            <button
+              type="button"
+              onClick={() => setHistoryOpen(true)}
+              className="flex size-9 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-foreground lg:hidden"
+              aria-label="Histórico de conversas"
+            >
+              <List className="size-5" aria-hidden />
+            </button>
+            <OrbiEye ref={eyeTop} size={30} thinking={thinking} label="" />
+            <p className="min-w-0 flex-1 truncate text-[14.5px] font-bold">{title}</p>
+            {voiceOk.speak ? (
+              <button
+                type="button"
+                onClick={toggleRead}
+                className={cn(
+                  "flex size-9 items-center justify-center rounded-lg transition-colors hover:bg-surface-2",
+                  readAloud ? "text-primary" : "text-muted hover:text-foreground",
+                )}
+                aria-pressed={readAloud}
+                aria-label={readAloud ? "Deixar de ler as respostas em voz alta" : "Ler as respostas em voz alta"}
+                title={readAloud ? "Respostas em voz alta: ligado" : "Respostas em voz alta: desligado"}
+              >
+                {readAloud ? <SpeakerHigh className="size-5" aria-hidden /> : <SpeakerSlash className="size-5" aria-hidden />}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => void open(null)}
+              className="flex size-9 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-foreground lg:hidden"
+              aria-label="Nova conversa"
+            >
+              <NotePencil className="size-5" aria-hidden />
+            </button>
+            {voiceOk.listen ? (
+              <button
+                type="button"
+                onClick={openVoice}
+                className="flex h-9 items-center gap-2 rounded-full bg-primary px-3.5 text-[13px] font-bold text-white shadow-[0_6px_16px_-6px_rgb(103_63_236/0.7)] transition-colors hover:bg-primary-hover"
+                aria-label="Iniciar chamada de voz com o Orbi"
+              >
+                <PhoneCall className="size-4" weight="fill" aria-hidden />
+                <span className="hidden sm:inline">Chamada</span>
+              </button>
+            ) : null}
+          </header>
+
+          <div className="min-h-0 flex-1 overflow-y-auto" aria-live="polite">
+            <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
+              {inactive ? (
+                <Notice tone="warning" title="Assistente desactivado" className="mb-4">
+                  {NOT_ACTIVE}
+                </Notice>
+              ) : null}
+              {opening ? <p className="py-10 text-center text-[13.5px] text-muted">A abrir a conversa…</p> : null}
+              {!opening && visible.length === 0 ? (
+                <div className="flex flex-col items-center pt-4 text-center sm:pt-10">
+                  <OrbiEye ref={eyeBig} size={112} thinking={thinking} />
+                  <h2 className="mt-5 text-[26px] leading-tight font-bold tracking-[-0.02em] sm:text-[30px]">
+                    {first ? `Olá, ${first}.` : "Olá."} Em que posso ajudar?
+                  </h2>
+                  <p className="mt-2 max-w-lg text-[14px] leading-relaxed text-muted">{intro}</p>
+                  <div className="mt-8 grid w-full gap-2.5 sm:grid-cols-2">
                     {suggestions.map((s) => (
                       <button
                         key={s}
                         type="button"
-                        onClick={() => send(s)}
-                        className="cursor-pointer rounded-lg border border-border-strong bg-background px-3.5 py-2 text-left text-[13px] font-medium text-foreground transition-colors hover:bg-surface-2"
+                        onClick={() => void send(s)}
+                        className="rounded-2xl border border-border bg-background px-4 py-3.5 text-left text-[13.5px] leading-snug font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary-soft/40"
                       >
                         {s}
                       </button>
                     ))}
                   </div>
                 </div>
-              ) : (
-                <>
-                <div className="sticky top-0 z-10 -mt-1 flex justify-center pb-1">
-                  <span className="rounded-full bg-background/90 p-1 backdrop-blur">
-                    <OrbiEye ref={orbi} size={56} thinking={busy || voice === "thinking"} />
-                  </span>
-                </div>
-                {visible.map(({ m, i }) => (
-                  <div key={i} data-msg={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
-                    <div
-                      className={cn(
-                        "max-w-[85%] rounded-xl px-4 py-3 text-[14px] leading-relaxed break-words sm:max-w-[75%]",
-                        m.role === "user" ? "rounded-br-[8px] bg-foreground whitespace-pre-wrap text-background" : "rounded-bl-[8px] bg-surface-2 text-foreground",
-                      )}
-                    >
-                      {m.role === "model" ? <RichText text={m.text} /> : m.text}
-                      {m.files?.length ? (
-                        <span className="mt-2 flex flex-wrap gap-1.5">
-                          {m.files.map((f, k) => (
-                            <span key={k} className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-white/15 px-2 py-1 text-[12px] font-medium">
-                              <Paperclip className="size-3.5 shrink-0" aria-hidden />
-                              <span className="truncate">{f.name}</span>
+              ) : null}
+              {!opening ? (
+                <div className="space-y-6">
+                  {visible.map(({ m, i }) =>
+                    m.role === "user" ? (
+                      <div key={i} data-msg={i} className="flex justify-end">
+                        <div className="max-w-[85%] rounded-[20px] rounded-br-md bg-primary-soft px-4 py-2.5 text-[14.5px] leading-relaxed break-words whitespace-pre-wrap text-foreground">
+                          {m.text}
+                          {m.files?.length ? (
+                            <span className="mt-2 flex flex-wrap gap-1.5">
+                              {m.files.map((f, k) => (
+                                <span key={k} className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-background/70 px-2 py-1 text-[12px] font-medium">
+                                  <Paperclip className="size-3.5 shrink-0" aria-hidden />
+                                  <span className="truncate">{f.name}</span>
+                                </span>
+                              ))}
                             </span>
-                          ))}
-                        </span>
-                      ) : null}
-                      {m.role === "model" && m.actions?.length && companyId ? (
-                        <AiActions
-                          ref={i === lastWithActions && !stageOpen ? actionsRef : undefined}
-                          actions={m.actions}
-                          companyId={companyId}
-                          onChange={onActionsChange(i)}
-                        />
-                      ) : null}
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : (
+                      <div key={i} data-msg={i} className="flex gap-3">
+                        <OrbiMark className="mt-0.5" />
+                        <div className="min-w-0 flex-1 text-[14.5px] leading-relaxed break-words text-foreground">
+                          <RichText text={m.text} />
+                          {m.actions?.length && companyId ? (
+                            <AiActions
+                              ref={i === lastWithActions && !stageOpen ? actionsRef : undefined}
+                              actions={m.actions}
+                              companyId={companyId}
+                              onChange={onActionsChange(i)}
+                            />
+                          ) : null}
+                        </div>
+                      </div>
+                    ),
+                  )}
+                  {busy && voice === "off" ? (
+                    <div className="flex items-center gap-3">
+                      <OrbiMark />
+                      <span className="flex gap-1" aria-label="O Orbi está a escrever">
+                        {[0, 1, 2].map((d) => (
+                          <span key={d} className="size-2 animate-bounce rounded-full bg-primary/60" style={{ animationDelay: `${d * 0.15}s` }} />
+                        ))}
+                      </span>
                     </div>
-                  </div>
-                ))}
-                </>
-              )}
-              {busy ? (
-                <div className="flex justify-start">
-                  <div className="inline-flex items-center gap-2.5 rounded-xl rounded-bl-[8px] bg-surface-2 px-4 py-3 text-[13.5px] font-medium text-muted">
-                    <span className="spinner" aria-hidden /> A escrever
-                  </div>
+                  ) : null}
                 </div>
               ) : null}
               <div ref={end} />
             </div>
-            {files.length ? (
-              <ul className="flex flex-wrap gap-2 border-t border-border px-3 pt-3 sm:px-4">
-                {files.map((f, k) => (
-                  <li key={`${f.name}-${k}`} className="flex items-center gap-2 rounded-lg bg-surface-2 py-1.5 pr-1.5 pl-2.5 text-[12.5px]">
-                    <Paperclip className="size-3.5 shrink-0 text-muted" aria-hidden />
-                    <span className="max-w-[200px] truncate font-medium">{f.name}</span>
-                    <span className="text-subtle">{fileSize(f.size)}</span>
-                    <button
-                      type="button"
-                      onClick={() => setFiles((cur) => (filesRef.current = cur.filter((_, j) => j !== k)))}
-                      className="flex size-6 items-center justify-center rounded-md hover:bg-background"
-                      aria-label={`Remover ${f.name}`}
-                    >
-                      <X className="size-3.5" weight="bold" aria-hidden />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
+          </div>
+
+          {/* Caixa de mensagem */}
+          <div className="shrink-0 px-3 pb-[calc(4.75rem+env(safe-area-inset-bottom))] sm:px-6 lg:pb-5">
             <form
-              className="flex items-end gap-2 border-t border-border p-3 sm:p-4"
+              className="mx-auto w-full max-w-3xl rounded-[26px] border border-border bg-background p-2 shadow-[0_10px_30px_-14px_rgb(30_20_80/0.35)] transition-colors focus-within:border-primary/50"
               onSubmit={(e) => {
                 e.preventDefault();
-                void send(input);
+                if (canSend) void send(input);
               }}
             >
-              <Button
-                type="button"
-                variant="ghost"
-                className="shrink-0 px-2.5"
-                onClick={() => fileInput.current?.click()}
-                aria-label="Anexar ficheiro"
-                title="Anexar imagem, PDF ou planilha"
-              >
-                <Paperclip className="size-[18px]" aria-hidden />
-              </Button>
-              <input
-                ref={fileInput}
-                type="file"
-                multiple
-                accept={ACCEPT}
-                className="hidden"
-                onChange={(e) => {
-                  if (e.target.files?.length) void attach(e.target.files);
-                  e.target.value = "";
-                }}
-              />
-              <Textarea
+              {files.length ? (
+                <ul className="flex flex-wrap gap-2 px-2 pt-1 pb-2">
+                  {files.map((f, k) => (
+                    <li key={`${f.name}-${k}`} className="flex items-center gap-2 rounded-xl bg-surface-2 py-1.5 pr-1.5 pl-2.5 text-[12.5px]">
+                      <Paperclip className="size-3.5 shrink-0 text-muted" aria-hidden />
+                      <span className="max-w-[180px] truncate font-medium">{f.name}</span>
+                      <span className="text-subtle">{fileSize(f.size)}</span>
+                      <button
+                        type="button"
+                        onClick={() => setFiles((cur) => (filesRef.current = cur.filter((_, j) => j !== k)))}
+                        className="flex size-6 items-center justify-center rounded-md hover:bg-background"
+                        aria-label={`Remover ${f.name}`}
+                      >
+                        <X className="size-3.5" weight="bold" aria-hidden />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <textarea
+                ref={box}
                 value={input}
                 onChange={(e) => {
                   setInput(e.target.value);
-                  orbi.current?.follow(e.currentTarget);
+                  const el = e.currentTarget;
+                  eyes((o) => o.follow(el));
                 }}
-                onFocus={(e) => orbi.current?.follow(e.currentTarget)}
-                onBlur={() => orbi.current?.follow(null)}
+                onFocus={(e) => {
+                  const el = e.currentTarget;
+                  eyes((o) => o.follow(el));
+                }}
+                onBlur={() => eyes((o) => o.follow(null))}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    void send(input);
+                    if (canSend) void send(input);
                   }
                 }}
-                placeholder="Escreva uma mensagem"
-                className="min-h-11 resize-none"
+                placeholder="Pergunte ou peça ao Orbi"
+                className="block max-h-[180px] min-h-11 w-full resize-none bg-transparent px-3 py-2.5 text-[15px] leading-snug outline-none placeholder:text-subtle"
                 rows={1}
                 maxLength={4000}
                 aria-label="Mensagem"
               />
-              {voiceOk.listen ? (
-                <Button
+              <div className="flex items-center gap-1.5 px-1">
+                <button
                   type="button"
-                  variant="outline"
-                  className="shrink-0"
-                  onClick={openVoice}
-                  aria-label="Falar com o assistente"
+                  onClick={() => fileInput.current?.click()}
+                  className="flex size-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
+                  aria-label="Anexar ficheiro"
+                  title="Anexar imagem, PDF ou planilha"
                 >
-                  <Microphone className="size-[18px]" aria-hidden />
-                  <span className="hidden sm:inline">Falar</span>
-                </Button>
-              ) : null}
-              <Button type="submit" disabled={busy || (!input.trim() && !files.length)} className="shrink-0">
-                Enviar
-              </Button>
-            </form>
-            {voiceOk.speak ? (
-              <label className="flex cursor-pointer items-center gap-2.5 px-4 pb-3 text-[13px] text-muted">
+                  <Paperclip className="size-5" aria-hidden />
+                </button>
                 <input
-                  type="checkbox"
-                  className="size-4 accent-primary"
-                  checked={readAloud}
+                  ref={fileInput}
+                  type="file"
+                  multiple
+                  accept={ACCEPT}
+                  className="hidden"
                   onChange={(e) => {
-                    setReadAloud(e.target.checked);
-                    if (!e.target.checked) stopSpeaking();
-                    try {
-                      localStorage.setItem("horbit-ler-respostas", e.target.checked ? "1" : "0");
-                    } catch {}
+                    if (e.target.files?.length) void attach(e.target.files);
+                    e.target.value = "";
                   }}
                 />
-                Ler as respostas em voz alta
-              </label>
-            ) : null}
-          </section>
-        </div>
+                <span className="flex-1" />
+                {canSend || !voiceOk.listen ? (
+                  <button
+                    type="submit"
+                    disabled={!canSend}
+                    className="flex size-9 items-center justify-center rounded-full bg-foreground text-background transition-opacity disabled:opacity-30"
+                    aria-label="Enviar"
+                  >
+                    <ArrowUp className="size-5" weight="bold" aria-hidden />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={openVoice}
+                    className="flex size-9 items-center justify-center rounded-full bg-primary text-white transition-colors hover:bg-primary-hover"
+                    aria-label="Iniciar chamada de voz com o Orbi"
+                    title="Chamada de voz"
+                  >
+                    <Waveform className="size-5" weight="bold" aria-hidden />
+                  </button>
+                )}
+              </div>
+            </form>
+            <p className="mx-auto mt-2 max-w-3xl px-2 text-center text-[11.5px] text-subtle">
+              O Orbi pode enganar-se. As acções só acontecem quando confirmar.
+            </p>
+          </div>
+        </section>
       </div>
+
+      {/* Histórico (telemóvel) */}
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent title="Conversas" description="Todas as suas conversas com o Orbi.">
+          <div className="-mx-2 flex max-h-[60dvh] flex-col">
+            <button
+              type="button"
+              onClick={() => void open(null)}
+              className="mx-3 mb-3 flex h-10 items-center gap-2.5 rounded-xl border border-border px-3 text-[13.5px] font-bold hover:bg-surface-2"
+            >
+              <NotePencil className="size-[18px]" aria-hidden />
+              Nova conversa
+            </button>
+            {history}
+          </div>
+          <div className="mt-2 border-t border-border pt-2">
+            <MemoryDialog companyId={companyId} trigger={memoryButton} />
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {stageOpen ? (
         <VoiceStage
           ref={stage}

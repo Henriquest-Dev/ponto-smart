@@ -1,13 +1,14 @@
 "use client";
 
+import { ArrowClockwise, ChatCircleDots, PhoneCall, SpeakerHigh, Stop } from "@phosphor-icons/react";
 import Link from "next/link";
 import * as React from "react";
 import { AiActions, askAssistant, NOT_ACTIVE, type AiAction, type AiReply } from "@/components/ai/actions";
 import { RichText } from "@/components/ai/assistant-chat";
 import { OrbiVideo } from "@/components/ai/orbi-eye";
 import { canSpeak, speak, stopSpeaking } from "@/components/ai/voice";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/misc";
+import { cn } from "@/lib/utils";
 
 type Cached = AiReply & { at: string };
 
@@ -74,34 +75,41 @@ export function AiInsights({ companyId, tz }: { companyId: string; tz: string })
 
   if (inactive) return null;
 
+  const iconBtn =
+    "flex size-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-foreground disabled:opacity-40";
   return (
-    <section className="rounded-xl border border-border bg-background p-5 sm:p-6" aria-live="polite">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <OrbiVideo size={44} className="-my-1 shrink-0" label="" />
-          <div className="min-w-0">
-          <h2 className="text-[16px] font-bold">Análise do assistente</h2>
-          <p className="mt-0.5 text-[12.5px] text-muted">
-            {data ? `Feita às ${data.at} com os dados da empresa. As acções só acontecem quando confirmar.` : "O assistente está a rever a assiduidade de hoje."}
-          </p>
-          </div>
+    <section className="overflow-hidden rounded-2xl border border-border bg-background" aria-live="polite">
+      <div className="flex items-center gap-3 border-b border-border bg-[linear-gradient(110deg,rgb(103_63_236/0.08),transparent_60%)] px-4 py-3 sm:px-5">
+        <OrbiVideo size={40} className="shrink-0" label="" />
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[15px] leading-tight font-bold">Orbi</h2>
+          <p className="truncate text-[12.5px] text-muted">{data ? `Análise de hoje, ${data.at}` : loading ? "A analisar…" : "Análise de hoje"}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {ttsOk && data ? (
-            <Button size="sm" variant={speaking ? "primary" : "outline"} onClick={() => void listenSummary()} aria-pressed={speaking}>
-              {speaking ? "Parar" : "Ouvir"}
-            </Button>
-          ) : null}
-          <Button size="sm" variant="outline" onClick={() => void run()} disabled={loading}>
-            {loading ? <span className="spinner" aria-hidden /> : null}
-            Actualizar
-          </Button>
-          <Button size="sm" variant="ghost" asChild>
-            <Link href="/empresa/assistente/">Conversar ou falar</Link>
-          </Button>
-        </div>
+        {ttsOk && data ? (
+          <button
+            type="button"
+            className={cn(iconBtn, speaking && "bg-primary-soft text-primary")}
+            onClick={() => void listenSummary()}
+            aria-pressed={speaking}
+            aria-label={speaking ? "Parar de ouvir" : "Ouvir a análise"}
+            title={speaking ? "Parar" : "Ouvir"}
+          >
+            {speaking ? <Stop className="size-[18px]" weight="fill" aria-hidden /> : <SpeakerHigh className="size-[18px]" aria-hidden />}
+          </button>
+        ) : null}
+        <button type="button" className={iconBtn} onClick={() => void run()} disabled={loading} aria-label="Actualizar a análise" title="Actualizar">
+          <ArrowClockwise className={cn("size-[18px]", loading && "animate-spin")} aria-hidden />
+        </button>
+        <Link
+          href="/empresa/assistente/?voz=1"
+          className="flex h-9 items-center gap-2 rounded-full bg-primary px-3.5 text-[13px] font-bold text-white transition-colors hover:bg-primary-hover"
+          aria-label="Chamada de voz com o Orbi"
+        >
+          <PhoneCall className="size-4" weight="fill" aria-hidden />
+          <span className="hidden sm:inline">Chamada</span>
+        </Link>
       </div>
-      <div className="mt-4 text-[14px] leading-relaxed">
+      <div className="px-4 py-4 text-[14.5px] leading-relaxed sm:px-5">
         {error ? <p className="text-[13.5px] text-muted">{error}</p> : null}
         {!data && loading ? (
           <div className="space-y-2">
@@ -116,6 +124,13 @@ export function AiInsights({ companyId, tz }: { companyId: string; tz: string })
             <AiActions actions={data.actions} companyId={companyId} onChange={(actions: AiAction[]) => save({ ...data, actions })} />
           </>
         ) : null}
+        <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3 text-[12.5px] text-muted">
+          <span>As acções só acontecem quando confirmar.</span>
+          <Link href="/empresa/assistente/" className="inline-flex items-center gap-1.5 font-bold text-primary hover:underline">
+            <ChatCircleDots className="size-4" aria-hidden />
+            Conversar
+          </Link>
+        </div>
       </div>
     </section>
   );

@@ -12,7 +12,7 @@ Controlo de ponto por QR Code e localização, assiduidade, justificações, sal
 Executar por esta ordem (copiar o ficheiro todo, colar, *Run*):
 
 1. `supabase/01_esquema.sql` — tabelas (só numa base vazia; se já correu, saltar).
-2. `supabase/04_parte1.sql` a `supabase/04_parte9.sql`, por esta ordem — login, regras de acesso, funções, Storage, auditoria, assistente do Super Admin, QR Code fixo, marcação por link, assistente como gestor de RH, QR dinâmico e fixo em simultâneo, link de reserva diário, margem do geofence e assistente com acesso a toda a gestão de pessoas. Podem ser executados de novo sempre que forem actualizados.
+2. `supabase/04_parte1.sql` a `supabase/04_parte10.sql`, por esta ordem — login, regras de acesso, funções, Storage, auditoria, assistente do Super Admin, QR Code fixo, marcação por link, assistente como gestor de RH, QR dinâmico e fixo em simultâneo, link de reserva diário, margem do geofence e assistente com acesso a toda a gestão de pessoas e memória do assistente. Podem ser executados de novo sempre que forem actualizados.
 3. Criar o Super Admin (substituir utilizador, nome e palavra-passe):
 
 ```sql

@@ -63,7 +63,8 @@ export function AppShell({ sections, root, subtitle, user, notifications, mobile
           </div>
         </header>
 
-        <main className="relative flex-1 pb-28 lg:pb-0">{children}</main>
+        {/* No assistente o chat ocupa o ecrã todo e trata do espaço da barra inferior. */}
+        <main className={cn("relative flex-1 lg:pb-0", /\/assistente\/?$/.test(pathname) ? "pb-0" : "pb-28")}>{children}</main>
       </div>
 
       {assistantHref ? <AssistantFab href={assistantHref} /> : null}
