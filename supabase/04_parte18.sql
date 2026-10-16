@@ -1,6 +1,6 @@
 -- Horbit, script 4, parte 18: lembretes e agendamentos por email, e envios automáticos a sério.
 -- O Orbi (ou a pessoa) cria lembretes: uma vez, todos os dias, todas as semanas ou todos os meses, por email.
--- Um relógio no próprio Supabase (pg_cron + pg_net) chama a função Ponto-ai de 10 em 10 minutos: envia os lembretes
+-- Um relógio no próprio Supabase (pg_cron + pg_net) chama a função Ponto-ai a cada minuto: envia os lembretes
 -- que chegaram à hora e o resumo mensal de cada empresa, sem depender de alguém abrir o Horbit.
 -- Requer as partes 14 a 16. Pode ser executado de novo sem problema.
 BEGIN;
@@ -174,7 +174,7 @@ DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') AND EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_net') THEN
     PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'horbit-lembretes';
-    PERFORM cron.schedule('horbit-lembretes', '*/10 * * * *', $job$
+    PERFORM cron.schedule('horbit-lembretes', '* * * * *', $job$
       SELECT net.http_post(
         url := 'https://tbblsxwqclpujebzbpiu.supabase.co/functions/v1/Ponto-ai',
         headers := jsonb_build_object('Content-Type', 'application/json', 'x-cron-secret', (SELECT value FROM public.ps_secrets WHERE key = 'cron_secret')),

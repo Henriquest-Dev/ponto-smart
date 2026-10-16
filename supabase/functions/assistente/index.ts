@@ -1250,7 +1250,7 @@ async function monthlyReport(req: Request, body: { companyId?: string; force?: b
 
 const REPEAT_PT: Record<string, string> = { none: "", daily: "todos os dias", weekly: "todas as semanas", monthly: "todos os meses" };
 
-/** Relógio automático (pg_cron, de 10 em 10 minutos): envia os lembretes que chegaram à hora e os resumos mensais. */
+/** Relógio automático (pg_cron, a cada minuto): envia os lembretes que chegaram à hora e os resumos mensais. */
 async function cronRun(req: Request, key: string) {
   const admin = adminClient();
   if (!admin) return json({ error: "Falta a chave de serviço." }, 500);
