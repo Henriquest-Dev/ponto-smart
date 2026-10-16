@@ -312,6 +312,75 @@ BEGIN
                         p_requested, p_request_review, p_note);
 END $$;
 
+-- 7. Assistente da empresa como gestor de RH: mais contexto (equipa, mês de cada pessoa, pendentes com id, auditoria, QR).
+CREATE OR REPLACE FUNCTION ps_ai_context(p_company uuid)
+RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE v_today date; v_month date; v jsonb; v_tz text := ps_company_tz(p_company);
+BEGIN
+  PERFORM ps_require(ps_has_perm(p_company, 'ai.use'), 'Sem acesso ao assistente.');
+  v_today := (now() AT TIME ZONE v_tz)::date;
+  v_month := date_trunc('month', v_today)::date;
+  SELECT jsonb_build_object(
+    'empresa', (SELECT name FROM companies WHERE id = p_company),
+    'hoje', v_today,
+    'horaLocal', to_char(now() AT TIME ZONE v_tz, 'HH24:MI'),
+    'papel', ps_role(p_company),
+    'resumo', ps_company_dashboard(p_company, 30) - 'todayRows' - 'series',
+    'hojeDetalhe', (SELECT jsonb_agg(jsonb_build_object('nome', x ->> 'name', 'estado', x ->> 'status', 'atrasoMin', x ->> 'lateMinutes'))
+                    FROM jsonb_array_elements(ps_company_dashboard(p_company, 7) -> 'todayRows') x),
+    'equipaEsteMes', (SELECT COALESCE(jsonb_agg(jsonb_build_object(
+          'id', e.id, 'nome', e.full_name, 'numero', e.employee_code, 'funcao', e.job_title, 'departamento', d.name,
+          'diasTrabalhados', COALESCE(m.worked_days, 0), 'horasTrabalhadas', round(COALESCE(m.worked, 0) / 60.0, 1),
+          'horasExtra', round(COALESCE(m.overtime, 0) / 60.0, 1), 'diasComAtraso', COALESCE(m.late_days, 0),
+          'minutosAtraso', COALESCE(m.late_min, 0), 'faltasJustificadas', COALESCE(m.justified, 0),
+          'faltasInjustificadas', COALESCE(m.unjustified, 0), 'porRegularizar', COALESCE(m.pending, 0)) ORDER BY e.full_name), '[]')
+        FROM employees e LEFT JOIN departments d ON d.id = e.department_id
+        LEFT JOIN (SELECT employee_id,
+                          count(*) FILTER (WHERE worked_minutes > 0) AS worked_days, sum(worked_minutes) AS worked,
+                          sum(overtime_minutes) AS overtime, count(*) FILTER (WHERE status = 'late') AS late_days,
+                          sum(late_minutes) AS late_min, count(*) FILTER (WHERE status = 'justified') AS justified,
+                          count(*) FILTER (WHERE status = 'unjustified') AS unjustified,
+                          count(*) FILTER (WHERE status IN ('absent_pending', 'incomplete', 'review')) AS pending
+                     FROM attendance_daily WHERE company_id = p_company AND work_date >= v_month GROUP BY employee_id) m
+          ON m.employee_id = e.id
+       WHERE e.company_id = p_company AND e.status = 'active'),
+    'atrasos30dias', (SELECT COALESCE(jsonb_agg(jsonb_build_object('nome', e.full_name, 'dias', t.n, 'minutos', t.m) ORDER BY t.m DESC), '[]')
+                      FROM (SELECT employee_id, count(*) n, sum(late_minutes) m FROM attendance_daily
+                             WHERE company_id = p_company AND status = 'late' AND work_date > v_today - 30 GROUP BY employee_id) t
+                      JOIN employees e ON e.id = t.employee_id),
+    'justificacoesPendentes', (SELECT COALESCE(jsonb_agg(jsonb_build_object('id', a.id, 'nome', e.full_name, 'de', a.start_date, 'ate', a.end_date,
+                                 'tipo', a.type, 'motivo', a.reason,
+                                 'anexos', (SELECT count(*) FROM absence_documents dd WHERE dd.request_id = a.id))), '[]')
+                               FROM absence_requests a JOIN employees e ON e.id = a.employee_id
+                               WHERE a.company_id = p_company AND a.status = 'pending'),
+    'marcacoesEmRevisao', (SELECT COALESCE(jsonb_agg(jsonb_build_object('id', ev.id, 'nome', e.full_name, 'tipo', ev.type,
+                             'quando', to_char(ev.occurred_at AT TIME ZONE v_tz, 'DD/MM HH24:MI'), 'motivo', ev.reason)), '[]')
+                           FROM attendance_events ev JOIN employees e ON e.id = ev.employee_id
+                          WHERE ev.company_id = p_company AND ev.status = 'review'),
+    'qrCode', (SELECT COALESCE(jsonb_agg(jsonb_build_object('estacao', s.name, 'fixo', s.qr_mode = 'static',
+                 'horario', CASE WHEN s.window_start IS NULL THEN 'qualquer hora'
+                                 ELSE to_char(s.window_start, 'HH24:MI') || '–' || to_char(s.window_end, 'HH24:MI') END)), '[]')
+               FROM attendance_stations s WHERE s.company_id = p_company AND s.active),
+    'marcacoesPorLink', (SELECT COALESCE(jsonb_agg(jsonb_build_object('dia', l.work_date, 'das', to_char(l.start_time, 'HH24:MI'),
+                           'as', to_char(l.end_time, 'HH24:MI'), 'motivo', l.note) ORDER BY l.work_date), '[]')
+                         FROM clock_links l WHERE l.company_id = p_company AND l.work_date >= v_today),
+    'auditoriaRecente', CASE WHEN ps_has_perm(p_company, 'audit.view') THEN
+        (SELECT COALESCE(jsonb_agg(jsonb_build_object('quando', to_char(a.created_at AT TIME ZONE v_tz, 'DD/MM HH24:MI'),
+                  'quem', COALESCE(u.name, 'Sistema'), 'accao', a.action,
+                  'sobre', COALESCE(a.after ->> 'full_name', a.after ->> 'name', a.before ->> 'full_name', a.before ->> 'name'))), '[]')
+           FROM (SELECT * FROM audit_log_clean WHERE company_id = p_company ORDER BY created_at DESC LIMIT 25) a
+           LEFT JOIN users u ON u.id = a.actor_id)
+      ELSE NULL END,
+    'salarios', CASE WHEN ps_has_perm(p_company, 'payroll.view') THEN
+        (SELECT jsonb_agg(jsonb_build_object('periodo', p.year || '-' || lpad(p.month::text, 2, '0'), 'estado', p.status,
+                 'execucao', (SELECT jsonb_build_object('versao', r.version, 'estado', r.status, 'totais', r.totals, 'avisos', r.warnings)
+                                FROM payroll_runs r WHERE r.period_id = p.id ORDER BY r.version DESC LIMIT 1)) ORDER BY p.year DESC, p.month DESC)
+           FROM (SELECT * FROM payroll_periods WHERE company_id = p_company ORDER BY year DESC, month DESC LIMIT 3) p)
+      ELSE NULL END
+  ) INTO v;
+  RETURN v;
+END $$;
+
 -- Permissões das funções novas.
 REVOKE ALL ON FUNCTION ps_clock_apply(uuid, uuid, text, boolean, double precision, double precision, double precision, text, text, text, boolean, text) FROM PUBLIC;
 DO $$

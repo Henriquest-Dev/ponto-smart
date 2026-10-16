@@ -1,8 +1,8 @@
 "use client";
 
-import { FunctionsFetchError, FunctionsHttpError, FunctionsRelayError } from "@supabase/supabase-js";
 import * as React from "react";
 import { toast } from "sonner";
+import { AiActions, askAssistant, NOT_ACTIVE, type AiAction, type AiReply } from "@/components/ai/actions";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { Notice } from "@/components/ui/misc";
@@ -10,12 +10,8 @@ import { errorMessage, sb } from "@/lib/sb/client";
 import { useData } from "@/lib/sb/use-data";
 import { cn } from "@/lib/utils";
 
-type Msg = { role: "user" | "model"; text: string };
+type Msg = { role: "user" | "model"; text: string; actions?: AiAction[] };
 type Conversation = { id: string; title: string; messages: Msg[]; updated_at: string };
-
-/** Nome da Edge Function publicada no Supabase (no projecto actual chama-se "Ponto-ai"). */
-const AI_FUNCTION = process.env.NEXT_PUBLIC_AI_FUNCTION ?? "Ponto-ai";
-const NOT_ACTIVE = `O assistente ainda não está activo. Publique a função '${AI_FUNCTION}' no Supabase.`;
 
 export type AssistantScope = { kind: "company"; companyId: string } | { kind: "platform" };
 
@@ -24,37 +20,16 @@ function normalize(raw: unknown): Msg[] {
   if (!Array.isArray(raw)) return [];
   return raw
     .map((m) => {
-      const o = m as { role?: string; text?: string; content?: string };
+      const o = m as { role?: string; text?: string; content?: string; actions?: AiAction[] };
       const text = o.text ?? o.content ?? "";
-      return { role: o.role === "user" ? "user" : "model", text } as Msg;
+      return { role: o.role === "user" ? "user" : "model", text, ...(Array.isArray(o.actions) && o.actions.length ? { actions: o.actions } : {}) } as Msg;
     })
     .filter((m) => m.text);
 }
 
-async function ask(scope: AssistantScope, messages: Msg[]): Promise<string> {
-  const payload = scope.kind === "company" ? { scope: "company", companyId: scope.companyId, messages } : { scope: "platform", messages };
-  const { data, error } = await sb().functions.invoke(AI_FUNCTION, { body: payload });
-  if (error) {
-    if (error instanceof FunctionsHttpError) {
-      const res = error.context as Response | undefined;
-      if (res?.status === 404) throw new Error(NOT_ACTIVE);
-      let detail: string | null = null;
-      try {
-        const j = (await res?.json()) as { error?: string; message?: string } | undefined;
-        detail = j?.error ?? j?.message ?? null;
-      } catch {}
-      if (res?.status === 401 || res?.status === 403) throw new Error(detail ?? "Sem acesso ao assistente.");
-      throw new Error(detail ?? "O assistente não conseguiu responder. Tente novamente.");
-    }
-    if (error instanceof FunctionsRelayError || error instanceof FunctionsFetchError) {
-      throw new Error(`${NOT_ACTIVE} Se já está publicada, verifique a ligação à internet.`);
-    }
-    throw new Error(errorMessage(error));
-  }
-  const d = (data ?? {}) as { reply?: string; error?: string };
-  if (d.error) throw new Error(d.error);
-  if (!d.reply) throw new Error("O assistente não devolveu resposta.");
-  return d.reply;
+async function ask(scope: AssistantScope, messages: Msg[]): Promise<AiReply> {
+  const history = messages.map((m) => ({ role: m.role, text: m.text }));
+  return askAssistant(scope.kind === "company" ? { scope: "company", companyId: scope.companyId, messages: history } : { scope: "platform", messages: history });
 }
 
 /** Conversa com o assistente (empresa ou Super Admin), com histórico guardado por utilizador. */
@@ -117,8 +92,8 @@ export function AssistantChat({
     setInput("");
     setBusy(true);
     try {
-      const reply = await ask(scope, next);
-      const all = [...next, { role: "model" as const, text: reply }];
+      const answer = await ask(scope, next);
+      const all: Msg[] = [...next, { role: "model", text: answer.reply, ...(answer.actions.length ? { actions: answer.actions } : {}) }];
       setMessages(all);
       setInactive(false);
       const id = await persist(cid, all);
@@ -218,6 +193,17 @@ export function AssistantChat({
                       )}
                     >
                       {m.role === "model" ? <RichText text={m.text} /> : m.text}
+                      {m.role === "model" && m.actions?.length && companyId ? (
+                        <AiActions
+                          actions={m.actions}
+                          companyId={companyId}
+                          onChange={(acts) => {
+                            const all = messages.map((x, j) => (j === i ? { ...x, actions: acts } : x));
+                            setMessages(all);
+                            void persist(cid, all);
+                          }}
+                        />
+                      ) : null}
                     </div>
                   </div>
                 ))
@@ -265,7 +251,7 @@ export function AssistantChat({
 }
 
 /** Formatação mínima e segura das respostas (negrito, código e listas), sem HTML arbitrário. */
-function RichText({ text }: { text: string }) {
+export function RichText({ text }: { text: string }) {
   const inline = (line: string) =>
     line.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((part, i) =>
       part.startsWith("**") && part.endsWith("**") ? (

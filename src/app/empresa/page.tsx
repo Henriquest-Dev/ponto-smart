@@ -1,5 +1,6 @@
 "use client";
 
+import { AiInsights } from "@/components/ai/insights";
 import Link from "next/link";
 import { DailyBars, GroupedBars, Legend, SmoothArea } from "@/components/charts/charts";
 import { CHART_COLORS } from "@/components/charts/colors";
@@ -203,6 +204,7 @@ export default function CompanyDashboard() {
     <>
       {header}
       <PageBody>
+        {can("ai.use") ? <AiInsights companyId={companyId} tz={tz} /> : null}
         <TodayOverview
           scheduled={totals.scheduled}
           present={totals.present}
