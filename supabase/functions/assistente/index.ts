@@ -1,7 +1,8 @@
 // Horbit — Edge Function do assistente (Supabase; publicada como "Ponto-ai").
 // Super Admin (scope "platform"): conversa sobre a plataforma.
 // Empresa (scope "company"): gestor de RH — conversa, análise automática (mode "insights") e propostas de acções
-// que o utilizador confirma no ecrã (a função nunca altera dados: só propõe).
+// que o utilizador confirma no ecrã (a função nunca altera dados: só propõe). Mode "notify": avisa o responsável
+// (notificação no Horbit e, se houver RESEND_API_KEY, email).
 // Os dados vêm de ps_ai_platform_context / ps_ai_context com o login do próprio utilizador (as regras de acesso aplicam-se).
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -21,6 +22,7 @@ type Ctx = any;
 const GUIDE_COMPANY = `Como funciona o Horbit (painel da empresa):
 - Painel: quem está presente hoje, atrasos, faltas e gráficos dos últimos 30 dias.
 - QR Code (menu QR Code): código fixo da empresa, impresso na entrada, com horário de validade; o colaborador lê com a câmara e o ponto fica marcado (entrada e depois saída). Marcação por link: em dias especiais, a empresa define dia e horas e aparece um botão "Marcar ponto" no painel dos colaboradores.
+- O assistente pode, com confirmação: cessar ou reactivar colaboradores, editar fichas, criar colaboradores, dar/mudar/retirar acessos, gerar palavras-passe, alterar salários, atribuir horários, exportar planilhas, avisar o responsável e abrir páginas. Também ouve comandos de voz e lê as respostas em voz alta.
 - Colaboradores: criar colaborador (nome, código, horário, salário, utilizador e palavra-passe, papel). Na ficha: dados, histórico salarial, redefinir palavra-passe, desactivar, relatório do mês.
 - Papéis: responsável (owner), administrador, RH, financeiro, supervisor, colaborador.
 - Locais e estações: local com morada e raio (geofence) e estações (ecrã da recepção).
@@ -86,10 +88,147 @@ const TOOLS = [
   },
   {
     name: "abrir_relatorio",
-    description: "Propor abrir o relatório do mês de um colaborador. Usar o id de equipaEsteMes.",
+    description: "Propor abrir o relatório do mês de um colaborador. Usar o id de pessoas.",
     parameters: { type: "OBJECT", properties: { id: { type: "STRING" } }, required: ["id"] },
   },
+  {
+    name: "cessar_colaborador",
+    description: "Demitir / despedir / cessar o contrato de um colaborador: fica Cessado e perde o acesso ao Horbit. O histórico mantém-se. Usar o id de pessoas.",
+    parameters: { type: "OBJECT", properties: { id: { type: "STRING" }, motivo: { type: "STRING" } }, required: ["id"] },
+  },
+  {
+    name: "reactivar_colaborador",
+    description: "Voltar a pôr um colaborador inactivo ou cessado como activo. Usar o id de pessoas.",
+    parameters: { type: "OBJECT", properties: { id: { type: "STRING" } }, required: ["id"] },
+  },
+  {
+    name: "editar_colaborador",
+    description: "Alterar dados da ficha de um colaborador. Enviar só os campos a mudar. Departamento e filial têm de existir na empresa. Usar o id de pessoas.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        id: { type: "STRING" },
+        nome: { type: "STRING" },
+        numero: { type: "STRING", description: "Nº mecanográfico" },
+        funcao: { type: "STRING" },
+        email: { type: "STRING" },
+        telefone: { type: "STRING" },
+        departamento: { type: "STRING" },
+        filial: { type: "STRING" },
+        nuit: { type: "STRING" },
+        admissao: { type: "STRING", description: "Data AAAA-MM-DD" },
+        estado: { type: "STRING", enum: ["activo", "inactivo"] },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "criar_colaborador",
+    description: "Criar um colaborador novo. Se acesso=true, cria também o utilizador do Horbit (a palavra-passe é gerada ao confirmar).",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        nome: { type: "STRING" },
+        numero: { type: "STRING", description: "Nº mecanográfico (opcional; gerado se faltar)" },
+        funcao: { type: "STRING" },
+        email: { type: "STRING" },
+        telefone: { type: "STRING" },
+        departamento: { type: "STRING" },
+        filial: { type: "STRING" },
+        admissao: { type: "STRING", description: "Data AAAA-MM-DD" },
+        horario: { type: "STRING", description: "Nome de um dos horarios" },
+        salario: { type: "NUMBER", description: "Salário base mensal em MZN" },
+        acesso: { type: "BOOLEAN" },
+        papel: { type: "STRING", enum: ["employee", "supervisor", "hr", "finance", "admin"] },
+      },
+      required: ["nome"],
+    },
+  },
+  {
+    name: "dar_acesso",
+    description: "Dar acesso ao Horbit a um colaborador (cria utilizador e palavra-passe) ou mudar o papel de quem já tem acesso. Usar o id de pessoas.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        id: { type: "STRING" },
+        papel: { type: "STRING", enum: ["employee", "supervisor", "hr", "finance", "admin", "owner"] },
+        utilizador: { type: "STRING", description: "Nome de utilizador (opcional)" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "retirar_acesso",
+    description: "Retirar o acesso ao Horbit a um colaborador (a ficha mantém-se). Usar o id de pessoas.",
+    parameters: { type: "OBJECT", properties: { id: { type: "STRING" } }, required: ["id"] },
+  },
+  {
+    name: "nova_palavra_passe",
+    description: "Gerar uma palavra-passe nova para um colaborador que já tem acesso. Usar o id de pessoas.",
+    parameters: { type: "OBJECT", properties: { id: { type: "STRING" } }, required: ["id"] },
+  },
+  {
+    name: "alterar_salario",
+    description: "Definir um novo salário base mensal (MZN) a partir de uma data. Usar o id de pessoas.",
+    parameters: {
+      type: "OBJECT",
+      properties: { id: { type: "STRING" }, valor: { type: "NUMBER" }, desde: { type: "STRING", description: "Data AAAA-MM-DD (por omissão, hoje)" } },
+      required: ["id", "valor"],
+    },
+  },
+  {
+    name: "atribuir_horario",
+    description: "Atribuir um horário de trabalho a um colaborador a partir de uma data. horario = nome de um dos horarios.",
+    parameters: {
+      type: "OBJECT",
+      properties: { id: { type: "STRING" }, horario: { type: "STRING" }, desde: { type: "STRING", description: "Data AAAA-MM-DD" } },
+      required: ["id", "horario"],
+    },
+  },
+  {
+    name: "exportar_planilha",
+    description: "Gerar e descarregar uma planilha Excel: lista de colaboradores ou assiduidade de um mês.",
+    parameters: {
+      type: "OBJECT",
+      properties: { tipo: { type: "STRING", enum: ["colaboradores", "assiduidade"] }, mes: { type: "STRING", description: "AAAA-MM (assiduidade)" } },
+      required: ["tipo"],
+    },
+  },
+  {
+    name: "avisar_responsavel",
+    description: "Enviar um aviso ao responsável (dono) da empresa: notificação no Horbit e email, útil quando ele não está no Horbit.",
+    parameters: { type: "OBJECT", properties: { assunto: { type: "STRING" }, mensagem: { type: "STRING" } }, required: ["assunto", "mensagem"] },
+  },
+  {
+    name: "abrir_pagina",
+    description: "Abrir uma página do Horbit.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        pagina: {
+          type: "STRING",
+          enum: ["painel", "colaboradores", "assiduidade", "revisao", "justificacoes", "horarios", "relatorios", "salarios", "qr", "locais", "auditoria", "definicoes"],
+        },
+      },
+      required: ["pagina"],
+    },
+  },
 ];
+
+const ROLE_PT: Record<string, string> = { employee: "colaborador", supervisor: "supervisor", hr: "RH", finance: "financeiro", admin: "administrador", owner: "responsável" };
+const PAGE_PT: Record<string, string> = {
+  painel: "Painel", colaboradores: "Colaboradores", assiduidade: "Assiduidade", revisao: "Revisão de marcações", justificacoes: "Justificações",
+  horarios: "Horários", relatorios: "Relatórios", salarios: "Salários", qr: "QR Code", locais: "Locais e estações", auditoria: "Auditoria", definicoes: "Definições",
+};
+const isDate = (d: unknown) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d);
+const str = (v: unknown) => (typeof v === "string" ? v.trim() : v == null ? "" : String(v).trim());
+/** Encontra o nome exacto numa lista da empresa (departamentos, filiais, horários), sem distinguir maiúsculas. */
+const pick = (list: unknown, v: unknown) => {
+  const t = str(v).toLowerCase();
+  return t ? ((list as string[] | undefined) ?? []).find((x) => x.toLowerCase() === t || x.toLowerCase().startsWith(t)) ?? null : null;
+};
+const person = (ctx: Ctx, id: unknown) =>
+  (ctx?.pessoas ?? []).find((x: Ctx) => x.id === id) ?? (ctx?.equipaEsteMes ?? []).find((x: Ctx) => x.id === id) ?? null;
 
 const fmtDate = (d: string) => (/^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : d);
 const isTime = (t: unknown) => typeof t === "string" && /^\d{2}:\d{2}$/.test(t);
@@ -135,9 +274,113 @@ function toAction(name: string, args: Record<string, unknown>, ctx: Ctx): Action
     };
   }
   if (name === "abrir_relatorio") {
-    const e = (ctx?.equipaEsteMes ?? []).find((x: Ctx) => x.id === args.id);
+    const e = person(ctx, args.id);
     if (!e) return null;
     return { type: name, label: `Abrir o relatório do mês de ${e.nome}`, args: { id: e.id } };
+  }
+  if (name === "abrir_pagina") {
+    const p = str(args.pagina);
+    return PAGE_PT[p] ? { type: name, label: `Abrir ${PAGE_PT[p]}`, args: { pagina: p } } : null;
+  }
+  if (name === "exportar_planilha") {
+    const tipo = str(args.tipo);
+    if (tipo === "colaboradores") return { type: name, label: "Descarregar a planilha Excel dos colaboradores", args: { tipo } };
+    if (tipo !== "assiduidade") return null;
+    const mes = /^\d{4}-\d{2}$/.test(str(args.mes)) ? str(args.mes) : String(ctx?.hoje ?? "").slice(0, 7);
+    return { type: name, label: `Descarregar a planilha Excel da assiduidade de ${mes.slice(5, 7)}/${mes.slice(0, 4)}`, args: { tipo, mes } };
+  }
+  if (name === "avisar_responsavel") {
+    const assunto = str(args.assunto).slice(0, 150), mensagem = str(args.mensagem).slice(0, 4000);
+    if (!assunto || !mensagem) return null;
+    return { type: name, label: `Avisar o responsável (notificação e email): ${assunto}`, args: { assunto, mensagem } };
+  }
+  if (name === "criar_colaborador") {
+    const nome = str(args.nome);
+    if (nome.length < 3) return null;
+    const papel = ROLE_PT[str(args.papel)] ? str(args.papel) : "employee";
+    const a: Record<string, unknown> = { nome, papel, acesso: args.acesso === true || args.acesso === "true" };
+    for (const k of ["numero", "funcao", "email", "telefone"]) if (str(args[k])) a[k] = str(args[k]);
+    const dep = pick(ctx?.departamentos, args.departamento), fil = pick(ctx?.filiais, args.filial), hor = pick(ctx?.horarios, args.horario);
+    if (dep) a.departamento = dep;
+    if (fil) a.filial = fil;
+    if (hor) a.horario = hor;
+    if (isDate(args.admissao)) a.admissao = args.admissao;
+    const sal = Number(args.salario);
+    if (Number.isFinite(sal) && sal > 0) a.salario = Math.round(sal * 100) / 100;
+    const extra = [a.funcao, dep, a.salario ? `${Number(a.salario).toLocaleString("pt-PT")} MZN` : null].filter(Boolean).join(", ");
+    return {
+      type: name,
+      label: `Criar o colaborador ${nome}${extra ? ` (${extra})` : ""}${a.acesso ? `, com acesso ao Horbit como ${ROLE_PT[papel]}` : ""}`,
+      args: a,
+    };
+  }
+  const p = person(ctx, args.id);
+  if (!p) return null;
+  const nome = p.nome;
+  if (name === "cessar_colaborador") {
+    if (p.estado === "cessado") return null;
+    const motivo = str(args.motivo).slice(0, 300);
+    return { type: name, label: `Cessar o contrato de ${nome} (fica Cessado e perde o acesso ao Horbit)${motivo ? `: ${motivo}` : ""}`, args: { id: p.id, motivo } };
+  }
+  if (name === "reactivar_colaborador") {
+    if (p.estado === "activo") return null;
+    return { type: name, label: `Reactivar ${nome}`, args: { id: p.id } };
+  }
+  if (name === "editar_colaborador") {
+    const fields: [string, string, unknown][] = [
+      ["nome", "nome", p.nome], ["numero", "nº", p.numero], ["funcao", "função", p.funcao], ["email", "email", p.email],
+      ["telefone", "telefone", p.telefone], ["nuit", "NUIT", p.nuit],
+    ];
+    const a: Record<string, unknown> = { id: p.id };
+    const changes: string[] = [];
+    for (const [k, lab, cur] of fields) {
+      const v = str(args[k]);
+      if (v && v !== str(cur)) {
+        a[k] = v;
+        changes.push(`${lab} para ${v}`);
+      }
+    }
+    const dep = pick(ctx?.departamentos, args.departamento);
+    if (dep && dep !== p.departamento) (a.departamento = dep), changes.push(`departamento para ${dep}`);
+    const fil = pick(ctx?.filiais, args.filial);
+    if (fil && fil !== p.filial) (a.filial = fil), changes.push(`filial para ${fil}`);
+    if (isDate(args.admissao) && args.admissao !== p.admissao) (a.admissao = args.admissao), changes.push(`admissão para ${fmtDate(String(args.admissao))}`);
+    const est = str(args.estado);
+    if ((est === "activo" || est === "inactivo") && est !== p.estado) (a.estado = est), changes.push(`estado para ${est}`);
+    if (!changes.length) return null;
+    return { type: name, label: `Alterar a ficha de ${nome}: ${changes.join("; ")}`, args: a };
+  }
+  if (name === "dar_acesso") {
+    const papel = ROLE_PT[str(args.papel)] ? str(args.papel) : (p.papel ?? "employee");
+    if (p.acesso === "sim") {
+      if (papel === p.papel) return null;
+      return { type: name, label: `Mudar o papel de ${nome} para ${ROLE_PT[papel]}`, args: { id: p.id, papel, utilizador: p.utilizador, mudarPapel: true } };
+    }
+    return {
+      type: name,
+      label: `Dar acesso ao Horbit a ${nome} como ${ROLE_PT[papel]} (a palavra-passe é gerada ao confirmar)`,
+      args: { id: p.id, papel, utilizador: str(args.utilizador) || p.utilizador || "" },
+    };
+  }
+  if (name === "retirar_acesso") {
+    if (p.acesso !== "sim") return null;
+    return { type: name, label: `Retirar o acesso ao Horbit a ${nome} (a ficha mantém-se)`, args: { id: p.id } };
+  }
+  if (name === "nova_palavra_passe") {
+    if (p.acesso !== "sim") return null;
+    return { type: name, label: `Gerar uma palavra-passe nova para ${nome}`, args: { id: p.id, utilizador: p.utilizador, papel: p.papel } };
+  }
+  if (name === "alterar_salario") {
+    const valor = Math.round(Number(args.valor) * 100) / 100;
+    if (!Number.isFinite(valor) || valor <= 0) return null;
+    const desde = isDate(args.desde) ? String(args.desde) : String(ctx?.hoje ?? "");
+    return { type: name, label: `Alterar o salário base de ${nome} para ${valor.toLocaleString("pt-PT")} MZN a partir de ${fmtDate(desde)}`, args: { id: p.id, valor, desde } };
+  }
+  if (name === "atribuir_horario") {
+    const hor = pick(ctx?.horarios, args.horario);
+    if (!hor) return null;
+    const desde = isDate(args.desde) ? String(args.desde) : String(ctx?.hoje ?? "");
+    return { type: name, label: `Atribuir o horário ${hor} a ${nome} a partir de ${fmtDate(desde)}`, args: { id: p.id, horario: hor, desde } };
   }
   return null;
 }
@@ -169,6 +412,35 @@ async function proposeDecisions(key: string, model: string, payload: Record<stri
     .slice(0, 6);
 }
 
+/** Aviso ao responsável: notificação no Horbit (sempre) e email através do Resend (se RESEND_API_KEY estiver definido). */
+async function notifyOwner(req: Request, body: { companyId?: string; subject?: string; message?: string }) {
+  if (!body.companyId || !body.subject?.trim() || !body.message?.trim()) return json({ error: "Indique o assunto e a mensagem." }, 400);
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+  });
+  const { data, error } = await supabase.rpc("ps_ai_notify_owner", { p_company: body.companyId, p_subject: body.subject, p_body: body.message });
+  if (error) return json({ error: error.message }, 403);
+  const emails: string[] = data?.emails ?? [];
+  const resend = Deno.env.get("RESEND_API_KEY");
+  let sent = 0;
+  let emailError: string | null = null;
+  if (resend && emails.length) {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${resend}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: Deno.env.get("EMAIL_FROM") ?? "Horbit <onboarding@resend.dev>",
+        to: emails,
+        subject: `[Horbit] ${body.subject.trim()}`,
+        text: `${body.message.trim()}\n\n— Assistente do Horbit, ${data?.company ?? ""}`,
+      }),
+    });
+    if (res.ok) sent = emails.length;
+    else emailError = `O email não foi enviado (${res.status}).`;
+  }
+  return json({ notified: data?.notified ?? 0, emails, sent, emailConfigured: !!resend, emailError });
+}
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 }
@@ -177,15 +449,23 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "Método não suportado." }, 405);
 
-  const key = Deno.env.get("GEMINI_API_KEY");
-  if (!key) return json({ error: "Falta a chave do Gemini (segredo GEMINI_API_KEY) na Edge Function." }, 500);
-
-  let body: { scope?: "company" | "platform"; companyId?: string; messages?: Msg[]; mode?: "chat" | "insights" };
+  let body: {
+    scope?: "company" | "platform";
+    companyId?: string;
+    messages?: Msg[];
+    mode?: "chat" | "insights" | "notify";
+    subject?: string;
+    message?: string;
+  };
   try {
     body = await req.json();
   } catch {
     return json({ error: "Pedido inválido." }, 400);
   }
+  if (body.mode === "notify") return notifyOwner(req, body);
+
+  const key = Deno.env.get("GEMINI_API_KEY");
+  if (!key) return json({ error: "Falta a chave do Gemini (segredo GEMINI_API_KEY) na Edge Function." }, 500);
   const platform = body.scope === "platform";
   const insights = !platform && body.mode === "insights";
   let messages = (body.messages ?? []).filter((m) => m?.text?.trim()).slice(-16);
@@ -210,12 +490,17 @@ Deno.serve(async (req) => {
     ? await supabase.rpc("ps_ai_platform_context")
     : await supabase.rpc("ps_ai_context", { p_company: body.companyId });
   if (error) return json({ error: error.message }, 403);
+  if (!platform) {
+    // Equipa completa, acessos e organização (script 04_parte9.sql); sem ele, o assistente continua com o resto.
+    const extra = await supabase.rpc("ps_ai_context_extra", { p_company: body.companyId });
+    if (!extra.error && extra.data) Object.assign(context, extra.data);
+  }
 
   const system = [
     "És o assistente do Horbit, um sistema de ponto, assiduidade e salários para empresas em Moçambique.",
     platform
       ? "Estás a conversar com o Super Admin da plataforma, que gere as empresas clientes."
-      : "És o gestor de recursos humanos digital desta empresa: acompanhas a assiduidade de cada pessoa, os atrasos, as faltas, as justificações, as marcações em revisão, os salários e a auditoria, e propões acções concretas. Estás a falar com alguém da gestão (responsável, RH, financeiro ou supervisor).",
+      : "És o gestor de recursos humanos digital desta empresa, com acesso a toda a gestão: assiduidade, atrasos, faltas, justificações, marcações em revisão, fichas dos colaboradores, acessos ao Horbit, salários, horários, planilhas e auditoria. Fazes o trabalho: quando te pedem algo, preparas a acção. Estás a falar com alguém da gestão (responsável, RH, financeiro ou supervisor).",
     "Conversa de forma natural e simpática em português de Portugal: cumprimenta, responde a perguntas de seguimento, pede esclarecimento quando a pergunta é ambígua e lembra-te do que já foi dito nesta conversa.",
     "Sê directo e curto. Texto simples; listas com hífen quando ajudar; **negrito** só para números ou nomes importantes. Datas como 15/10 e horas como 07:30.",
     "Para perguntas sobre dados, usa apenas o contexto JSON abaixo. Se o dado não estiver lá, diz que não o tens e indica a página do Horbit onde se vê.",
@@ -226,7 +511,14 @@ Deno.serve(async (req) => {
     "Para perguntas sobre como usar o Horbit, explica os passos com base no guia abaixo.",
     platform
       ? "Não executas acções: não crias contas, não aprovas pedidos nem alteras empresas."
-      : "Tens funções para propor acções: decidir_justificacao, rever_marcacao, criar_marcacao_por_link, definir_horario_qr e abrir_relatorio. Sempre que propões ou o utilizador pede uma destas acções, CHAMA a função na mesma resposta (uma chamada por acção), com os ids do contexto: cada chamada aparece ao utilizador como um botão Confirmar. Não perguntes \"quer que avance?\" nem descrevas a acção só em texto: o botão já é a confirmação. No texto diz em uma frase o que propuseste. Nunca digas que a acção já está feita. Valores em MZN; não calculas taxas legais.",
+      : [
+          "Tens funções para fazer tudo na gestão de pessoas: decidir justificações, rever marcações, cessar (demitir/despedir) ou reactivar colaboradores, editar fichas, criar colaboradores, dar, mudar ou retirar acessos, gerar palavras-passe, alterar salários, atribuir horários, exportar planilhas Excel, avisar o responsável por email e notificação, abrir páginas, marcação por link e horário do QR Code.",
+          "Sempre que o utilizador pede uma destas coisas, CHAMA a função na mesma resposta (uma chamada por acção) com os ids de pessoas; procura a pessoa pelo nome mesmo com erros de escrita e, se houver mais de uma parecida, pergunta qual. Cada chamada aparece como um botão Confirmar (ou é confirmada por voz). Não perguntes \"quer que avance?\": o botão já é a confirmação. Nunca digas que a acção já está feita; diz numa frase o que preparaste.",
+          "Antes de cessar alguém, se não houver motivo, prepara a acção na mesma e menciona que pode indicar o motivo. As palavras-passe são geradas e mostradas só depois de confirmar; nunca inventes palavras-passe.",
+          "As acções correm com as permissões de quem está a falar (minhasPermissoes); se faltar a permissão, explica que o papel dele não permite.",
+          "Se o responsável não entra no Horbit há mais de um dia e há algo urgente, propõe avisar_responsavel.",
+          "As respostas podem ser lidas em voz alta: frases curtas e naturais, sem tabelas. Valores em MZN; não calculas taxas legais.",
+        ].join(" "),
     platform ? GUIDE_PLATFORM : GUIDE_COMPANY,
     `Contexto de dados (${new Date().toISOString().slice(0, 10)}):`,
     JSON.stringify(context),
@@ -253,17 +545,18 @@ Deno.serve(async (req) => {
       const out = await res.json();
       const parts: { text?: string; functionCall?: { name: string; args?: Record<string, unknown> } }[] = out?.candidates?.[0]?.content?.parts ?? [];
       const text = parts.map((p) => p.text ?? "").join("").trim();
+      const seen = new Set<string>();
       const actions = parts
         .filter((p) => p.functionCall)
         .map((p) => toAction(p.functionCall!.name, p.functionCall!.args ?? {}, context))
-        .filter((a): a is Action => !!a)
-        .slice(0, 6);
+        .filter((a): a is Action => !!a && !seen.has(a.label) && !!seen.add(a.label))
+        .slice(0, 10);
       // Na análise automática, se há pendentes e o modelo não propôs botões, pede só as propostas de decisão.
       if (insights && !actions.length && text && (context?.justificacoesPendentes?.length || context?.marcacoesEmRevisao?.length)) {
         actions.push(...(await proposeDecisions(key, model, payload, text, context)));
       }
       if (text || actions.length) {
-        return json({ reply: text || "Proponho o seguinte. Confirme o que quer fazer:", actions, model });
+        return json({ reply: text || "Preparei o seguinte. Confirme para avançar:", actions, model });
       }
       lastError = "O assistente não devolveu resposta.";
       continue;

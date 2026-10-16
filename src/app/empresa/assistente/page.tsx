@@ -7,10 +7,10 @@ import { PageHeader } from "@/components/ui/page-header";
 import { useCompany } from "@/lib/sb/session";
 
 const SUGGESTIONS = [
-  "Olá! Como está a equipa hoje?",
+  "O que se passa agora na empresa?",
   "Quem chegou atrasado mais vezes nos últimos 30 dias?",
-  "Que justificações estão por decidir?",
-  "Como faço para fechar os salários do mês?",
+  "Cria um colaborador novo e dá-lhe acesso",
+  "Faz-me a planilha da assiduidade deste mês",
 ];
 
 export default function AssistantPage() {
@@ -18,13 +18,13 @@ export default function AssistantPage() {
   if (!can("ai.use")) return <NoAccess title="Assistente" />;
   return (
     <>
-      <PageHeader title="Assistente" description="Converse sobre a assiduidade, as justificações e os salários, ou pergunte como usar o Horbit." />
+      <PageHeader title="Assistente" description="O seu gestor de RH: pergunte, peça ou fale. Faz o trabalho e só aplica depois de confirmar." />
       <AiBoundary>
         <AssistantChat
           scope={{ kind: "company", companyId }}
           userId={me.id}
           suggestions={SUGGESTIONS}
-          intro="Uso os dados da empresa que o seu papel permite ver e explico como usar cada página. Não aprovo, não pago e não aplico sanções."
+          intro="Vejo tudo o que o seu papel permite e faço o trabalho por si: decidir justificações, demitir ou reactivar, editar fichas, criar colaboradores e acessos, salários, horários, planilhas e avisos ao responsável. Cada acção só acontece quando confirmar, no botão ou dizendo «confirmar». Toque em Falar para conversar por voz."
         />
       </AiBoundary>
     </>

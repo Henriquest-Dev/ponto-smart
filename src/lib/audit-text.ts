@@ -86,6 +86,7 @@ const EXPLICIT: Record<string, AuditCategory> = {
   "payroll.payment_registered": "Salários",
   "report.exported": "Pessoas",
   "qr.created": "Configuração",
+  "ai.owner_notified": "Configuração",
   "qr.regenerated": "Configuração",
   "qr.window_changed": "Configuração",
   "clock_link.created": "Assiduidade",
@@ -561,6 +562,10 @@ function describeExplicit(row: AuditRowInput, ctx: AuditContext): AuditText | nu
       }
       if (r === "colaboradores") return out(`exportou a lista de colaboradores${after.withSalary === true ? " com salários" : ""}`);
       return out(`exportou um relatório${r ? ` (${r})` : ""}`);
+    }
+    case "ai.owner_notified": {
+      const subject = str(after.subject);
+      return out(`pediu ao assistente para avisar o responsável${subject ? `: ${subject}` : ""}`);
     }
     case "qr.created":
     case "qr.regenerated": {

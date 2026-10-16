@@ -4,6 +4,7 @@ import Link from "next/link";
 import * as React from "react";
 import { AiActions, askAssistant, NOT_ACTIVE, type AiAction, type AiReply } from "@/components/ai/actions";
 import { RichText } from "@/components/ai/assistant-chat";
+import { canSpeak, speak, stopSpeaking } from "@/components/ai/voice";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/misc";
 
@@ -17,6 +18,25 @@ export function AiInsights({ companyId, tz }: { companyId: string; tz: string })
   const [error, setError] = React.useState<string | null>(null);
   const [inactive, setInactive] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
+  const [speaking, setSpeaking] = React.useState(false);
+  const [ttsOk, setTtsOk] = React.useState(false);
+  React.useEffect(() => {
+    setTtsOk(canSpeak());
+    return () => stopSpeaking();
+  }, []);
+
+  /** Lê em voz alta o que se passa agora: a análise e as acções propostas. */
+  const listenSummary = async () => {
+    if (!data) return;
+    if (speaking) {
+      stopSpeaking();
+      return setSpeaking(false);
+    }
+    setSpeaking(true);
+    const pending = data.actions.filter((a) => !a.state).map((a) => a.label);
+    await speak(`${data.reply}${pending.length ? ` Tenho ${pending.length === 1 ? "uma proposta" : `${pending.length} propostas`}: ${pending.join(". ")}.` : ""}`);
+    setSpeaking(false);
+  };
 
   const save = React.useCallback(
     (c: Cached) => {
@@ -62,13 +82,18 @@ export function AiInsights({ companyId, tz }: { companyId: string; tz: string })
             {data ? `Feita às ${data.at} com os dados da empresa. As acções só acontecem quando confirmar.` : "O assistente está a rever a assiduidade de hoje."}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {ttsOk && data ? (
+            <Button size="sm" variant={speaking ? "primary" : "outline"} onClick={() => void listenSummary()} aria-pressed={speaking}>
+              {speaking ? "Parar" : "Ouvir"}
+            </Button>
+          ) : null}
           <Button size="sm" variant="outline" onClick={() => void run()} disabled={loading}>
             {loading ? <span className="spinner" aria-hidden /> : null}
             Actualizar
           </Button>
           <Button size="sm" variant="ghost" asChild>
-            <Link href="/empresa/assistente/">Conversar</Link>
+            <Link href="/empresa/assistente/">Conversar ou falar</Link>
           </Button>
         </div>
       </div>
