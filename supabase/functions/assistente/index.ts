@@ -464,7 +464,7 @@ async function speakText(req: Request, body: { text?: string }) {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "X-Title": "Horbit" },
     body: JSON.stringify({
-      model: Deno.env.get("OPENROUTER_TTS_MODEL") ?? "fish-audio/s2.1-pro-free",
+      model: Deno.env.get("OPENROUTER_TTS_MODEL") ?? "fish-audio/s2.1-pro-free:free",
       input: text,
       ...(voice ? { voice } : {}),
       response_format: "mp3",

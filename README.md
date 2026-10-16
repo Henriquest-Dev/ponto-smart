@@ -32,7 +32,7 @@ Opcional: em *Database → Extensions* activar **pg_cron** e voltar a correr o `
 
 1. *Edge Functions → Deploy a new function → Via Editor*, nome **Ponto-ai** (o nome que o site chama; pode ser outro com `NEXT_PUBLIC_AI_FUNCTION`), colar `supabase/functions/assistente/index.ts`, *Deploy*. Quando o ficheiro mudar, abrir a função, colar a versão nova e *Deploy* outra vez.
 2. *Edge Functions → Secrets*: adicionar `GEMINI_API_KEY` com a chave do Google AI Studio.
-   - Opcional, voz neural do assistente (Fish Audio pelo OpenRouter): `OPENROUTER_API_KEY` (chave em openrouter.ai/keys); opcionais `OPENROUTER_TTS_VOICE` (id de uma voz do fish.audio) e `OPENROUTER_TTS_MODEL` (por omissão `fish-audio/s2.1-pro-free`). Sem a chave, usa-se a voz do navegador.
+   - Opcional, voz neural do assistente (Fish Audio pelo OpenRouter): `OPENROUTER_API_KEY` (chave em openrouter.ai/keys); opcionais `OPENROUTER_TTS_VOICE` (id de uma voz do fish.audio) e `OPENROUTER_TTS_MODEL` (por omissão `fish-audio/s2.1-pro-free:free`). Sem a chave, usa-se a voz do navegador.
    - Opcional, para o assistente enviar emails ao responsável: `RESEND_API_KEY` (conta em resend.com) e `EMAIL_FROM` (ex.: `Horbit <avisos@a-sua-empresa.co.mz>`, com o domínio verificado no Resend). Sem isto, o aviso chega como notificação no Horbit e há um botão para enviar pelo email do próprio utilizador.
 3. O mesmo assistente serve o painel da empresa (*Assistente*) e o Super Admin (*Plataforma → Assistente*).
 
