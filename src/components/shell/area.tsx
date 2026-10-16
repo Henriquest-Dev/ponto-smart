@@ -39,7 +39,7 @@ export function Area({ kind, children }: { kind: Kind; children: React.ReactNode
   const pathname = usePathname();
 
   React.useEffect(() => {
-    if (state.status === "anon" || state.status === "mfa") router.replace(`/login/?next=${encodeURIComponent(pathname)}`);
+    if (state.status === "anon" || state.status === "mfa") router.replace(`/login/?next=${encodeURIComponent(pathname + window.location.search)}`);
     else if (state.status === "ready" && !allowed(kind, state.me, company)) router.replace(homeFor(state.me, company));
   }, [state, company, kind, router, pathname]);
 

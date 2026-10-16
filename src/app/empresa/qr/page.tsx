@@ -23,6 +23,47 @@ type FixedQr = { token: string; station: string; location: string; company: stri
 type ClockLink = { id: string; location_id: string; work_date: string; start_time: string; end_time: string; note: string | null; require_gps: boolean };
 
 const hhmm = (t: string | null) => (t ? t.slice(0, 5) : null);
+const linkUrl = (id: string) => (typeof window === "undefined" ? "" : `${window.location.origin}${withBase(`/app/marcar/?link=${id}`)}`);
+
+/** Link para copiar ou enviar (WhatsApp / partilha do telemóvel). */
+function ShareLink({ url, label, hint, message, compact }: { url: string; label?: string; hint?: string; message: string; compact?: boolean }) {
+  const [copied, setCopied] = React.useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      toast.success("Link copiado.");
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      toast.error("Não foi possível copiar. Seleccione o link e copie manualmente.");
+    }
+  };
+  const canShare = typeof navigator !== "undefined" && "share" in navigator;
+  return (
+    <div className={compact ? "mt-1" : "space-y-1.5"}>
+      {label ? <p className="text-[13.5px] font-bold">{label}</p> : null}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Input readOnly value={url} onFocus={(e) => e.currentTarget.select()} className="h-10 min-w-0 font-mono text-[12.5px] sm:h-9 sm:flex-1" aria-label="Link" />
+        <div className="flex gap-2">
+          <Button size="sm" variant={copied ? "outline" : "primary"} onClick={copy}>
+            {copied ? "Copiado" : "Copiar link"}
+          </Button>
+          <Button size="sm" variant="outline" asChild>
+            <a href={`https://wa.me/?text=${encodeURIComponent(message)}`} target="_blank" rel="noreferrer">
+              Enviar por WhatsApp
+            </a>
+          </Button>
+          {canShare ? (
+            <Button size="sm" variant="ghost" onClick={() => void navigator.share({ text: message }).catch(() => undefined)}>
+              Partilhar
+            </Button>
+          ) : null}
+        </div>
+      </div>
+      {hint ? <p className="text-[12.5px] leading-relaxed text-muted">{hint}</p> : null}
+    </div>
+  );
+}
 
 export default function QrPage() {
   const { can } = useCompany();
@@ -104,6 +145,7 @@ function FixedQrCard({ station, onChanged }: { station: Station; onChanged: () =
   const { company } = useCompany();
   const [qr, setQr] = React.useState<FixedQr | null>(null);
   const [svg, setSvg] = React.useState<string | null>(null);
+  const [url, setUrl] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [always, setAlways] = React.useState(!station.window_start);
@@ -116,6 +158,7 @@ function FixedQrCard({ station, onChanged }: { station: Station; onChanged: () =
         const r = await rpc<FixedQr>("ps_station_fixed_qr", { p_station: station.id, p_new: renew });
         setQr(r);
         const url = `${window.location.origin}${withBase(`/app/marcar/?t=${encodeURIComponent(r.token)}`)}`;
+        setUrl(url);
         const hours = r.windowStart && r.windowEnd ? `Marcações das ${r.windowStart} às ${r.windowEnd}` : "Marque a entrada e a saída aqui";
         setSvg(await brandedQrSvg({ url, company: r.company || company.companyName, subtitle: hours }));
         if (renew) toast.success("Novo QR Code gerado. O anterior deixou de funcionar.");
@@ -189,6 +232,14 @@ function FixedQrCard({ station, onChanged }: { station: Station; onChanged: () =
             </p>
           </div>
           {error ? <Notice tone="danger">{error}</Notice> : null}
+          {url ? (
+            <ShareLink
+              url={url}
+              label="Link do QR Code"
+              hint="Faz o mesmo que ler o QR Code: quem abrir o link entra no Horbit e marca o ponto, dentro do horário e no local de trabalho."
+              message={`Marque o ponto no Horbit (${company.companyName}): ${url}`}
+            />
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <Button onClick={print} disabled={!svg}>
               Imprimir
@@ -316,6 +367,13 @@ function LinksCard({
                 <Button size="sm" variant="ghost" onClick={() => remove(l)}>
                   Remover
                 </Button>
+                <div className="w-full">
+                  <ShareLink
+                    url={linkUrl(l.id)}
+                    compact
+                    message={`Marcação de ponto no Horbit em ${new Date(`${l.work_date}T12:00:00`).toLocaleDateString("pt-PT", { day: "numeric", month: "long" })}, das ${hhmm(l.start_time)} às ${hhmm(l.end_time)}: ${linkUrl(l.id)}`}
+                  />
+                </div>
               </li>
             ))}
           </ul>
