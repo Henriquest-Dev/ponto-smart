@@ -3,6 +3,7 @@
 import { CheckCircle, WarningCircle } from "@phosphor-icons/react";
 import * as React from "react";
 import { toast } from "sonner";
+import { RemindersCard } from "@/components/mail/reminders";
 import { sendMail } from "@/components/mail/send";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,6 +64,7 @@ export default function EmailsPage() {
             </div>
           </CardContent>
         </Card>
+        <RemindersCard companyId={null} />
         <Card>
           <CardHeader>
             <CardTitle>O que o Horbit envia sozinho</CardTitle>

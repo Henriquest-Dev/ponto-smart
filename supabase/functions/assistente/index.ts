@@ -42,6 +42,7 @@ const GUIDE_COMPANY = `Como funciona o Horbit (painel da empresa):
 - Justificações: o colaborador pede com anexo; supervisor e/ou RH aprovam ou recusam com fundamento.
 - Relatórios: relatório por colaborador (mês dia a dia) e exportação em Excel.
 - Salários: fechar a assiduidade, gerar o pré-processamento, outra pessoa aprova, emitir recibos, registar pagamentos.
+- Lembretes: o Orbi cria lembretes e agendamentos que chegam por email à hora marcada (uma vez, todos os dias, semanas ou meses); vêem-se e apagam-se em Comunicados.
 - Comunicados: escrever um email aos colaboradores (todos, um departamento ou pessoas escolhidas); sai em nome do Horbit, com os dados da empresa. Lá também se liga o resumo mensal do Orbi, que vai por email no início de cada mês.
 - Auditoria: quem fez o quê e quando.`;
 
@@ -216,6 +217,22 @@ const TOOLS = [
     },
   },
   {
+    name: "criar_lembrete",
+    description:
+      "Criar um lembrete ou agendamento que o Horbit envia por email automaticamente (uma vez ou a repetir). quando = dia e hora locais AAAA-MM-DDTHH:MM. Sem destinatários, vai para o email do responsável.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        titulo: { type: "STRING" },
+        mensagem: { type: "STRING", description: "Texto do email do lembrete, completo." },
+        quando: { type: "STRING", description: "AAAA-MM-DDTHH:MM (hora de Maputo)" },
+        repetir: { type: "STRING", enum: ["nenhum", "diario", "semanal", "mensal"] },
+        emails: { type: "ARRAY", items: { type: "STRING" }, description: "Destinatários (opcional)" },
+      },
+      required: ["titulo", "quando"],
+    },
+  },
+  {
     name: "enviar_resumo_mensal",
     description: "Enviar já, por email, o resumo do mês passado (o Orbi escreve-o) ao email da empresa e dos responsáveis.",
     parameters: { type: "OBJECT", properties: {} },
@@ -296,6 +313,22 @@ const PLATFORM_TOOLS = [
     parameters: { type: "OBJECT", properties: { id: { type: "STRING" }, motivo: { type: "STRING" } }, required: ["id", "motivo"] },
   },
   {
+    name: "criar_lembrete",
+    description:
+      "Criar um lembrete ou agendamento que o Horbit envia por email automaticamente (uma vez ou a repetir). quando = dia e hora locais AAAA-MM-DDTHH:MM. Sem destinatários, vai para o email do responsável.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        titulo: { type: "STRING" },
+        mensagem: { type: "STRING", description: "Texto do email do lembrete, completo." },
+        quando: { type: "STRING", description: "AAAA-MM-DDTHH:MM (hora de Maputo)" },
+        repetir: { type: "STRING", enum: ["nenhum", "diario", "semanal", "mensal"] },
+        emails: { type: "ARRAY", items: { type: "STRING" }, description: "Destinatários (opcional)" },
+      },
+      required: ["titulo", "quando"],
+    },
+  },
+  {
     name: "abrir_pagina_plataforma",
     description: "Abrir uma página do painel do Super Admin.",
     parameters: {
@@ -310,7 +343,24 @@ const STATUS_PT: Record<string, string> = { active: "Reactivar", suspended: "Sus
 const isEmail = (e: unknown) => typeof e === "string" && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e.trim());
 
 /** Acções do Super Admin: valida contra o contexto da plataforma e escreve o texto do botão. */
+const REPEAT_ARG: Record<string, string> = { nenhum: "none", diario: "daily", semanal: "weekly", mensal: "monthly" };
+
+function reminderAction(args: Record<string, unknown>): Action | null {
+  const titulo = str(args.titulo).slice(0, 150);
+  const quando = str(args.quando).slice(0, 16);
+  if (!titulo || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(quando)) return null;
+  const repeat = REPEAT_ARG[str(args.repetir)] ?? "none";
+  const emails = ((args.emails as unknown[]) ?? []).filter(isEmail).map((e) => String(e).trim().toLowerCase());
+  const when = `${quando.slice(8, 10)}/${quando.slice(5, 7)} às ${quando.slice(11, 16)}`;
+  return {
+    type: "criar_lembrete",
+    label: `Lembrete "${titulo}" por email ${repeat === "none" ? `a ${when}` : `${REPEAT_PT[repeat]}, a começar a ${when}`}${emails.length ? ` para ${emails.join(", ")}` : ""}`,
+    args: { title: titulo, message: str(args.mensagem) || titulo, when: quando, repeat, recipients: emails },
+  };
+}
+
 function toPlatformAction(name: string, args: Record<string, unknown>, ctx: Ctx): Action | null {
+  if (name === "criar_lembrete") return reminderAction(args);
   const company = (id: unknown) => (ctx?.empresas ?? []).find((c: Ctx) => c.id === id) ?? null;
   const request = (id: unknown) => (ctx?.pedidosDeConta ?? []).find((r: Ctx) => r.id === id) ?? null;
   if (name === "enviar_email_plataforma") {
@@ -564,6 +614,7 @@ function toAction(name: string, args: Record<string, unknown>, ctx: Ctx): Action
     };
   }
   if (name === "enviar_resumo_mensal") return { type: name, label: "Enviar agora por email o resumo do mês passado", args: {} };
+  if (name === "criar_lembrete") return reminderAction(args);
   if (name === "resumo_mensal_automatico") {
     const on = args.ligado === true || args.ligado === "true";
     return { type: name, label: on ? "Ligar o envio automático do resumo mensal por email" : "Desligar o envio automático do resumo mensal", args: { ligado: on } };
@@ -1145,14 +1196,41 @@ ${link ? `<p style="margin:24px 0 8px"><a href="${esc(link)}" style="display:inl
   return { subject: `${c.name}: ${title}`, html, text };
 }
 
+const SITE_URL = Deno.env.get("SITE_URL") || "https://pontosmart-01.netlify.app";
+
+function adminClient() {
+  const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  return service ? createClient(Deno.env.get("SUPABASE_URL")!, service, { auth: { persistSession: false } }) : null;
+}
+
+/** Junta os números, o Orbi escreve, envia e regista. Uma vez por mês (ou sempre, se force). */
+// deno-lint-ignore no-explicit-any
+async function sendMonthly(admin: any, companyId: string, month: string, force: boolean, key: string, origin: string) {
+  const s = await admin.rpc("ps_month_summary", { p_company: companyId, p_month: month });
+  if (s.error || !s.data) return { error: s.error?.message ?? "Sem dados do mês." };
+  const sum = s.data;
+  const to: string[] = sum.recipients ?? [];
+  if (!to.length) return { skipped: true, error: "A empresa não tem email registado (nem os responsáveis)." };
+  const claim = await admin.rpc("ps_monthly_report_claim", { p_company: companyId, p_month: month, p_recipients: to, p_force: force });
+  if (claim.error) return { error: claim.error.message };
+  if (!claim.data) return { skipped: true };
+  const narrative = await orbiNarrative(key, sum);
+  const mail = reportEmail(sum, narrative, `${origin || SITE_URL}/empresa/`);
+  const r = await deliver({ to, subject: mail.subject, text: mail.text, html: mail.html, replyTo: sum.company?.email ?? undefined });
+  if (!r.ok) {
+    await admin.rpc("ps_monthly_report_failed", { p_company: companyId, p_month: month });
+    return { error: r.error };
+  }
+  return { sent: to.length, to, month };
+}
+
 async function monthlyReport(req: Request, body: { companyId?: string; force?: boolean }, key: string) {
   if (!body.companyId) return json({ error: "Empresa em falta." }, 400);
-  const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!service) return json({ error: "Falta a chave de serviço na Edge Function." }, 500);
+  const admin = adminClient();
+  if (!admin) return json({ error: "Falta a chave de serviço na Edge Function." }, 500);
   const user = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
     global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
   });
-  const admin = createClient(Deno.env.get("SUPABASE_URL")!, service, { auth: { persistSession: false } });
   let month: string;
   if (body.force) {
     const st = await user.rpc("ps_monthly_report_status", { p_company: body.companyId });
@@ -1164,23 +1242,47 @@ async function monthlyReport(req: Request, body: { companyId?: string; force?: b
     if (!due.data) return json({ skipped: true });
     month = String(due.data);
   }
-  const s = await admin.rpc("ps_month_summary", { p_company: body.companyId, p_month: month });
-  if (s.error || !s.data) return json({ error: s.error?.message ?? "Sem dados do mês." }, 500);
-  const sum = s.data;
-  const to: string[] = sum.recipients ?? [];
-  if (!to.length) return json({ skipped: true, error: "A empresa não tem email registado (nem os responsáveis)." }, body.force ? 400 : 200);
-  const claim = await admin.rpc("ps_monthly_report_claim", { p_company: body.companyId, p_month: month, p_recipients: to, p_force: !!body.force });
-  if (claim.error) return json({ error: claim.error.message }, 500);
-  if (!claim.data) return json({ skipped: true });
-  const narrative = await orbiNarrative(key, sum);
-  const origin = req.headers.get("origin") ?? "";
-  const mail = reportEmail(sum, narrative, origin ? `${origin}/empresa/` : "");
-  const r = await deliver({ to, subject: mail.subject, text: mail.text, html: mail.html, replyTo: sum.company?.email ?? undefined });
-  if (!r.ok) {
-    await admin.rpc("ps_monthly_report_failed", { p_company: body.companyId, p_month: month });
-    return json({ error: r.error }, 502);
+  const r = await sendMonthly(admin, body.companyId, month, !!body.force, key, req.headers.get("origin") ?? "");
+  if (r.error && !r.skipped) return json({ error: r.error }, 502);
+  if (r.error && body.force) return json({ error: r.error }, 400);
+  return json(r);
+}
+
+const REPEAT_PT: Record<string, string> = { none: "", daily: "todos os dias", weekly: "todas as semanas", monthly: "todos os meses" };
+
+/** Relógio automático (pg_cron, de 10 em 10 minutos): envia os lembretes que chegaram à hora e os resumos mensais. */
+async function cronRun(req: Request, key: string) {
+  const admin = adminClient();
+  if (!admin) return json({ error: "Falta a chave de serviço." }, 500);
+  const secret = await admin.rpc("ps_cron_secret");
+  if (!secret.data || req.headers.get("x-cron-secret") !== secret.data) return json({ error: "Proibido." }, 403);
+  const cfg = await mailConfig();
+  const due = await admin.rpc("ps_reminders_take_due");
+  let reminders = 0;
+  for (const r of (due.data ?? []) as { id: string; companyId: string | null; title: string; message: string; recipients: string[]; repeat: string }[]) {
+    const to = r.recipients?.length ? r.recipients : cfg.smtpUser ? [cfg.smtpUser] : [];
+    if (!to.length) {
+      await admin.rpc("ps_reminder_failed", { p_id: r.id, p_error: "Sem destinatário." });
+      continue;
+    }
+    const company = await companyInfo(admin, r.companyId);
+    const content = mailBody({
+      title: r.title,
+      paragraphs: r.message.split(/\n{2,}/),
+      company,
+      footer: `Lembrete do Orbi${REPEAT_PT[r.repeat] ? `, enviado ${REPEAT_PT[r.repeat]}` : ""}. Pode apagá-lo no Horbit, em Comunicados${r.companyId ? "" : " (Plataforma → Emails)"}.`,
+    });
+    const res = await deliver({ to, subject: `Lembrete: ${r.title}`, ...content, replyTo: company?.email ?? undefined });
+    if (res.ok) reminders++;
+    else await admin.rpc("ps_reminder_failed", { p_id: r.id, p_error: res.error ?? "Falhou." });
   }
-  return json({ sent: to.length, to, month });
+  let reports = 0;
+  const pending = await admin.rpc("ps_monthly_reports_due");
+  for (const c of ((pending.data ?? []) as { companyId: string; month: string }[]).slice(0, 5)) {
+    const r = await sendMonthly(admin, c.companyId, c.month, false, key, SITE_URL);
+    if (r.sent) reports++;
+  }
+  return json({ reminders, reports });
 }
 
 /** Estado do envio (painel do Super Admin): testa a ligação ao Apps Script. */
@@ -1343,7 +1445,7 @@ Deno.serve(async (req) => {
     scope?: "company" | "platform";
     companyId?: string;
     messages?: Msg[];
-    mode?: "chat" | "insights" | "notify" | "speak" | "memorize" | "mail" | "mail_status" | "monthly_report";
+    mode?: "chat" | "insights" | "notify" | "speak" | "memorize" | "mail" | "mail_status" | "monthly_report" | "cron";
     force?: boolean;
     explicit?: string;
     voice?: boolean | string;
@@ -1366,6 +1468,7 @@ Deno.serve(async (req) => {
   if (!key) return json({ error: "Falta a chave do Gemini (segredo GEMINI_API_KEY) na Edge Function." }, 500);
   if (body.mode === "memorize") return memorize(req, body, key);
   if (body.mode === "monthly_report") return monthlyReport(req, body, key);
+  if (body.mode === "cron") return cronRun(req, key);
   const platform = body.scope === "platform";
   const insights = !platform && body.mode === "insights";
   let messages = (body.messages ?? []).filter((m) => m?.text?.trim()).slice(-16);
@@ -1424,12 +1527,12 @@ Deno.serve(async (req) => {
     "O utilizador pode anexar ficheiros (imagens, PDF, planilhas Excel/CSV, texto): lê-os com atenção e responde sobre eles. Se pedir para registar o que está no ficheiro (por exemplo criar os colaboradores de uma planilha ou um atestado para uma justificação), usa as funções, uma chamada por pessoa ou acção.",
     platform
       ? [
-          "És o gestor da plataforma: fazes o trabalho do Super Admin. Tens funções para enviar emails em nome do Horbit, pedir dados a quem pediu acesso, criar empresas (as credenciais seguem por email), recusar pedidos, suspender, reactivar ou cancelar empresas, gerar nova palavra-passe do responsável e abrir páginas.",
+          "És o gestor da plataforma: fazes o trabalho do Super Admin. Tens funções para enviar emails em nome do Horbit, pedir dados a quem pediu acesso, criar empresas (as credenciais seguem por email), recusar pedidos, suspender, reactivar ou cancelar empresas, gerar nova palavra-passe do responsável, criar lembretes e agendamentos por email (uma vez ou a repetir; sem destinatário vão para o email do Horbit) e abrir páginas.",
           "Sempre que o Super Admin pede uma destas coisas, CHAMA a função na mesma resposta (uma chamada por acção), com os ids do contexto. Cada chamada aparece como um botão Confirmar (ou confirma-se por voz). Não perguntes \"quer que avance?\"; diz numa frase o que preparaste. Nunca digas que já está feito.",
           "Para emails, escreve tu um assunto claro e a mensagem completa, educada e em português de Portugal, assinada como Equipa Horbit.",
         ].join(" ")
       : [
-          "Tens funções para fazer tudo na gestão de pessoas: decidir justificações, rever marcações, cessar (demitir/despedir) ou reactivar colaboradores, editar fichas, criar colaboradores, dar, mudar ou retirar acessos, gerar palavras-passe, alterar salários, atribuir horários, exportar planilhas Excel, avisar o responsável por email e notificação, enviar emails aos colaboradores (em nome do Horbit, com os dados da empresa), enviar já o resumo do mês e ligar ou desligar o resumo mensal automático, abrir páginas e horário do QR Code fixo.",
+          "Tens funções para fazer tudo na gestão de pessoas: decidir justificações, rever marcações, cessar (demitir/despedir) ou reactivar colaboradores, editar fichas, criar colaboradores, dar, mudar ou retirar acessos, gerar palavras-passe, alterar salários, atribuir horários, exportar planilhas Excel, avisar o responsável por email e notificação, enviar emails aos colaboradores (em nome do Horbit, com os dados da empresa), enviar já o resumo do mês e ligar ou desligar o resumo mensal automático, criar lembretes e agendamentos por email (uma vez ou a repetir), abrir páginas e horário do QR Code fixo.",
           "Para emails, escreve tu um assunto claro e a mensagem completa e bem redigida em português de Portugal, assinada com o nome da empresa; não peças ao utilizador para escrever o texto.",
           "Sempre que o utilizador pede uma destas coisas, CHAMA a função na mesma resposta (uma chamada por acção) com os ids de pessoas; procura a pessoa pelo nome mesmo com erros de escrita e, se houver mais de uma parecida, pergunta qual. Cada chamada aparece como um botão Confirmar (ou é confirmada por voz). Não perguntes \"quer que avance?\": o botão já é a confirmação. Nunca digas que a acção já está feita; diz numa frase o que preparaste.",
           "Antes de cessar alguém, se não houver motivo, prepara a acção na mesma e menciona que pode indicar o motivo. As palavras-passe são geradas e mostradas só depois de confirmar; nunca inventes palavras-passe.",
@@ -1445,6 +1548,7 @@ Deno.serve(async (req) => {
       ? `O que já sabes desta pessoa (memória de conversas anteriores; usa com naturalidade quando for útil, sem a recitar):\n${memory.map((m) => `- ${m}`).join("\n")}`
       : "",
     history.length ? `Conversas anteriores desta pessoa contigo (data e assunto):\n${history.join("\n")}` : "",
+    `Agora em Maputo: ${new Intl.DateTimeFormat("pt-PT", { timeZone: "Africa/Maputo", dateStyle: "full", timeStyle: "short" }).format(new Date())} (${new Intl.DateTimeFormat("sv-SE", { timeZone: "Africa/Maputo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date()).replace(" ", "T")}). Usa isto para \"amanhã\", \"daqui a uma hora\", \"todos os dias 25\", etc.`,
     `Contexto de dados (${new Date().toISOString().slice(0, 10)}):`,
     JSON.stringify(context),
   ]

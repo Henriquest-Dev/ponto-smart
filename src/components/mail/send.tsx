@@ -107,21 +107,15 @@ export function CredentialsMail({
         </span>
       </p>
     );
-  const body = `Olá ${name.split(" ")[0]},\n\nO seu acesso ao Horbit${company ? ` (${company})` : ""}:\n\nEndereço: ${loginUrl()}\nUtilizador: ${login}\nPalavra-passe: ${password}\n\nDepois de entrar, mude a palavra-passe em Conta > Segurança.`;
   return (
     <div className="space-y-2 rounded-lg bg-warning-soft px-3 py-2.5 text-[13px] text-[#6f4100]">
       <p className="flex items-start gap-2">
         <WarningCircle className="mt-0.5 size-4 shrink-0" weight="fill" aria-hidden />
-        <span>{state.notConfigured ? "O envio automático de emails ainda não está configurado (Plataforma → Emails)." : `O email para ${email} não foi enviado: ${state.error}`}</span>
+        <span>{`O email para ${email} não foi enviado: ${state.notConfigured || /Escreva uma mensagem/.test(state.error) ? "a função de email do servidor ainda não foi actualizada." : state.error}`}</span>
       </p>
       <div className="flex flex-wrap gap-2">
-        {!state.notConfigured ? (
-          <Button size="sm" variant="outline" onClick={() => void send()}>
-            Tentar de novo
-          </Button>
-        ) : null}
-        <Button size="sm" variant="outline" asChild>
-          <a href={mailtoHref(email, `Horbit: o seu acesso${company ? ` à ${company}` : ""}`, body)}>Enviar pelo meu email</a>
+        <Button size="sm" variant="outline" onClick={() => void send()}>
+          Tentar de novo
         </Button>
       </div>
     </div>

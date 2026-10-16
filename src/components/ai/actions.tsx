@@ -307,6 +307,9 @@ async function execute(a: AiAction, env: Env): Promise<Outcome> {
       const r = await invoke<{ sent?: number; to?: string[]; month?: string }>({ mode: "monthly_report", companyId: env.companyId, force: true });
       return { message: `Resumo do mês enviado para ${(r.to ?? []).join(", ")}.` };
     }
+    case "criar_lembrete":
+      await rpc("ps_reminder_save", { p_company: env.companyId, p: g });
+      return { message: "Lembrete criado: chega por email à hora marcada." };
     case "resumo_mensal_automatico":
       await rpc("ps_monthly_report_set", { p_company: env.companyId, p_enabled: g.ligado === true });
       return { message: g.ligado === true ? "Resumo mensal automático ligado: vai por email no início de cada mês." : "Resumo mensal automático desligado." };
@@ -375,6 +378,9 @@ async function executePlatform(a: AiAction, go: (href: string) => void): Promise
     case "recusar_pedido":
       await rpc("ps_admin_reject_request", { p_request: g.id, p_reason: s(g.motivo) });
       return { message: "Pedido recusado." };
+    case "criar_lembrete":
+      await rpc("ps_reminder_save", { p_company: null, p: g });
+      return { message: "Lembrete criado: chega por email à hora marcada." };
     case "abrir_pagina_plataforma":
       go(PLATFORM_PAGES[s(g.pagina)] ?? "/admin/");
       return { message: "" };
@@ -478,7 +484,7 @@ export const AiActions = React.forwardRef<
               <div className="mt-2.5 flex gap-2">
                 <Button size="sm" disabled={busy !== null} onClick={() => void run(i)}>
                   {busy === i ? <span className="spinner" aria-hidden /> : null}
-                  {a.type.startsWith("abrir_") ? "Abrir" : a.type === "exportar_planilha" ? "Descarregar" : /email|resumo_mensal$|pedir_dados/.test(a.type) ? "Enviar" : "Confirmar"}
+                  {a.type.startsWith("abrir_") ? "Abrir" : a.type === "exportar_planilha" ? "Descarregar" : /email|resumo_mensal$|pedir_dados/.test(a.type) ? "Enviar" : a.type === "criar_lembrete" ? "Agendar" : "Confirmar"}
                 </Button>
                 <Button size="sm" variant="ghost" disabled={busy !== null} onClick={() => mark(i, "skipped")}>
                   Ignorar

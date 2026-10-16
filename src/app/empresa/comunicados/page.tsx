@@ -4,6 +4,7 @@ import * as React from "react";
 import { toast } from "sonner";
 import { ErrorBlock, LoadingBlock, NoAccess } from "@/components/company/p2-shared";
 import { useTitle } from "@/components/collab/shared";
+import { RemindersCard } from "@/components/mail/reminders";
 import { sendMail } from "@/components/mail/send";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -80,6 +81,7 @@ function Messages() {
       />
       <PageBody className="max-w-4xl">
         <MonthlyReportCard />
+        <RemindersCard companyId={companyId} tz={company.timezone} />
         {data.error ? <ErrorBlock message={data.error} /> : null}
         {!data.data && !data.error ? <LoadingBlock rows={4} /> : null}
         {done ? (
