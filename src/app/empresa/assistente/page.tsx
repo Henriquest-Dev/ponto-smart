@@ -1,5 +1,6 @@
 "use client";
 
+import { AiBoundary } from "@/components/ai/ai-boundary";
 import { AssistantChat } from "@/components/ai/assistant-chat";
 import { NoAccess } from "@/components/company/p2-shared";
 import { PageHeader } from "@/components/ui/page-header";
@@ -18,12 +19,14 @@ export default function AssistantPage() {
   return (
     <>
       <PageHeader title="Assistente" description="Converse sobre a assiduidade, as justificações e os salários, ou pergunte como usar o Horbit." />
-      <AssistantChat
-        scope={{ kind: "company", companyId }}
-        userId={me.id}
-        suggestions={SUGGESTIONS}
-        intro="Uso os dados da empresa que o seu papel permite ver e explico como usar cada página. Não aprovo, não pago e não aplico sanções."
-      />
+      <AiBoundary>
+        <AssistantChat
+          scope={{ kind: "company", companyId }}
+          userId={me.id}
+          suggestions={SUGGESTIONS}
+          intro="Uso os dados da empresa que o seu papel permite ver e explico como usar cada página. Não aprovo, não pago e não aplico sanções."
+        />
+      </AiBoundary>
     </>
   );
 }

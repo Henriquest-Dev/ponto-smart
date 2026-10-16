@@ -1,5 +1,6 @@
 "use client";
 
+import { AiBoundary } from "@/components/ai/ai-boundary";
 import { AssistantChat } from "@/components/ai/assistant-chat";
 import { PageHeader } from "@/components/ui/page-header";
 import { useSession } from "@/lib/sb/session";
@@ -17,12 +18,14 @@ export default function AdminAssistantPage() {
   return (
     <>
       <PageHeader title="Assistente" description="Converse sobre as empresas, os pedidos de acesso e a actividade da plataforma." />
-      <AssistantChat
-        scope={{ kind: "platform" }}
-        userId={state.me.id}
-        suggestions={SUGGESTIONS}
-        intro="Uso o resumo da plataforma: empresas, pedidos de acesso, actividade e auditoria. Não vejo salários das empresas e não executo acções."
-      />
+      <AiBoundary>
+        <AssistantChat
+          scope={{ kind: "platform" }}
+          userId={state.me.id}
+          suggestions={SUGGESTIONS}
+          intro="Uso o resumo da plataforma: empresas, pedidos de acesso, actividade e auditoria. Não vejo salários das empresas e não executo acções."
+        />
+      </AiBoundary>
     </>
   );
 }

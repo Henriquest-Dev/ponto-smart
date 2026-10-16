@@ -8,7 +8,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
   return (
     <html lang="pt-PT" translate="no">
       <body>
-        <ErrorScreen message={error.message} onRetry={reset} />
+        <ErrorScreen error={error} onRetry={reset} />
       </body>
     </html>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { AiBoundary } from "@/components/ai/ai-boundary";
 import { AiInsights } from "@/components/ai/insights";
 import Link from "next/link";
 import { DailyBars, GroupedBars, Legend, SmoothArea } from "@/components/charts/charts";
@@ -204,7 +205,11 @@ export default function CompanyDashboard() {
     <>
       {header}
       <PageBody>
-        {can("ai.use") ? <AiInsights companyId={companyId} tz={tz} /> : null}
+        {can("ai.use") ? (
+          <AiBoundary>
+            <AiInsights companyId={companyId} tz={tz} />
+          </AiBoundary>
+        ) : null}
         <TodayOverview
           scheduled={totals.scheduled}
           present={totals.present}
