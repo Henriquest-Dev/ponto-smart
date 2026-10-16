@@ -49,6 +49,7 @@ export function Area({ kind, children }: { kind: Kind; children: React.ReactNode
   }, [state, company, kind, router, pathname]);
 
   const notifications = useNotifications(kind !== "admin" ? company?.companyId ?? null : null, company?.timezone);
+  useMonthlyReport(kind !== "admin" && state.status === "ready" ? company?.companyId ?? null : null);
 
   if (state.status === "error") {
     return (
@@ -185,6 +186,29 @@ function companyNav(can: (...p: string[]) => boolean, company: Membership | null
     if (item && tabs.length < 4) tabs.push({ ...item, children: undefined, label: item.label === "Justificações" ? "Faltas" : item.label === "Colaboradores" ? "Equipa" : item.label });
   }
   return { root: "/empresa/", sections, tabs };
+}
+
+/**
+ * Resumo mensal do Orbi: o primeiro acesso de alguém da empresa no mês pede ao servidor que envie o resumo do mês
+ * anterior ao responsável. O servidor garante que só sai uma vez; aqui só se evita perguntar mais de uma vez por sessão.
+ */
+function useMonthlyReport(companyId: string | null) {
+  React.useEffect(() => {
+    if (!companyId) return;
+    const key = `horbit-resumo:${companyId}:${new Date().toISOString().slice(0, 7)}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+    } catch {}
+    const t = setTimeout(() => {
+      try {
+        sessionStorage.setItem(key, "1");
+      } catch {}
+      void sb()
+        .functions.invoke(process.env.NEXT_PUBLIC_AI_FUNCTION ?? "Ponto-ai", { body: { mode: "monthly_report", companyId } })
+        .catch(() => undefined);
+    }, 6000);
+    return () => clearTimeout(t);
+  }, [companyId]);
 }
 
 function useNotifications(companyId: string | null, tz = "Africa/Maputo") {

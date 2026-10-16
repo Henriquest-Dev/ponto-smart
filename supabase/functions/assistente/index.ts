@@ -822,6 +822,164 @@ async function sendMailMode(req: Request, body: MailBody) {
   return json({ sent, to: body.kind === "test" ? to : undefined, via: "smtp" });
 }
 
+/* ---------------------------------------------------------------------------------------------------------------
+ * Resumo mensal do Orbi: no início do mês, o primeiro acesso de alguém da empresa dispara o envio (uma vez por mês)
+ * do resumo do mês anterior para o email da empresa e dos responsáveis. Também pode ser enviado à mão.
+ * ------------------------------------------------------------------------------------------------------------- */
+const MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+const monthLabel = (ym: string) => `${MONTHS[Number(ym.slice(5, 7)) - 1]} de ${ym.slice(0, 4)}`;
+const nf = (n: unknown, d = 0) => Number(n ?? 0).toLocaleString("pt-PT", { maximumFractionDigits: d, minimumFractionDigits: 0 });
+
+function previousMonth(tz = "Africa/Maputo") {
+  const p = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit" }).format(new Date());
+  const [y, m] = p.split("-").map(Number);
+  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
+}
+
+// deno-lint-ignore no-explicit-any
+async function orbiNarrative(key: string, sum: any): Promise<string[]> {
+  const prompt = [
+    `És o Orbi, o assistente de RH do Horbit. Escreve ao responsável da empresa ${sum.company?.name} o resumo de ${monthLabel(sum.month)}.`,
+    "Português de Portugal, simpático e directo. 3 parágrafos curtos (máximo 110 palavras no total), sem listas, sem negrito, sem saudação nem despedida.",
+    "1.º: como correu o mês (horas, presença). 2.º: o que precisa de atenção (atrasos, faltas, pendentes, estoque). 3.º: uma sugestão prática para o mês que começa.",
+    "Usa só os números dos dados, sempre em algarismos (ex.: 598 horas, 5 dias), nunca por extenso; não inventes nada. Se um dado for zero, não o realces.",
+    'Diz "horas extra" (não outros termos). Escreve só em português, com o alfabeto latino.',
+    `Dados: ${JSON.stringify(sum)}`,
+  ].join("\n");
+  for (const model of MODELS) {
+    try {
+      const res = await gemini(key, model, { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.3, maxOutputTokens: 500 } });
+      if (!res.ok) continue;
+      const out = await res.json();
+      const text = (out?.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? "").join("").trim();
+      // Só aceita texto em português limpo (os modelos leves às vezes metem palavras de outras línguas).
+      if (text && !/[^\u0000-\u024F\u2010-\u2027\u20AC]/.test(text)) {
+        return text.replace(/\*\*/g, "").split(/\n{2,}/).map((t: string) => t.trim()).filter(Boolean).slice(0, 4);
+      }
+    } catch {
+      // tenta o modelo seguinte
+    }
+  }
+  const a = sum.attendance ?? {};
+  return [
+    `Em ${monthLabel(sum.month)}, a equipa trabalhou ${nf(a.workedHours)} horas, com ${nf(a.overtimeHours, 1)} horas extra.`,
+    `Houve ${nf(a.lateDays)} dias com atraso e ${nf(a.unjustified)} faltas injustificadas.`,
+  ];
+}
+
+// deno-lint-ignore no-explicit-any
+function reportEmail(sum: any, narrative: string[], link: string) {
+  const c = sum.company ?? {};
+  const cur = c.currency ?? "MZN";
+  const a = sum.attendance ?? {};
+  const money = (v: unknown) => `${nf(v, 2)} ${cur}`;
+  const tile = (label: string, value: string, hint = "") =>
+    `<td width="50%" style="padding:6px;vertical-align:top"><div style="border:1px solid #e4e1ee;border-radius:12px;padding:14px 16px;height:74px">
+<div style="font-size:12px;color:#6b6780">${esc(label)}</div><div style="font-size:24px;font-weight:bold;color:#1a1530;margin-top:4px">${esc(value)}</div>
+${hint ? `<div style="font-size:12px;color:#8a869a;margin-top:2px">${esc(hint)}</div>` : ""}</div></td>`;
+  const section = (title: string, rows: [string, string][]) =>
+    rows.length
+      ? `<h2 style="margin:22px 0 8px;font-size:15px;color:#1a1530">${esc(title)}</h2>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e4e1ee;border-radius:12px;border-collapse:separate">
+${rows.map(([k, v], i) => `<tr><td style="padding:10px 14px;${i ? "border-top:1px solid #eeecf4;" : ""}font-size:13.5px;color:#2a2540">${esc(k)}</td><td align="right" style="padding:10px 14px;${i ? "border-top:1px solid #eeecf4;" : ""}font-size:13.5px;font-weight:bold;color:#1a1530">${esc(v)}</td></tr>`).join("")}
+</table>`
+      : "";
+  const late: [string, string][] = (sum.topLate ?? []).map((t: { name: string; days: number; minutes: number }) => [t.name, `${t.days} ${t.days === 1 ? "dia" : "dias"} · ${t.minutes} min`]);
+  const pending: [string, string][] = [
+    ...(sum.pending?.justifications ? ([["Justificações por decidir", nf(sum.pending.justifications)]] as [string, string][]) : []),
+    ...(sum.pending?.reviews ? ([["Marcações em revisão", nf(sum.pending.reviews)]] as [string, string][]) : []),
+    ...(a.absentPending ? ([["Faltas ainda por justificar", nf(a.absentPending)]] as [string, string][]) : []),
+  ];
+  const pay: [string, string][] = sum.payroll?.totals
+    ? [["Salários brutos", money(sum.payroll.totals.gross)], ["Salários líquidos", money(sum.payroll.totals.net)], ["Colaboradores processados", nf(sum.payroll.totals.employees)]]
+    : [];
+  const stock: [string, string][] = (sum.stockAlerts ?? []).map((s: { name: string; quantity: number; unit: string }) => [s.name, `${nf(s.quantity, 3)} ${s.unit}`]);
+  const shop: [string, string][] = sum.workshop?.visits
+    ? [["Entradas na oficina", nf(sum.workshop.visits)], ["Viaturas diferentes", nf(sum.workshop.vehicles)], ["Valor dos trabalhos", money(sum.workshop.amount)]]
+    : [];
+  const title = `Resumo de ${monthLabel(sum.month)}`;
+  const html = `<!doctype html><html><body style="margin:0;padding:0;background:#f4f3f8">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f3f8;padding:24px 12px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;font-family:Arial,Helvetica,sans-serif">
+<tr><td style="background:#1a1530;padding:22px 28px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td style="font-size:20px;font-weight:bold;color:#ffffff">Horbit</td><td align="right" style="font-size:13px;font-weight:bold;color:#cbbcff">${esc(c.name)}</td></tr></table>
+<div style="margin-top:18px;font-size:24px;font-weight:bold;color:#ffffff">${esc(title)}</div>
+<div style="margin-top:4px;font-size:13px;color:#b9b3cc">O resumo do mês preparado pelo Orbi, o assistente do Horbit.</div></td></tr>
+<tr><td style="padding:20px 22px 4px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+${tile("Colaboradores activos", nf(sum.team?.active), sum.team?.hired ? `${nf(sum.team.hired)} admitidos no mês` : "")}
+${tile("Horas trabalhadas", `${nf(a.workedHours)} h`, a.overtimeHours ? `${nf(a.overtimeHours, 1)} h extra` : "")}
+</tr><tr>
+${tile("Dias com atraso", nf(a.lateDays), a.lateMinutes ? `${nf(a.lateMinutes)} minutos no total` : "")}
+${tile("Faltas injustificadas", nf(a.unjustified), a.justified ? `${nf(a.justified)} justificadas` : "")}
+</tr></table></td></tr>
+<tr><td style="padding:10px 28px 6px">
+<div style="background:#f3efff;border-radius:14px;padding:18px 20px">
+<div style="font-size:12.5px;font-weight:bold;color:#7041ec;margin-bottom:8px">O Orbi diz</div>
+${narrative.map((t) => `<p style="margin:0 0 10px;font-size:14.5px;line-height:1.6;color:#2a2540">${esc(t)}</p>`).join("")}
+</div>
+${section("Quem mais chegou atrasado", late)}
+${section("Precisa de atenção", pending)}
+${section("Salários do mês", pay)}
+${section("Estoque a acabar", stock)}
+${section("Oficina", shop)}
+${link ? `<p style="margin:24px 0 8px"><a href="${esc(link)}" style="display:inline-block;background:#7041ec;color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;padding:12px 22px;border-radius:10px">Abrir o painel</a></p>` : ""}
+</td></tr>
+<tr><td style="padding:16px 28px;border-top:1px solid #eeecf4;font-size:12.5px;line-height:1.6;color:#4a4560"><b style="color:#1a1530">${esc(c.name)}</b>${companyLines(c).map((l) => `<br>${esc(l)}`).join("")}</td></tr>
+<tr><td style="padding:16px 28px;background:#faf9fc;border-top:1px solid #eeecf4;font-size:12px;line-height:1.5;color:#8a869a">Enviado pelo Horbit no início de cada mês. Pode desligar este resumo em Comunicados, no painel da empresa.</td></tr>
+</table></td></tr></table></body></html>`;
+  const text = [
+    `${title} — ${c.name}`,
+    "",
+    `Colaboradores activos: ${nf(sum.team?.active)} · Horas trabalhadas: ${nf(a.workedHours)} h · Dias com atraso: ${nf(a.lateDays)} · Faltas injustificadas: ${nf(a.unjustified)}`,
+    "",
+    "O Orbi diz:",
+    ...narrative,
+    ...[["Quem mais chegou atrasado", late], ["Precisa de atenção", pending], ["Salários do mês", pay], ["Estoque a acabar", stock], ["Oficina", shop]]
+      .filter(([, r]) => (r as [string, string][]).length)
+      .flatMap(([t, r]) => ["", String(t), ...(r as [string, string][]).map(([k, v]) => `- ${k}: ${v}`)]),
+    link ? `\nAbrir o painel: ${link}` : "",
+  ].join("\n");
+  return { subject: `${c.name}: ${title}`, html, text };
+}
+
+async function monthlyReport(req: Request, body: { companyId?: string; force?: boolean }, key: string) {
+  if (!body.companyId) return json({ error: "Empresa em falta." }, 400);
+  const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!service) return json({ error: "Falta a chave de serviço na Edge Function." }, 500);
+  const user = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+  });
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, service, { auth: { persistSession: false } });
+  let month: string;
+  if (body.force) {
+    const st = await user.rpc("ps_monthly_report_status", { p_company: body.companyId });
+    if (st.error) return json({ error: st.error.message }, 403);
+    month = previousMonth();
+  } else {
+    const due = await user.rpc("ps_monthly_report_due", { p_company: body.companyId });
+    if (due.error) return json({ error: due.error.message }, 403);
+    if (!due.data) return json({ skipped: true });
+    month = String(due.data);
+  }
+  const s = await admin.rpc("ps_month_summary", { p_company: body.companyId, p_month: month });
+  if (s.error || !s.data) return json({ error: s.error?.message ?? "Sem dados do mês." }, 500);
+  const sum = s.data;
+  const to: string[] = sum.recipients ?? [];
+  if (!to.length) return json({ skipped: true, error: "A empresa não tem email registado (nem os responsáveis)." }, body.force ? 400 : 200);
+  const claim = await admin.rpc("ps_monthly_report_claim", { p_company: body.companyId, p_month: month, p_recipients: to, p_force: !!body.force });
+  if (claim.error) return json({ error: claim.error.message }, 500);
+  if (!claim.data) return json({ skipped: true });
+  const narrative = await orbiNarrative(key, sum);
+  const origin = req.headers.get("origin") ?? "";
+  const mail = reportEmail(sum, narrative, origin ? `${origin}/empresa/` : "");
+  const r = await deliver({ to, subject: mail.subject, text: mail.text, html: mail.html, replyTo: sum.company?.email ?? undefined });
+  if (!r.ok) {
+    await admin.rpc("ps_monthly_report_failed", { p_company: body.companyId, p_month: month });
+    return json({ error: r.error }, 502);
+  }
+  return json({ sent: to.length, to, month });
+}
+
 /** Estado do envio (painel do Super Admin): testa a ligação ao Apps Script. */
 async function mailStatus(req: Request) {
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -982,7 +1140,8 @@ Deno.serve(async (req) => {
     scope?: "company" | "platform";
     companyId?: string;
     messages?: Msg[];
-    mode?: "chat" | "insights" | "notify" | "speak" | "memorize" | "mail" | "mail_status";
+    mode?: "chat" | "insights" | "notify" | "speak" | "memorize" | "mail" | "mail_status" | "monthly_report";
+    force?: boolean;
     explicit?: string;
     voice?: boolean | string;
     stream?: boolean;
@@ -1003,6 +1162,7 @@ Deno.serve(async (req) => {
   const key = Deno.env.get("GEMINI_API_KEY");
   if (!key) return json({ error: "Falta a chave do Gemini (segredo GEMINI_API_KEY) na Edge Function." }, 500);
   if (body.mode === "memorize") return memorize(req, body, key);
+  if (body.mode === "monthly_report") return monthlyReport(req, body, key);
   const platform = body.scope === "platform";
   const insights = !platform && body.mode === "insights";
   let messages = (body.messages ?? []).filter((m) => m?.text?.trim()).slice(-16);

@@ -11,7 +11,7 @@ import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/input"
 import { Notice } from "@/components/ui/misc";
 import { PageBody, PageHeader } from "@/components/ui/page-header";
 import { Tabs } from "@/components/ui/tabs";
-import { must, sb } from "@/lib/sb/client";
+import { errorMessage, must, rpc, sb } from "@/lib/sb/client";
 import { useCompany } from "@/lib/sb/session";
 import { useData } from "@/lib/sb/use-data";
 import { cn } from "@/lib/utils";
@@ -79,6 +79,7 @@ function Messages() {
         description={`Escreva aos colaboradores: o Horbit envia por email, com o nome e os contactos da ${company.companyName}.`}
       />
       <PageBody className="max-w-4xl">
+        <MonthlyReportCard />
         {data.error ? <ErrorBlock message={data.error} /> : null}
         {!data.data && !data.error ? <LoadingBlock rows={4} /> : null}
         {done ? (
@@ -166,5 +167,91 @@ function Messages() {
         ) : null}
       </PageBody>
     </>
+  );
+}
+
+type ReportStatus = { enabled: boolean; recipients: string[]; last: { month: string; sentAt: string; recipients: string[] } | null };
+const MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+const monthName = (ym: string) => `${MONTHS[Number(ym.slice(5, 7)) - 1]} de ${ym.slice(0, 4)}`;
+
+/** Resumo mensal do Orbi por email (vai sozinho no início de cada mês). */
+function MonthlyReportCard() {
+  const { companyId, can, tz } = useCompany();
+  const st = useData(
+    () =>
+      rpc<ReportStatus>("ps_monthly_report_status", { p_company: companyId }).catch((e) => {
+        if (/ps_monthly_report|função em falta|schema cache/i.test(errorMessage(e))) return null;
+        throw e;
+      }),
+    [companyId],
+  );
+  const [busy, setBusy] = React.useState<"send" | "toggle" | null>(null);
+  if (!st.data) return null;
+  const s = st.data;
+  const send = async () => {
+    setBusy("send");
+    try {
+      const { data, error } = await sb().functions.invoke(process.env.NEXT_PUBLIC_AI_FUNCTION ?? "Ponto-ai", { body: { mode: "monthly_report", companyId, force: true } });
+      if (error) {
+        const j = await (error as { context?: Response }).context?.json?.().catch(() => null);
+        throw new Error(j?.error ?? "O resumo não foi enviado.");
+      }
+      toast.success(`Resumo enviado para ${(data as { to?: string[] }).to?.join(", ")}.`);
+      st.reload();
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+  const toggle = async () => {
+    setBusy("toggle");
+    try {
+      await rpc("ps_monthly_report_set", { p_company: companyId, p_enabled: !s.enabled });
+      st.reload();
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <Card>
+      <CardHeader className="flex-wrap">
+        <div>
+          <CardTitle>Resumo mensal do Orbi</CardTitle>
+          <CardDescription>
+            No início de cada mês, o Orbi envia por email o resumo do mês anterior: horas, atrasos, faltas, pendentes, salários, estoque e oficina.
+          </CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3 text-[13.5px]">
+        <p>
+          {s.recipients.length ? (
+            <>
+              Vai para: <b>{s.recipients.join(", ")}</b>
+            </>
+          ) : (
+            <span className="text-danger">A empresa não tem email registado: escreva-o em Definições para receber o resumo.</span>
+          )}
+        </p>
+        {s.last ? (
+          <p className="text-muted">
+            Último enviado: {monthName(s.last.month)}, a {new Date(s.last.sentAt).toLocaleDateString("pt-PT", { timeZone: tz })}.
+          </p>
+        ) : null}
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" disabled={busy !== null || !s.recipients.length} onClick={() => void send()}>
+            {busy === "send" ? <span className="spinner" aria-hidden /> : null} Enviar agora o resumo do mês passado
+          </Button>
+          {can("company.settings.manage") ? (
+            <Button size="sm" variant="outline" disabled={busy !== null} onClick={() => void toggle()}>
+              {s.enabled ? "Desligar o envio automático" : "Ligar o envio automático"}
+            </Button>
+          ) : null}
+        </div>
+        {!s.enabled ? <p className="text-[12.5px] text-muted">O envio automático está desligado.</p> : null}
+      </CardContent>
+    </Card>
   );
 }
