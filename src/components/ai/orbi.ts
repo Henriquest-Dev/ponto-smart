@@ -14,6 +14,12 @@ export type OrbiApi = {
   /** Seguir o fim do texto de uma caixa de mensagem. */
   follow: (input: HTMLInputElement | HTMLTextAreaElement | null) => void;
   blink: () => void;
+  /** A falar: olhar vivo (pequenos movimentos) e piscar mais vezes. */
+  setTalking: (v: boolean) => void;
+  /** A ouvir: olha para a pessoa, com a pupila atenta. */
+  setListening: (v: boolean) => void;
+  /** Pequeno impulso (uma palavra ouvida ou dita): a pupila dilata e o olho estremece. */
+  kick: (strength?: number) => void;
   destroy: () => void;
 };
 
@@ -60,7 +66,11 @@ export function Orbi(cv: HTMLCanvasElement, opts: Partial<OrbiColors> = {}): Orb
     lastMove = -1e9,
     thinking = false,
     lookEl: Element | null = null,
-    focusEl: HTMLInputElement | HTMLTextAreaElement | null = null;
+    focusEl: HTMLInputElement | HTMLTextAreaElement | null = null,
+    talking = false,
+    listening = false,
+    energy = 0,
+    saccade = { x: 0, y: 0, until: 0 };
   let blinkT = -1,
     nextBlink = 2,
     squash = 0,
@@ -97,6 +107,12 @@ export function Orbi(cv: HTMLCanvasElement, opts: Partial<OrbiColors> = {}): Orb
 
   function lookGoal(t: number) {
     if (thinking) return { x: Math.cos(t * 4) * 0.8, y: Math.sin(t * 4) * 0.6 }; // olho a "pensar"
+    if (talking) {
+      // A falar: pequenos olhares para os lados, como quem conversa.
+      if (t > saccade.until) saccade = { x: (Math.random() - 0.5) * 0.7, y: (Math.random() - 0.5) * 0.45, until: t + 0.35 + Math.random() * 0.6 };
+      return { x: saccade.x, y: saccade.y };
+    }
+    if (listening) return { x: Math.sin(t * 0.7) * 0.08, y: 0.05 + Math.cos(t * 0.9) * 0.05 }; // olha para nós
     let p: { x: number; y: number } | null = null;
     if (lookEl) {
       const r = lookEl.getBoundingClientRect();
@@ -136,7 +152,7 @@ export function Orbi(cv: HTMLCanvasElement, opts: Partial<OrbiColors> = {}): Orb
 
     if (!reduce && t > nextBlink && blinkT < 0) {
       blinkT = t;
-      nextBlink = t + 3 + Math.random() * 3.5;
+      nextBlink = t + (talking ? 1.2 + Math.random() * 1.6 : 3 + Math.random() * 3.5);
     }
     let b = 0;
     if (blinkT >= 0) {
@@ -145,6 +161,7 @@ export function Orbi(cv: HTMLCanvasElement, opts: Partial<OrbiColors> = {}): Orb
       else b = Math.sin(u * Math.PI);
     }
     squash = Math.max(0, squash - dt * 4);
+    energy = Math.max(0, energy - dt * 2.5);
     draw(t, b, eye.lx, eye.ly);
     raf = requestAnimationFrame(frame);
   }
@@ -152,7 +169,7 @@ export function Orbi(cv: HTMLCanvasElement, opts: Partial<OrbiColors> = {}): Orb
   function draw(t: number, b: number, lx: number, ly: number) {
     ctx.clearRect(0, 0, W, H);
     const bob = reduce ? 0 : Math.sin(t * 2.1) * R_EYE * 0.02,
-      sq = Math.sin(squash * Math.PI) * 0.08;
+      sq = Math.sin(squash * Math.PI) * 0.08 + (reduce ? 0 : energy * 0.03 * Math.sin(t * 40));
     const ex = cx + lx * R_EYE * 0.05,
       ey = cy + ly * R_EYE * 0.05 + bob;
     ctx.save();
@@ -181,7 +198,7 @@ export function Orbi(cv: HTMLCanvasElement, opts: Partial<OrbiColors> = {}): Orb
     // Pupila e brilhos
     const px = ix + lx * R_EYE * 0.11,
       py = iy + ly * R_EYE * 0.11;
-    const rp = R_PUP * (1 + 0.06 * Math.sin(t * 5) + (thinking ? 0.12 : 0));
+    const rp = R_PUP * (1 + 0.06 * Math.sin(t * 5) + (thinking ? 0.12 : 0) + (listening ? 0.08 : 0) + energy * 0.22);
     ctx.fillStyle = C.pupil;
     ctx.beginPath();
     ctx.arc(px, py, rp, 0, 7);
@@ -239,6 +256,15 @@ export function Orbi(cv: HTMLCanvasElement, opts: Partial<OrbiColors> = {}): Orb
     },
     blink: () => {
       blinkT = performance.now() / 1000;
+    },
+    setTalking: (v) => {
+      talking = !!v;
+    },
+    setListening: (v) => {
+      listening = !!v;
+    },
+    kick: (strength = 1) => {
+      energy = Math.min(1, energy + 0.5 * strength);
     },
     destroy: () => {
       alive = false;

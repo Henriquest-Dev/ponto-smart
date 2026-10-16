@@ -3,6 +3,7 @@
 import { AiBoundary } from "@/components/ai/ai-boundary";
 import { AssistantChat } from "@/components/ai/assistant-chat";
 import { PageHeader } from "@/components/ui/page-header";
+import { useQueryParam } from "@/lib/sb/use-data";
 import { useSession } from "@/lib/sb/session";
 
 const SUGGESTIONS = [
@@ -14,6 +15,7 @@ const SUGGESTIONS = [
 
 export default function AdminAssistantPage() {
   const { state } = useSession();
+  const voz = useQueryParam("voz");
   if (state.status !== "ready") return null;
   return (
     <>
@@ -22,6 +24,7 @@ export default function AdminAssistantPage() {
         <AssistantChat
           scope={{ kind: "platform" }}
           userId={state.me.id}
+          autoVoice={voz === "1"}
           suggestions={SUGGESTIONS}
           intro="Uso o resumo da plataforma: empresas, pedidos de acesso, actividade e auditoria. Não vejo salários das empresas e não executo acções."
         />

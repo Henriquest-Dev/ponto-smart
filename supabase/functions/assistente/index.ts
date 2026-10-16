@@ -14,7 +14,11 @@ const CORS = {
 const MODELS = [Deno.env.get("GEMINI_MODEL") ?? "gemini-flash-lite-latest", "gemini-flash-latest", "gemini-3.5-flash-lite"];
 const GEMINI = Deno.env.get("GEMINI_API_BASE") ?? "https://generativelanguage.googleapis.com/v1beta";
 
-type Msg = { role: "user" | "model"; text: string };
+type FileIn = { name?: string; mime?: string; data?: string };
+type Msg = { role: "user" | "model"; text: string; files?: FileIn[] };
+/** Anexos que o Gemini lê directamente (as planilhas e textos chegam já convertidos em texto). */
+const FILE_TYPES = ["image/png", "image/jpeg", "image/webp", "application/pdf"];
+const MAX_FILE_B64 = 11_500_000; // ~8 MB por ficheiro
 type Action = { type: string; label: string; args: Record<string, unknown> };
 // deno-lint-ignore no-explicit-any
 type Ctx = any;
@@ -509,6 +513,7 @@ Deno.serve(async (req) => {
       : "No contexto: hojeDetalhe = hoje (estado de cada pessoa); resumo e os números por departamento = últimos 30 dias; equipaEsteMes = mês corrente por pessoa; atrasos30dias = últimos 30 dias. Não confundas períodos: só digas \"hoje\" para dados de hojeDetalhe.",
     "Nunca mostres nomes técnicos do contexto (chaves do JSON, ids, nomes de funções, códigos de acções da auditoria como employees.insert); descreve-os em português corrente e fala pelos nomes das páginas e menus do Horbit.",
     "Para perguntas sobre como usar o Horbit, explica os passos com base no guia abaixo.",
+    "O utilizador pode anexar ficheiros (imagens, PDF, planilhas Excel/CSV, texto): lê-os com atenção e responde sobre eles. Se pedir para registar o que está no ficheiro (por exemplo criar os colaboradores de uma planilha ou um atestado para uma justificação), usa as funções, uma chamada por pessoa ou acção.",
     platform
       ? "Não executas acções: não crias contas, não aprovas pedidos nem alteras empresas."
       : [
@@ -526,8 +531,20 @@ Deno.serve(async (req) => {
 
   const payload: Record<string, unknown> = {
     system_instruction: { parts: [{ text: system }] },
-    contents: messages.map((m) => ({ role: m.role === "model" ? "model" : "user", parts: [{ text: m.text.slice(0, 4000) }] })),
-    generationConfig: { temperature: 0.4, maxOutputTokens: 1200 },
+    contents: messages.map((m, i) => {
+      const last = i === messages.length - 1;
+      // A última mensagem pode trazer anexos (texto de planilhas já incluído no texto; imagens e PDF à parte).
+      const parts: Record<string, unknown>[] = [{ text: m.text.slice(0, last ? 120_000 : 4000) }];
+      if (last && m.role === "user") {
+        for (const f of (m.files ?? []).slice(0, 5)) {
+          if (f?.mime && FILE_TYPES.includes(f.mime) && typeof f.data === "string" && f.data.length <= MAX_FILE_B64) {
+            parts.push({ text: `[Anexo: ${String(f.name ?? "ficheiro").slice(0, 120)}]` }, { inline_data: { mime_type: f.mime, data: f.data } });
+          }
+        }
+      }
+      return { role: m.role === "model" ? "model" : "user", parts };
+    }),
+    generationConfig: { temperature: 0.4, maxOutputTokens: 2048 },
   };
   if (!platform) {
     payload.tools = [{ functionDeclarations: TOOLS }];
@@ -550,7 +567,7 @@ Deno.serve(async (req) => {
         .filter((p) => p.functionCall)
         .map((p) => toAction(p.functionCall!.name, p.functionCall!.args ?? {}, context))
         .filter((a): a is Action => !!a && !seen.has(a.label) && !!seen.add(a.label))
-        .slice(0, 10);
+        .slice(0, 20);
       // Na análise automática, se há pendentes e o modelo não propôs botões, pede só as propostas de decisão.
       if (insights && !actions.length && text && (context?.justificacoesPendentes?.length || context?.marcacoesEmRevisao?.length)) {
         actions.push(...(await proposeDecisions(key, model, payload, text, context)));

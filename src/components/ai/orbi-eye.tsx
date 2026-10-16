@@ -32,6 +32,9 @@ export const OrbiEye = React.forwardRef<OrbiApi | null, { size?: number; thinkin
     lookAt: (el) => api.current?.lookAt(el),
     follow: (el) => api.current?.follow(el),
     blink: () => api.current?.blink(),
+    setTalking: (v) => api.current?.setTalking(v),
+    setListening: (v) => api.current?.setListening(v),
+    kick: (n) => api.current?.kick(n),
     destroy: () => api.current?.destroy(),
   }));
   // Resolução interna em dobro para ficar nítido em ecrãs de alta densidade.
@@ -76,8 +79,8 @@ export function AssistantFab({ href }: { href: string }) {
   if (pathname.startsWith(href)) return null;
   return (
     <Link
-      href={href}
-      aria-label="Abrir o assistente Orbi"
+      href={`${href}?voz=1`}
+      aria-label="Falar com o Orbi, o assistente"
       title="Assistente"
       className="group fixed right-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-40 flex size-16 items-center justify-center rounded-full bg-background shadow-[0_12px_32px_-10px_rgb(52_27_140/0.55)] ring-1 ring-primary/20 transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:right-6 lg:bottom-6"
     >

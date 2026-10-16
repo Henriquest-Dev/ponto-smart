@@ -142,7 +142,15 @@
 }
 @keyframes shake { 10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(3px); } 30%, 50%, 70% { transform: translateX(-6px); } 40%, 60% { transform: translateX(6px); } }
 .shake { animation: shake 0.45s cubic-bezier(.36,.07,.19,.97) both; }
+/* Ecrã de voz do Orbi: degradê que respira, ondas a ouvir. --lvl (0–1) vem da voz (palavras ouvidas ou ditas). */
+@keyframes orbi-breathe { 0%, 100% { transform: translate(-50%, -50%) scale(calc(0.92 + var(--lvl, 0) * 0.35)); opacity: 0.75; } 50% { transform: translate(-50%, -50%) scale(calc(1.06 + var(--lvl, 0) * 0.35)); opacity: 1; } }
+@keyframes orbi-drift { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(180deg) scale(1.12); } 100% { transform: rotate(360deg) scale(1); } }
+@keyframes orbi-ripple { 0% { transform: translate(-50%, -50%) scale(0.55); opacity: 0.55; } 100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; } }
+.orbi-glow { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); border-radius: 999px; filter: blur(30px); animation: orbi-breathe var(--breath, 2.6s) ease-in-out infinite; }
+.orbi-drift { animation: orbi-drift 26s linear infinite; }
+.orbi-ripple { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0.55); opacity: 0; border-radius: 999px; border: 2px solid rgb(196 181 253 / 0.55); animation: orbi-ripple 2.4s ease-out infinite both; }
 @media (prefers-reduced-motion: reduce) {
   .spinner { animation-duration: 1.6s; }
   .shake { animation: none; }
+  .orbi-glow, .orbi-drift, .orbi-ripple { animation: none; }
 }

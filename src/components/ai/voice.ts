@@ -84,8 +84,9 @@ function voice() {
   return voices.find((v) => v.lang === "pt-PT") ?? voices.find((v) => v.lang.startsWith("pt-PT")) ?? voices.find((v) => v.lang.startsWith("pt")) ?? null;
 }
 
-/** Lê o texto em voz alta (em partes curtas: alguns telemóveis cortam frases longas). Resolve quando acaba. */
-export function speak(text: string): Promise<void> {
+/** Lê o texto em voz alta (em partes curtas: alguns telemóveis cortam frases longas). Resolve quando acaba.
+ *  onWord é chamado a cada palavra dita (para animar o olho e o fundo). */
+export function speak(text: string, onWord?: () => void): Promise<void> {
   if (!canSpeak()) return Promise.resolve();
   const synth = window.speechSynthesis;
   synth.cancel();
@@ -98,6 +99,12 @@ export function speak(text: string): Promise<void> {
       u.lang = v?.lang ?? "pt-PT";
       if (v) u.voice = v;
       u.rate = 1.05;
+      if (onWord) {
+        u.onboundary = (e) => {
+          if (e.name === "word" || !e.name) onWord();
+        };
+        u.onstart = () => onWord();
+      }
       if (i === parts.length - 1) {
         u.onend = () => resolve();
         u.onerror = () => resolve();

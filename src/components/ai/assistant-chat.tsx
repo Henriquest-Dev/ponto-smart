@@ -1,12 +1,14 @@
 "use client";
 
-import { Microphone } from "@phosphor-icons/react";
+import { Microphone, Paperclip, X } from "@phosphor-icons/react";
 import * as React from "react";
 import { toast } from "sonner";
 import { AiActions, askAssistant, NOT_ACTIVE, type AiAction, type AiActionsHandle, type AiReply } from "@/components/ai/actions";
 import { OrbiEye } from "@/components/ai/orbi-eye";
 import type { OrbiApi } from "@/components/ai/orbi";
+import { ACCEPT, addAttachments, fileSize, type Attachment } from "@/components/ai/attachments";
 import { canListen, canSpeak, listen, speak, stopSpeaking, voiceCommand } from "@/components/ai/voice";
+import { VoiceStage, type VoiceStageHandle } from "@/components/ai/voice-stage";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { Notice } from "@/components/ui/misc";
@@ -14,7 +16,9 @@ import { errorMessage, sb } from "@/lib/sb/client";
 import { useData } from "@/lib/sb/use-data";
 import { cn } from "@/lib/utils";
 
-type Msg = { role: "user" | "model"; text: string; actions?: AiAction[] };
+type FileRef = { name: string; mime: string };
+/** hidden: mensagem interna (ex.: o pedido de saudação ao abrir a voz), não aparece no ecrã. */
+type Msg = { role: "user" | "model"; text: string; actions?: AiAction[]; files?: FileRef[]; hidden?: boolean };
 type Conversation = { id: string; title: string; messages: Msg[]; updated_at: string };
 
 export type AssistantScope = { kind: "company"; companyId: string } | { kind: "platform" };
@@ -24,17 +28,34 @@ function normalize(raw: unknown): Msg[] {
   if (!Array.isArray(raw)) return [];
   return raw
     .map((m) => {
-      const o = m as { role?: string; text?: string; content?: string; actions?: AiAction[] };
+      const o = m as { role?: string; text?: string; content?: string; actions?: AiAction[]; files?: FileRef[]; hidden?: boolean };
       const text = o.text ?? o.content ?? "";
-      return { role: o.role === "user" ? "user" : "model", text, ...(Array.isArray(o.actions) && o.actions.length ? { actions: o.actions } : {}) } as Msg;
+      return {
+        role: o.role === "user" ? "user" : "model",
+        text,
+        ...(Array.isArray(o.actions) && o.actions.length ? { actions: o.actions } : {}),
+        ...(Array.isArray(o.files) && o.files.length ? { files: o.files } : {}),
+        ...(o.hidden ? { hidden: true } : {}),
+      } as Msg;
     })
     .filter((m) => m.text);
 }
 
-async function ask(scope: AssistantScope, messages: Msg[]): Promise<AiReply> {
-  const history = messages.map((m) => ({ role: m.role, text: m.text }));
+/** Envia a conversa. Os anexos vão só com a última mensagem: texto (planilhas, CSV) junto ao texto, imagens e PDF à parte. */
+async function ask(scope: AssistantScope, messages: Msg[], files: Attachment[] = []): Promise<AiReply> {
+  const history = messages.map((m, i) => {
+    const last = i === messages.length - 1;
+    const names = m.files?.length && !last ? `\n(anexou: ${m.files.map((f) => f.name).join(", ")})` : "";
+    const texts = last ? files.filter((f) => f.text).map((f) => `\n\n[Anexo: ${f.name}]\n${f.text}`).join("") : "";
+    const binary = last ? files.filter((f) => f.data).map((f) => ({ name: f.name, mime: f.mime, data: f.data })) : [];
+    return { role: m.role, text: m.text + names + texts, ...(binary.length ? { files: binary } : {}) };
+  });
   return askAssistant(scope.kind === "company" ? { scope: "company", companyId: scope.companyId, messages: history } : { scope: "platform", messages: history });
 }
+
+/** Pedido interno ao abrir a conversa por voz: o Orbi fala primeiro. */
+const GREETING =
+  "Abri agora a conversa por voz contigo. Cumprimenta-me com naturalidade e diz, em duas frases curtas, o que se passa neste momento na empresa (ou na plataforma). Depois pergunta em que posso ajudar. Sem listas.";
 
 /** Conversa com o assistente (empresa ou Super Admin), com histórico guardado por utilizador. */
 export function AssistantChat({
@@ -42,11 +63,14 @@ export function AssistantChat({
   userId,
   suggestions,
   intro,
+  autoVoice = false,
 }: {
   scope: AssistantScope;
   userId: string;
   suggestions: string[];
   intro: string;
+  /** Abrir logo a conversa por voz (vindo do olho flutuante). */
+  autoVoice?: boolean;
 }) {
   const companyId = scope.kind === "company" ? scope.companyId : null;
   const [cid, setCid] = React.useState<string | null>(null);
@@ -62,7 +86,14 @@ export function AssistantChat({
   messagesRef.current = messages;
   cidRef.current = cid;
   const actionsRef = React.useRef<AiActionsHandle>(null);
-  const [voice, setVoice] = React.useState<"off" | "listening" | "thinking" | "speaking">("off");
+  const [voice, setVoice] = React.useState<"off" | "idle" | "listening" | "thinking" | "speaking">("off");
+  const stage = React.useRef<VoiceStageHandle>(null);
+  const [needsStart, setNeedsStart] = React.useState(false);
+  const [files, setFiles] = React.useState<Attachment[]>([]);
+  const filesRef = React.useRef<Attachment[]>([]);
+  filesRef.current = files;
+  const fileInput = React.useRef<HTMLInputElement>(null);
+  const [lastReply, setLastReply] = React.useState("");
   const [heard, setHeard] = React.useState("");
   const voiceOn = React.useRef(false);
   const stopListening = React.useRef<() => void>(() => {});
@@ -112,7 +143,7 @@ export function AssistantChat({
   };
 
   async function persist(id: string | null, all: Msg[]): Promise<string | null> {
-    const title = (all.find((m) => m.role === "user")?.text ?? "Conversa").slice(0, 80);
+    const title = (all.find((m) => m.role === "user" && !m.hidden)?.text ?? "Conversa por voz").slice(0, 80);
     try {
       if (id) {
         await sb().from("ai_conversations").update({ messages: all, updated_at: new Date().toISOString() }).eq("id", id);
@@ -125,17 +156,35 @@ export function AssistantChat({
     }
   }
 
-  async function send(text: string, fromVoice = false): Promise<AiReply | null> {
-    const t = text.trim();
+  async function attach(list: FileList) {
+    const r = await addAttachments(filesRef.current, list);
+    filesRef.current = r.list;
+    setFiles(r.list);
+    r.errors.forEach((e) => toast.error(e));
+  }
+
+  async function send(text: string, fromVoice = false, opts: { hidden?: boolean } = {}): Promise<AiReply | null> {
+    const sending = opts.hidden ? [] : filesRef.current;
+    const t = text.trim() || (sending.length ? "Analisa o anexo." : "");
     if (!t || busy) return null;
     const before = messagesRef.current;
-    const next = [...before, { role: "user" as const, text: t }];
+    const userMsg: Msg = {
+      role: "user",
+      text: t,
+      ...(sending.length ? { files: sending.map((f) => ({ name: f.name, mime: f.mime })) } : {}),
+      ...(opts.hidden ? { hidden: true } : {}),
+    };
+    const next = [...before, userMsg];
     messagesRef.current = next;
     setMessages(next);
     setInput("");
+    if (sending.length) {
+      filesRef.current = [];
+      setFiles([]);
+    }
     setBusy(true);
     try {
-      const answer = await ask(scope, next);
+      const answer = await ask(scope, next, sending);
       const all: Msg[] = [...next, { role: "model", text: answer.reply, ...(answer.actions.length ? { actions: answer.actions } : {}) }];
       messagesRef.current = all;
       setMessages(all);
@@ -155,6 +204,10 @@ export function AssistantChat({
       messagesRef.current = before;
       setMessages(before);
       if (!fromVoice) setInput(t);
+      if (sending.length) {
+        filesRef.current = sending;
+        setFiles(sending);
+      }
       return null;
     } finally {
       setBusy(false);
@@ -162,38 +215,70 @@ export function AssistantChat({
   }
 
   /* ------------------------------ Voz ------------------------------ */
+  /** Fecha o ecrã de voz. */
   function endVoice() {
     voiceOn.current = false;
     stopListening.current();
     stopSpeaking();
     setVoice("off");
     setHeard("");
+    setNeedsStart(false);
+  }
+
+  /** Pausa (microfone desligado) mas mantém o ecrã de voz aberto. */
+  function pauseVoice() {
+    voiceOn.current = false;
+    stopListening.current();
+    stopSpeaking();
+    setVoice("idle");
   }
 
   async function say(text: string) {
     if (!voiceOn.current) return;
     setVoice("speaking");
-    await speak(text);
+    setLastReply(text);
+    await speak(text, () => stage.current?.kick(0.8));
+  }
+
+  /** Abre o ecrã de voz; o Orbi fala primeiro e depois fica a ouvir. */
+  function openVoice() {
+    if (!voiceOk.listen) return void toast.error("Este navegador não suporta conversa por voz. Use o Chrome, o Edge ou o Safari.");
+    setVoice("idle");
+    setHeard("");
+    setLastReply("");
+    const ua = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation;
+    if (ua && !ua.hasBeenActive) return setNeedsStart(true);
+    void voiceLoop(true);
   }
 
   /** Conversa por voz: ouve, responde em voz alta, confirma acções com "confirmar"/"ignorar", termina com "parar". */
-  async function voiceLoop() {
-    if (voiceOn.current) return endVoice();
+  async function voiceLoop(greet = false) {
+    if (voiceOn.current) return;
     voiceOn.current = true;
+    setNeedsStart(false);
+    if (greet) {
+      setVoice("thinking");
+      const hello = await send(GREETING, true, { hidden: true });
+      // Sem resposta (ex.: assistente sobrecarregado): cumprimenta na mesma.
+      await say(hello ? spoken(hello) : "Olá! Estou a ouvir. Em que posso ajudar?");
+    }
     let silent = 0;
     while (voiceOn.current) {
       setVoice("listening");
       setHeard("");
       let text = "";
       try {
-        const l = listen(setHeard);
+        const l = listen((t) => {
+          setHeard(t);
+          stage.current?.kick(0.6);
+        });
         stopListening.current = l.stop;
         text = await l.result;
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Não foi possível ouvir.");
         break;
       }
-      if (!voiceOn.current) break;
+      if (!voiceOn.current) return;
       if (!text) {
         if (++silent >= 2) break;
         continue;
@@ -203,7 +288,8 @@ export function AssistantChat({
       const pending = actionsRef.current?.pending() ?? 0;
       if (cmd === "stop") {
         await say("Até já.");
-        break;
+        voiceOn.current = false;
+        return endVoice();
       }
       if (cmd === "confirm" && pending) {
         setVoice("thinking");
@@ -222,8 +308,20 @@ export function AssistantChat({
       const answer = await send(text, true);
       if (answer) await say(spoken(answer));
     }
-    endVoice();
+    // Silêncio ou erro: fica em pausa, com o ecrã aberto.
+    if (voiceOn.current) pauseVoice();
   }
+
+  // Vindo do olho flutuante: abre logo a voz.
+  const autoOpened = React.useRef(false);
+  React.useEffect(() => {
+    if (!autoVoice || autoOpened.current || !voiceOk.listen) return;
+    autoOpened.current = true;
+    // Tira ?voz=1 do endereço, para não reabrir ao recarregar.
+    window.history.replaceState(window.history.state, "", window.location.pathname);
+    openVoice();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoVoice, voiceOk.listen]);
 
   const remove = async (c: Conversation) => {
     if (!window.confirm(`Apagar a conversa "${c.title}"?`)) return;
@@ -238,6 +336,15 @@ export function AssistantChat({
   messages.forEach((m, i) => {
     if (m.role === "model" && m.actions?.length) lastWithActions = i;
   });
+  const stageOpen = voice !== "off";
+  const visible = messages.map((m, i) => ({ m, i })).filter(({ m }) => !m.hidden);
+  const lastActionsMsg = lastWithActions >= 0 ? messages[lastWithActions] : null;
+  const onActionsChange = (i: number) => (acts: AiAction[]) => {
+    const all = messagesRef.current.map((x, j) => (j === i ? { ...x, actions: acts } : x));
+    messagesRef.current = all;
+    setMessages(all);
+    void persist(cidRef.current, all);
+  };
 
   return (
     <>
@@ -282,7 +389,7 @@ export function AssistantChat({
 
           <section className="flex min-h-[calc(100dvh-16rem)] min-w-0 flex-col rounded-xl border border-border bg-background">
             <div className="flex-1 space-y-3 overflow-y-auto p-4 sm:p-6" aria-live="polite">
-              {messages.length === 0 ? (
+              {visible.length === 0 ? (
                 <div className="mx-auto max-w-xl py-4 sm:py-8">
                   <div className="mb-5 flex justify-center">
                     <OrbiEye ref={orbi} size={128} thinking={busy || voice === "thinking"} />
@@ -312,7 +419,7 @@ export function AssistantChat({
                     <OrbiEye ref={orbi} size={56} thinking={busy || voice === "thinking"} />
                   </span>
                 </div>
-                {messages.map((m, i) => (
+                {visible.map(({ m, i }) => (
                   <div key={i} data-msg={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
                     <div
                       className={cn(
@@ -321,17 +428,22 @@ export function AssistantChat({
                       )}
                     >
                       {m.role === "model" ? <RichText text={m.text} /> : m.text}
+                      {m.files?.length ? (
+                        <span className="mt-2 flex flex-wrap gap-1.5">
+                          {m.files.map((f, k) => (
+                            <span key={k} className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-white/15 px-2 py-1 text-[12px] font-medium">
+                              <Paperclip className="size-3.5 shrink-0" aria-hidden />
+                              <span className="truncate">{f.name}</span>
+                            </span>
+                          ))}
+                        </span>
+                      ) : null}
                       {m.role === "model" && m.actions?.length && companyId ? (
                         <AiActions
-                          ref={i === lastWithActions ? actionsRef : undefined}
+                          ref={i === lastWithActions && !stageOpen ? actionsRef : undefined}
                           actions={m.actions}
                           companyId={companyId}
-                          onChange={(acts) => {
-                            const all = messagesRef.current.map((x, j) => (j === i ? { ...x, actions: acts } : x));
-                            messagesRef.current = all;
-                            setMessages(all);
-                            void persist(cidRef.current, all);
-                          }}
+                          onChange={onActionsChange(i)}
                         />
                       ) : null}
                     </div>
@@ -348,20 +460,24 @@ export function AssistantChat({
               ) : null}
               <div ref={end} />
             </div>
-            {voice !== "off" ? (
-              <div className="flex items-center gap-3 border-t border-border bg-primary-soft px-4 py-3" role="status" aria-live="polite">
-                <span className={cn("size-3 shrink-0 rounded-full bg-primary", voice === "listening" && "animate-pulse")} aria-hidden />
-                <p className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
-                  {voice === "listening"
-                    ? heard || "A ouvir… diga o que precisa, \"confirmar\", \"ignorar\" ou \"parar\"."
-                    : voice === "thinking"
-                      ? `"${heard}"`
-                      : "A falar…"}
-                </p>
-                <Button size="sm" variant="outline" onClick={endVoice}>
-                  Parar voz
-                </Button>
-              </div>
+            {files.length ? (
+              <ul className="flex flex-wrap gap-2 border-t border-border px-3 pt-3 sm:px-4">
+                {files.map((f, k) => (
+                  <li key={`${f.name}-${k}`} className="flex items-center gap-2 rounded-lg bg-surface-2 py-1.5 pr-1.5 pl-2.5 text-[12.5px]">
+                    <Paperclip className="size-3.5 shrink-0 text-muted" aria-hidden />
+                    <span className="max-w-[200px] truncate font-medium">{f.name}</span>
+                    <span className="text-subtle">{fileSize(f.size)}</span>
+                    <button
+                      type="button"
+                      onClick={() => setFiles((cur) => (filesRef.current = cur.filter((_, j) => j !== k)))}
+                      className="flex size-6 items-center justify-center rounded-md hover:bg-background"
+                      aria-label={`Remover ${f.name}`}
+                    >
+                      <X className="size-3.5" weight="bold" aria-hidden />
+                    </button>
+                  </li>
+                ))}
+              </ul>
             ) : null}
             <form
               className="flex items-end gap-2 border-t border-border p-3 sm:p-4"
@@ -370,6 +486,27 @@ export function AssistantChat({
                 void send(input);
               }}
             >
+              <Button
+                type="button"
+                variant="ghost"
+                className="shrink-0 px-2.5"
+                onClick={() => fileInput.current?.click()}
+                aria-label="Anexar ficheiro"
+                title="Anexar imagem, PDF ou planilha"
+              >
+                <Paperclip className="size-[18px]" aria-hidden />
+              </Button>
+              <input
+                ref={fileInput}
+                type="file"
+                multiple
+                accept={ACCEPT}
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files?.length) void attach(e.target.files);
+                  e.target.value = "";
+                }}
+              />
               <Textarea
                 value={input}
                 onChange={(e) => {
@@ -393,17 +530,16 @@ export function AssistantChat({
               {voiceOk.listen ? (
                 <Button
                   type="button"
-                  variant={voice === "off" ? "outline" : "primary"}
+                  variant="outline"
                   className="shrink-0"
-                  onClick={() => void voiceLoop()}
-                  aria-pressed={voice !== "off"}
-                  aria-label={voice === "off" ? "Falar com o assistente" : "Parar a conversa por voz"}
+                  onClick={openVoice}
+                  aria-label="Falar com o assistente"
                 >
-                  <Microphone className="size-[18px]" weight={voice === "off" ? "regular" : "fill"} aria-hidden />
-                  <span className="hidden sm:inline">{voice === "off" ? "Falar" : "Parar"}</span>
+                  <Microphone className="size-[18px]" aria-hidden />
+                  <span className="hidden sm:inline">Falar</span>
                 </Button>
               ) : null}
-              <Button type="submit" disabled={busy || !input.trim()} className="shrink-0">
+              <Button type="submit" disabled={busy || (!input.trim() && !files.length)} className="shrink-0">
                 Enviar
               </Button>
             </form>
@@ -427,6 +563,25 @@ export function AssistantChat({
           </section>
         </div>
       </div>
+      {stageOpen ? (
+        <VoiceStage
+          ref={stage}
+          state={voice}
+          caption={voice === "listening" || voice === "thinking" ? heard : lastReply}
+          actions={
+            lastActionsMsg?.actions?.some((a) => !a.state) && companyId ? (
+              <AiActions ref={actionsRef} actions={lastActionsMsg.actions} companyId={companyId} onChange={onActionsChange(lastWithActions)} />
+            ) : undefined
+          }
+          attachments={files}
+          onAttach={(l) => void attach(l)}
+          onRemoveAttachment={(k) => setFiles((cur) => (filesRef.current = cur.filter((_, j) => j !== k)))}
+          onToggleMic={() => (voice === "idle" ? void voiceLoop(false) : pauseVoice())}
+          onClose={endVoice}
+          needsStart={needsStart}
+          onStart={() => void voiceLoop(true)}
+        />
+      ) : null}
     </>
   );
 }
