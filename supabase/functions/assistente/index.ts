@@ -8,6 +8,7 @@
 // os factos duradouros de uma conversa (preferências, decisões), para o assistente se lembrar nas conversas seguintes.
 // Os dados vêm de ps_ai_platform_context / ps_ai_context com o login do próprio utilizador (as regras de acesso aplicam-se).
 import { createClient } from "npm:@supabase/supabase-js@2";
+import nodemailer from "npm:nodemailer@6.9.16";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -529,10 +530,18 @@ async function proposeDecisions(key: string, model: string, payload: Record<stri
 }
 
 /* ---------------------------------------------------------------------------------------------------------------
- * Emails: pelo Gmail da empresa-mãe através de um Google Apps Script (sem SMTP, sem domínio próprio).
- * O Super Admin configura em Plataforma → Emails (fica em ps_secrets). Alternativa: segredo RESEND_API_KEY.
+ * Emails: uma só conta envia tudo. Por ordem: SMTP (ex.: Gmail com palavra-passe de app, porta 465 — o Supabase
+ * bloqueia as portas 25 e 587), Google Apps Script, Resend. Configura-se uma vez em Plataforma → Emails (ps_secrets).
  * ------------------------------------------------------------------------------------------------------------- */
-type MailCfg = { url?: string | null; secret?: string | null; from?: string | null };
+type MailCfg = {
+  url?: string | null;
+  secret?: string | null;
+  from?: string | null;
+  smtpHost?: string | null;
+  smtpPort?: number | null;
+  smtpUser?: string | null;
+  smtpPass?: string | null;
+};
 let mailCache: { at: number; cfg: MailCfg } | null = null;
 
 async function mailConfig(): Promise<MailCfg> {
@@ -544,6 +553,10 @@ async function mailConfig(): Promise<MailCfg> {
     const { data } = await admin.rpc("ps_mail_config");
     if (data) cfg = data as MailCfg;
   }
+  cfg.smtpUser ||= Deno.env.get("SMTP_USER");
+  cfg.smtpPass ||= Deno.env.get("SMTP_PASS");
+  cfg.smtpHost ||= Deno.env.get("SMTP_HOST") ?? "smtp.gmail.com";
+  cfg.smtpPort ||= Number(Deno.env.get("SMTP_PORT") ?? 465);
   cfg.url ||= Deno.env.get("MAIL_SCRIPT_URL");
   cfg.secret ||= Deno.env.get("MAIL_SCRIPT_SECRET");
   mailCache = { at: Date.now(), cfg };
@@ -551,7 +564,48 @@ async function mailConfig(): Promise<MailCfg> {
 }
 
 type MailOut = { to: string[]; subject: string; text: string; html: string; replyTo?: string };
-type MailResult = { ok: boolean; via: "gmail" | "resend" | "none"; error?: string; quota?: number };
+type MailResult = { ok: boolean; via: "smtp" | "gmail" | "resend" | "none"; error?: string; quota?: number };
+
+/** Mensagem de erro SMTP em português (as mais comuns com o Gmail). */
+function smtpError(e: unknown) {
+  const m = e instanceof Error ? e.message : String(e);
+  if (/535|Username and Password not accepted|BadCredentials|Invalid login/i.test(m))
+    return "O Gmail recusou o email e a palavra-passe. Use uma palavra-passe de app (não a palavra-passe normal da conta).";
+  if (/ETIMEDOUT|ECONNREFUSED|timeout|Connection closed/i.test(m)) return `Não foi possível ligar ao servidor SMTP (${m}). Use a porta 465.`;
+  if (/550|5\.4\.5|Daily user sending limit/i.test(m)) return "Limite diário de envio do Gmail atingido. Tente amanhã.";
+  return `O servidor SMTP não enviou o email: ${m}`;
+}
+
+async function smtpSend(cfg: MailCfg, m: MailOut, verifyOnly = false): Promise<MailResult> {
+  const port = Number(cfg.smtpPort) || 465;
+  const transport = nodemailer.createTransport({
+    host: cfg.smtpHost || "smtp.gmail.com",
+    port,
+    secure: port === 465 || port === 2465,
+    auth: { user: cfg.smtpUser!, pass: cfg.smtpPass! },
+    connectionTimeout: 15_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
+  });
+  try {
+    if (verifyOnly) await transport.verify();
+    else
+      await transport.sendMail({
+        from: { name: cfg.from || "Horbit", address: cfg.smtpUser! },
+        to: m.to.length === 1 ? m.to[0] : undefined,
+        bcc: m.to.length > 1 ? m.to : undefined,
+        subject: m.subject,
+        text: m.text,
+        html: m.html,
+        replyTo: m.replyTo,
+      });
+    return { ok: true, via: "smtp" };
+  } catch (e) {
+    return { ok: false, via: "smtp", error: smtpError(e) };
+  } finally {
+    transport.close();
+  }
+}
 
 async function callScript(cfg: MailCfg, payload: Record<string, unknown>) {
   const r = await fetch(cfg.url!, {
@@ -575,6 +629,7 @@ async function callScript(cfg: MailCfg, payload: Record<string, unknown>) {
 
 async function deliver(m: MailOut): Promise<MailResult> {
   const cfg = await mailConfig();
+  if (cfg.smtpUser && cfg.smtpPass) return smtpSend(cfg, m);
   if (cfg.url && cfg.secret) {
     try {
       const j = await callScript(cfg, { to: m.to, subject: m.subject, text: m.text, html: m.html, replyTo: m.replyTo });
@@ -696,10 +751,14 @@ async function mailStatus(req: Request) {
   mailCache = null;
   const cfg = await mailConfig();
   if (!Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")) return json({ configured: false, error: "Falta a chave de serviço na Edge Function." });
+  if (cfg.smtpUser && cfg.smtpPass) {
+    const r = await smtpSend(cfg, { to: [], subject: "", text: "", html: "" }, true);
+    return json({ configured: true, via: "smtp", user: cfg.smtpUser, ok: r.ok, error: r.ok ? null : r.error });
+  }
   if (!cfg.url || !cfg.secret) return json({ configured: false, resend: !!Deno.env.get("RESEND_API_KEY") });
   try {
     const j = await callScript(cfg, { ping: true });
-    return json({ configured: true, ok: !!j.ok, quota: j.quota ?? null, error: j.ok ? null : j.error });
+    return json({ configured: true, via: "gmail", ok: !!j.ok, quota: j.quota ?? null, error: j.ok ? null : j.error });
   } catch (e) {
     return json({ configured: true, ok: false, error: e instanceof Error ? e.message : String(e) });
   }
