@@ -120,7 +120,8 @@ function FixedQrCard({ station, onChanged }: { station: Station; onChanged: () =
         setSvg(await brandedQrSvg({ url, company: r.company || company.companyName, subtitle: hours }));
         if (renew) toast.success("Novo QR Code gerado. O anterior deixou de funcionar.");
       } catch (e) {
-        setError(errorMessage(e));
+        const msg = errorMessage(e);
+        setError(/ps_station_fixed_qr|function/i.test(msg) ? "Falta activar o QR Code fixo: corra o script supabase/04_parte7.sql no Supabase." : msg);
       } finally {
         setBusy(false);
       }

@@ -39,12 +39,17 @@ function Audit() {
   const [page, setPage] = React.useState(1);
 
   const data = useData(async () => {
-    let query = sb()
-      .from("audit_log_clean")
-      .select("id,actor_id,action,entity,entity_id,before,after,created_at,users(name)", { count: "exact" })
-      .eq("company_id", companyId);
-    if (category !== "all") query = query.in("action", actionsForCategory(category));
-    const res = await query.order("created_at", { ascending: false }).range((page - 1) * PAGE, page * PAGE - 1);
+    // "audit_log_clean" (04_parte7.sql) esconde o ruído da estação; sem o script, usa a tabela.
+    const build = (table: "audit_log_clean" | "audit_logs") => {
+      let query = sb()
+        .from(table)
+        .select("id,actor_id,action,entity,entity_id,before,after,created_at,users(name)", { count: "exact" })
+        .eq("company_id", companyId);
+      if (category !== "all") query = query.in("action", actionsForCategory(category));
+      return query.order("created_at", { ascending: false }).range((page - 1) * PAGE, page * PAGE - 1);
+    };
+    let res = await build("audit_log_clean");
+    if (res.error && /audit_log_clean/.test(res.error.message)) res = await build("audit_logs");
     const rows = (must(res) as unknown as Row[]).map<AuditListRow>((r) => ({ ...r, actorName: r.users?.name }));
     return { rows, total: res.count ?? 0, context: await loadAuditContext(rows) };
   }, [companyId, category, page]);

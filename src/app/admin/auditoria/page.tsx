@@ -42,15 +42,20 @@ export default function PlatformAuditPage() {
   const companies = useData(async () => must(await sb().from("companies").select("id,name").order("name")) as { id: string; name: string }[], []);
 
   const { data, error, loading } = useData(async () => {
-    let q = sb()
-      .from("audit_log_clean")
-      .select("id,company_id,actor_id,action,entity,entity_id,before,after,ip,created_at,companies(name),users(name,email)", { count: "exact" })
-      .order("created_at", { ascending: false })
-      .range((page - 1) * PAGE, page * PAGE - 1);
-    if (company === "platform") q = q.is("company_id", null);
-    else if (company !== "all") q = q.eq("company_id", company);
-    if (category !== "all") q = q.in("action", actionsForCategory(category));
-    const res = await q;
+    // "audit_log_clean" (04_parte7.sql) esconde o ruído da estação; sem o script, usa a tabela.
+    const build = (table: "audit_log_clean" | "audit_logs") => {
+      let q = sb()
+        .from(table)
+        .select("id,company_id,actor_id,action,entity,entity_id,before,after,ip,created_at,companies(name),users(name,email)", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .range((page - 1) * PAGE, page * PAGE - 1);
+      if (company === "platform") q = q.is("company_id", null);
+      else if (company !== "all") q = q.eq("company_id", company);
+      if (category !== "all") q = q.in("action", actionsForCategory(category));
+      return q;
+    };
+    let res = await build("audit_log_clean");
+    if (res.error && /audit_log_clean/.test(res.error.message)) res = await build("audit_logs");
     const raw = must(res) as unknown as (Omit<Row, "companies" | "users"> & { companies: unknown; users: unknown })[];
     const rows = raw.map<AuditListRow>((r) => {
       const c = first(r.companies as Row["companies"]);
