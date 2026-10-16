@@ -16,6 +16,10 @@ export type Membership = {
   employeeId: string | null;
   permissions: string[];
   teamDepartments: string[];
+  /** Funções avançadas ligadas a este gerente (ex.: "oficina"). */
+  modules?: string[];
+  /** Funções avançadas ligadas a algum gerente da empresa. */
+  companyModules?: string[];
 };
 
 export type CompanySettings = {
@@ -26,7 +30,10 @@ export type CompanySettings = {
   requireMfaForAdmins?: boolean;
 };
 
-export type RoleCode = "owner" | "admin" | "hr" | "finance" | "supervisor" | "employee";
+export type RoleCode = "owner" | "admin" | "hr" | "finance" | "supervisor" | "manager" | "employee";
+
+/** Papéis que entram no painel da empresa (o gerente e o colaborador usam o painel pessoal). */
+export const isCompanyStaff = (role: RoleCode | undefined) => !!role && role !== "employee" && role !== "manager";
 
 export type Me = { id: string; login: string; name: string; isPlatformAdmin: boolean; memberships: Membership[] };
 
@@ -148,7 +155,7 @@ export function useCompany() {
 
 /** Página inicial adequada ao utilizador. */
 export function homeFor(me: Me, company: Membership | null): string {
-  if (company && company.role !== "employee") return "/empresa/";
+  if (company && isCompanyStaff(company.role)) return "/empresa/";
   if (company?.employeeId) return "/app/";
   if (me.isPlatformAdmin) return "/admin/";
   return "/sem-acesso/";

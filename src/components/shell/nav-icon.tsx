@@ -1,5 +1,7 @@
 import {
   Bell,
+  Car,
+  Package,
   Buildings,
   CalendarCheck,
   ChartBar,
@@ -32,6 +34,10 @@ const BY_HREF: Record<string, Icon> = {
   "/app/justificacoes/": FileText,
   "/app/recibos/": Receipt,
   "/app/perfil/": UserCircle,
+  "/app/estoque/": Package,
+  "/app/oficina/": Car,
+  "/empresa/estoque/": Package,
+  "/empresa/oficina/": Car,
   "/admin/": SquaresFour,
   "/admin/empresas/": Buildings,
   "/admin/pedidos/": Tray,

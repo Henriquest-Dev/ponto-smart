@@ -33,7 +33,8 @@ const GUIDE_COMPANY = `Como funciona o Horbit (painel da empresa):
 - QR Code (menu QR Code): QR Code dinâmico (num ecrã na entrada, muda a cada poucos segundos) e QR Code fixo (impresso, com horário de validade); o colaborador lê com a câmara e o ponto fica marcado (entrada e depois saída). Não há marcação por link.
 - O assistente pode, com confirmação: cessar ou reactivar colaboradores, editar fichas, criar colaboradores, dar/mudar/retirar acessos, gerar palavras-passe, alterar salários, atribuir horários, exportar planilhas, avisar o responsável e abrir páginas. Também ouve comandos de voz e lê as respostas em voz alta.
 - Colaboradores: criar colaborador (nome, código, horário, salário, utilizador e palavra-passe, papel). Na ficha: dados, histórico salarial, redefinir palavra-passe, desactivar, relatório do mês.
-- Papéis: responsável (owner), administrador, RH, financeiro, supervisor, colaborador.
+- Papéis: responsável (owner), administrador, RH, financeiro, supervisor, gerente (manager), colaborador.
+- Gerente: marca o ponto como colaborador e tem a gestão de estoque (materiais, entradas, saídas, contagens, resumo do mês). Funções avançadas ligam-se por gerente na ficha do colaborador (ex.: Oficina: viaturas pela matrícula, trabalhos feitos e relatórios em PDF). O proprietário e o administrador vêem Estoque e Oficina no menu Gestão.
 - Locais e estações: local com morada e raio (geofence) e estações (ecrã da recepção).
 - Assiduidade: lista diária; Revisão para decidir marcações duvidosas; Correcções para corrigir horas com motivo.
 - Justificações: o colaborador pede com anexo; supervisor e/ou RH aprovam ou recusam com fundamento.
@@ -134,7 +135,7 @@ const TOOLS = [
         horario: { type: "STRING", description: "Nome de um dos horarios" },
         salario: { type: "NUMBER", description: "Salário base mensal em MZN" },
         acesso: { type: "BOOLEAN" },
-        papel: { type: "STRING", enum: ["employee", "supervisor", "hr", "finance", "admin"] },
+        papel: { type: "STRING", enum: ["employee", "manager", "supervisor", "hr", "finance", "admin"] },
       },
       required: ["nome"],
     },
@@ -146,7 +147,7 @@ const TOOLS = [
       type: "OBJECT",
       properties: {
         id: { type: "STRING" },
-        papel: { type: "STRING", enum: ["employee", "supervisor", "hr", "finance", "admin", "owner"] },
+        papel: { type: "STRING", enum: ["employee", "manager", "supervisor", "hr", "finance", "admin", "owner"] },
         utilizador: { type: "STRING", description: "Nome de utilizador (opcional)" },
       },
       required: ["id"],
@@ -210,7 +211,7 @@ const TOOLS = [
   },
 ];
 
-const ROLE_PT: Record<string, string> = { employee: "colaborador", supervisor: "supervisor", hr: "RH", finance: "financeiro", admin: "administrador", owner: "responsável" };
+const ROLE_PT: Record<string, string> = { employee: "colaborador", manager: "gerente", supervisor: "supervisor", hr: "RH", finance: "financeiro", admin: "administrador", owner: "responsável" };
 const PAGE_PT: Record<string, string> = {
   painel: "Painel", colaboradores: "Colaboradores", assiduidade: "Assiduidade", revisao: "Revisão de marcações", justificacoes: "Justificações",
   horarios: "Horários", relatorios: "Relatórios", salarios: "Salários", qr: "QR Code", locais: "Locais e estações", auditoria: "Auditoria", definicoes: "Definições",

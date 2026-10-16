@@ -11,7 +11,8 @@ import type { MenuLink } from "@/components/shell/user-menu";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 import { sb } from "@/lib/sb/client";
-import { homeFor, useSession, type Me, type Membership } from "@/lib/sb/session";
+import { hasModule } from "@/lib/manager-modules";
+import { homeFor, isCompanyStaff, useSession, type Me, type Membership } from "@/lib/sb/session";
 
 type Kind = "app" | "empresa" | "admin";
 
@@ -33,7 +34,7 @@ export function LoadingScreen() {
 function allowed(kind: Kind, me: Me, company: Membership | null) {
   if (kind === "admin") return me.isPlatformAdmin;
   if (kind === "app") return !!company?.employeeId;
-  return !!company && company.role !== "employee";
+  return !!company && isCompanyStaff(company.role);
 }
 
 /** Área protegida: confirma a sessão, o papel e monta a navegação. */
@@ -66,7 +67,7 @@ export function Area({ kind, children }: { kind: Kind; children: React.ReactNode
 
   const links: MenuLink[] = [];
   if (kind !== "app" && company?.employeeId) links.push({ href: "/app/", label: "O meu ponto" });
-  if (kind !== "empresa" && company && company.role !== "employee") links.push({ href: "/empresa/", label: "Painel da empresa" });
+  if (kind !== "empresa" && company && isCompanyStaff(company.role)) links.push({ href: "/empresa/", label: "Painel da empresa" });
   if (kind !== "admin" && me.isPlatformAdmin) links.push({ href: "/admin/", label: "Plataforma" });
   if (kind === "app") links.push({ href: "/app/perfil/", label: "Perfil e dispositivos" });
   links.push({ href: "/conta/", label: "Segurança da conta" });
@@ -87,7 +88,7 @@ export function Area({ kind, children }: { kind: Kind; children: React.ReactNode
     },
   };
 
-  const nav = kind === "admin" ? adminNav() : kind === "app" ? appNav() : companyNav(can);
+  const nav = kind === "admin" ? adminNav() : kind === "app" ? appNav(company) : companyNav(can, company);
 
   return (
     <AppShell
@@ -106,25 +107,29 @@ export function Area({ kind, children }: { kind: Kind; children: React.ReactNode
   );
 }
 
-function appNav() {
-  const sections: NavSection[] = [
-    {
-      items: [
-        { href: "/app/", label: "Início" },
-        { href: "/app/marcar/", label: "Marcar ponto" },
-        { href: "/app/historico/", label: "Histórico" },
-        { href: "/app/justificacoes/", label: "Justificações" },
-        { href: "/app/recibos/", label: "Recibos" },
-        { href: "/app/perfil/", label: "Perfil" },
-      ],
-    },
-  ];
-  const tabs: NavItem[] = [
+function appNav(company: Membership | null) {
+  const manager = company?.role === "manager";
+  const items: NavItem[] = [
     { href: "/app/", label: "Início" },
+    { href: "/app/marcar/", label: "Marcar ponto" },
     { href: "/app/historico/", label: "Histórico" },
-    { href: "/app/justificacoes/", label: "Faltas" },
+    { href: "/app/justificacoes/", label: "Justificações" },
     { href: "/app/recibos/", label: "Recibos" },
+    { href: "/app/perfil/", label: "Perfil" },
   ];
+  // Painel do gerente: o ponto de todos os dias e, por cima, as funções de gestão.
+  const gestao: NavItem[] = [];
+  if (manager) gestao.push({ href: "/app/estoque/", label: "Estoque" });
+  if (manager && hasModule(company, "oficina")) gestao.push({ href: "/app/oficina/", label: "Oficina" });
+  const sections: NavSection[] = gestao.length ? [{ title: "Gestão", items: gestao }, { title: "O meu ponto", items }] : [{ items }];
+  const tabs: NavItem[] = manager
+    ? [{ href: "/app/", label: "Início" }, ...gestao, { href: "/app/historico/", label: "Histórico" }].slice(0, 4)
+    : [
+        { href: "/app/", label: "Início" },
+        { href: "/app/historico/", label: "Histórico" },
+        { href: "/app/justificacoes/", label: "Faltas" },
+        { href: "/app/recibos/", label: "Recibos" },
+      ];
   return { root: "/app/", sections, tabs };
 }
 
@@ -140,7 +145,7 @@ function adminNav() {
   return { root: "/admin/", sections: [{ items }], tabs: items.slice(0, 3).map((i) => ({ ...i, label: short[i.href] ?? i.label })) };
 }
 
-function companyNav(can: (...p: string[]) => boolean) {
+function companyNav(can: (...p: string[]) => boolean, company: Membership | null) {
   const operations: NavItem[] = [{ href: "/empresa/", label: "Painel" }];
   if (can("employees.view")) operations.push({ href: "/empresa/colaboradores/", label: "Colaboradores" });
   if (can("attendance.view")) operations.push({ href: "/empresa/assiduidade/", label: "Assiduidade" });
@@ -158,6 +163,8 @@ function companyNav(can: (...p: string[]) => boolean) {
       ],
     });
   if (can("reports.view")) finance.push({ href: "/empresa/relatorios/", label: "Relatórios" });
+  if (can("stock.manage")) finance.push({ href: "/empresa/estoque/", label: "Estoque" });
+  if (can("workshop.manage") && hasModule(company, "oficina")) finance.push({ href: "/empresa/oficina/", label: "Oficina" });
 
   const setup: NavItem[] = [];
   if (can("schedules.manage")) setup.push({ href: "/empresa/horarios/", label: "Horários e feriados" });

@@ -6,9 +6,9 @@
 import { DAILY_STATUS_LABEL } from "@/lib/domain/attendance-rules";
 import { MONTHS_PT } from "@/lib/format";
 
-export type AuditCategory = "Pessoas" | "Assiduidade" | "Justificações" | "Salários" | "Configuração" | "Acessos" | "Plataforma";
+export type AuditCategory = "Pessoas" | "Assiduidade" | "Justificações" | "Salários" | "Gestão" | "Configuração" | "Acessos" | "Plataforma";
 
-export const AUDIT_CATEGORIES: AuditCategory[] = ["Pessoas", "Assiduidade", "Justificações", "Salários", "Configuração", "Acessos", "Plataforma"];
+export const AUDIT_CATEGORIES: AuditCategory[] = ["Pessoas", "Assiduidade", "Justificações", "Salários", "Gestão", "Configuração", "Acessos", "Plataforma"];
 
 export type AuditRowInput = {
   action: string;
@@ -94,6 +94,16 @@ const EXPLICIT: Record<string, AuditCategory> = {
   "clock_link.deleted": "Assiduidade",
   "clock_link.shown": "Assiduidade",
   "clock_link.hidden": "Assiduidade",
+  "employee.modules_set": "Acessos",
+  "stock.item_create": "Gestão",
+  "stock.item_update": "Gestão",
+  "stock.item_archive": "Gestão",
+  "stock.item_restore": "Gestão",
+  "vehicle.create": "Gestão",
+  "vehicle.update": "Gestão",
+  "vehicle.visit_open": "Gestão",
+  "vehicle.visit_save": "Gestão",
+  "vehicle.visit_delete": "Gestão",
 };
 
 /** Todas as acções conhecidas de uma categoria (para filtrar na base de dados). */
@@ -203,6 +213,7 @@ const ROLE: Record<string, string> = {
   hr: "Recursos Humanos",
   finance: "Financeiro",
   supervisor: "Supervisor",
+  manager: "Gerente",
   employee: "Colaborador",
 };
 
@@ -601,6 +612,29 @@ function describeExplicit(row: AuditRowInput, ctx: AuditContext): AuditText | nu
           : `deixou de mostrar aos colaboradores o link de reserva${when}`,
       );
     }
+    case "employee.modules_set": {
+      const name = row.entity_id ? ctx.names?.[row.entity_id] : undefined;
+      const mods = Array.isArray(after.modules) ? (after.modules as string[]) : [];
+      return out(`mudou as funções do gerente ${ofEmployee(name)}${mods.length ? ` (${mods.join(", ")})` : " (só estoque)"}`);
+    }
+    case "stock.item_create":
+      return out(`adicionou ao estoque o material ${str(after.name) ?? ""}`.trim());
+    case "stock.item_update":
+      return out(`alterou o material ${str(after.name) ?? ""} do estoque`.replace("  ", " "));
+    case "stock.item_archive":
+      return out(`arquivou o material ${str(after.name) ?? ""} do estoque`.replace("  ", " "));
+    case "stock.item_restore":
+      return out(`repôs o material ${str(after.name) ?? ""} no estoque`.replace("  ", " "));
+    case "vehicle.create":
+      return out(`registou a viatura ${str(after.plate) ?? ""}${str(after.name) ? ` (${str(after.name)})` : ""}`);
+    case "vehicle.update":
+      return out(`alterou os dados da viatura ${str(after.plate) ?? ""}`.trim());
+    case "vehicle.visit_open":
+      return out(`abriu uma nova entrada da viatura ${str(after.plate) ?? ""}`.trim());
+    case "vehicle.visit_save":
+      return out(str(after.status) === "concluida" ? "concluiu o trabalho numa viatura" : "registou o trabalho feito numa viatura");
+    case "vehicle.visit_delete":
+      return out("apagou uma entrada de uma viatura");
   }
   return null;
 }

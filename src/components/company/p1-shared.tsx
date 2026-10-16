@@ -68,7 +68,7 @@ export function useAssignableRoles() {
   const { can, company } = useCompany();
   const roles: { code: string; label: string }[] = [{ code: "employee", label: ROLE_LABEL.employee }];
   if (can("users.manage")) {
-    for (const code of ["supervisor", "hr", "finance", "admin"]) roles.push({ code, label: ROLE_LABEL[code] });
+    for (const code of ["manager", "supervisor", "hr", "finance", "admin"]) roles.push({ code, label: ROLE_LABEL[code] });
     if (company.role === "owner") roles.push({ code: "owner", label: ROLE_LABEL.owner });
   }
   return roles;

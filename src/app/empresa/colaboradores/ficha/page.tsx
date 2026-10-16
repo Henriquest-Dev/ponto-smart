@@ -27,13 +27,14 @@ import { dailyStatus, ROLE_LABEL } from "@/lib/labels";
 import type { DailyStatus } from "@/lib/domain/attendance-rules";
 import { attempt } from "@/lib/result";
 import { must, rpc, sb } from "@/lib/sb/client";
-import { useCompany } from "@/lib/sb/session";
+import { MANAGER_MODULES } from "@/lib/manager-modules";
+import { useCompany, useSession } from "@/lib/sb/session";
 import { useData, useQueryParam } from "@/lib/sb/use-data";
 import { monthRange } from "@/lib/time";
 
 type Employee = EmployeeRecord & { departments: { name: string } | null; branches: { name: string } | null };
 type Account = { id: string; email: string; status: string; last_login_at: string | null } | null;
-type Membership = { active: boolean; roles: { code: string; name: string } | null } | null;
+type Membership = { active: boolean; modules?: string[] | null; roles: { code: string; name: string } | null } | null;
 type TabKey = "resumo" | "assiduidade" | "salario" | "dispositivos";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -54,7 +55,14 @@ export default function EmployeeDetailPage() {
     const [user, membership, contract] = await Promise.all([
       e.user_id ? sb().from("users").select("id,email,status,last_login_at").eq("id", e.user_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
       e.user_id
-        ? sb().from("memberships").select("active,roles(code,name)").eq("user_id", e.user_id).eq("company_id", companyId).maybeSingle()
+        ? sb()
+            .from("memberships")
+            .select("active,modules,roles(code,name)")
+            .eq("user_id", e.user_id)
+            .eq("company_id", companyId)
+            .maybeSingle()
+            // Sem o script 04_parte12.sql a coluna "modules" ainda não existe.
+            .then((r) => (r.error ? sb().from("memberships").select("active,roles(code,name)").eq("user_id", e.user_id!).eq("company_id", companyId).maybeSingle() : r))
         : Promise.resolve({ data: null, error: null }),
       sb().from("employment_contracts").select("type,weekly_hours,start_date,end_date").eq("employee_id", e.id).order("start_date", { ascending: false }).limit(1).maybeSingle(),
     ]);
@@ -281,6 +289,8 @@ function AccessCard({
           </p>
         )}
 
+        {role === "manager" && active ? <ManagerModules employee={e} modules={membership?.modules ?? []} canEdit={can("users.manage")} reload={reload} /> : null}
+
         {manage ? (
           !account ? (
             <AccessDialog mode="create" employee={e} currentLogin={null} currentRole="employee" onDone={reload} />
@@ -319,6 +329,55 @@ function AccessCard({
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+/** Funções do gerente: o estoque vem sempre; as avançadas ligam-se aqui, uma a uma. */
+function ManagerModules({ employee: e, modules, canEdit, reload }: { employee: Employee; modules: string[]; canEdit: boolean; reload: () => void }) {
+  const { refresh } = useSession();
+  const [on, setOn] = useState<string[]>(modules);
+  const changed = [...on].sort().join() !== [...modules].sort().join();
+  return (
+    <div className="rounded-xl border border-border p-4">
+      <p className="text-[14px] font-bold">Funções do gerente</p>
+      <p className="mt-0.5 text-[12.5px] text-muted">Marca o ponto como os colaboradores e tem a gestão de estoque. Ligue as funções avançadas de que precisa.</p>
+      <ul className="mt-3 space-y-2">
+        <li className="flex items-start gap-3 rounded-lg bg-surface px-3 py-2.5 text-[13.5px]">
+          <input type="checkbox" checked disabled className="mt-0.5 size-4 accent-primary" aria-label="Estoque" />
+          <span><b>Estoque</b><span className="block text-[12.5px] text-muted">Todos os gerentes: materiais, entradas, saídas, contagens e resumo do mês.</span></span>
+        </li>
+        {MANAGER_MODULES.map((m) => (
+          <li key={m.code}>
+            <label className="flex items-start gap-3 rounded-lg border border-border px-3 py-2.5 text-[13.5px] has-checked:border-primary has-checked:bg-primary-soft">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4 accent-primary"
+                disabled={!canEdit}
+                checked={on.includes(m.code)}
+                onChange={(ev) => setOn((c) => (ev.target.checked ? [...c, m.code] : c.filter((x) => x !== m.code)))}
+              />
+              <span><b>{m.label}</b> <span className="text-[12px] font-bold text-primary">Avançado</span><span className="block text-[12.5px] text-muted">{m.description}</span></span>
+            </label>
+          </li>
+        ))}
+      </ul>
+      {canEdit && changed ? (
+        <ActionButton
+          size="sm"
+          className="mt-3"
+          action={() =>
+            attempt(async () => {
+              await rpc("ps_manager_modules_set", { p_employee: e.id, p_modules: on });
+              reload();
+              await refresh();
+              return "Funções do gerente guardadas.";
+            })
+          }
+        >
+          Guardar funções
+        </ActionButton>
+      ) : null}
+    </div>
   );
 }
 

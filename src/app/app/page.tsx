@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { LiveTimer, ThickBar } from "@/components/collab/motion";
+import { ManagerHome } from "@/components/manager/manager-home";
 import { DAILY_COLS, clockState, loadMonthDays, loadMyPayslips, loadPendingDays, summarize, useTitle, type DailyRow, type EventStatus, type MyStatus } from "@/components/collab/shared";
 import { Badge } from "@/components/ui/badge";
 import { Card, SectionTitle } from "@/components/ui/card";
@@ -111,6 +112,8 @@ export default function EmployeeHome() {
           ) : null}
         </div>
       </div>
+
+      {company.role === "manager" ? <ManagerHome /> : null}
 
       <section>
         <SectionTitle title="Este mês" />
