@@ -12,7 +12,7 @@ Controlo de ponto por QR Code e localização, assiduidade, justificações, sal
 Executar por esta ordem (copiar o ficheiro todo, colar, *Run*):
 
 1. `supabase/01_esquema.sql` — tabelas (só numa base vazia; se já correu, saltar).
-2. `supabase/04_parte1.sql` a `supabase/04_parte10.sql`, por esta ordem — login, regras de acesso, funções, Storage, auditoria, assistente do Super Admin, QR Code fixo, marcação por link, assistente como gestor de RH, QR dinâmico e fixo em simultâneo, link de reserva diário, margem do geofence e assistente com acesso a toda a gestão de pessoas e memória do assistente. Podem ser executados de novo sempre que forem actualizados.
+2. `supabase/04_parte1.sql` a `supabase/04_parte11.sql`, por esta ordem — login, regras de acesso, funções, Storage, auditoria, assistente do Super Admin, QR Code fixo, marcação por link, assistente como gestor de RH, QR dinâmico e fixo em simultâneo, link de reserva diário, margem do geofence e assistente com acesso a toda a gestão de pessoas , memória do assistente e retirada da marcação por link. Podem ser executados de novo sempre que forem actualizados.
 3. Criar o Super Admin (substituir utilizador, nome e palavra-passe):
 
 ```sql
@@ -32,7 +32,7 @@ Opcional: em *Database → Extensions* activar **pg_cron** e voltar a correr o `
 
 1. *Edge Functions → Deploy a new function → Via Editor*, nome **Ponto-ai** (o nome que o site chama; pode ser outro com `NEXT_PUBLIC_AI_FUNCTION`), colar `supabase/functions/assistente/index.ts`, *Deploy*. Quando o ficheiro mudar, abrir a função, colar a versão nova e *Deploy* outra vez.
 2. *Edge Functions → Secrets*: adicionar `GEMINI_API_KEY` com a chave do Google AI Studio.
-   - Opcional, voz neural do assistente (Fish Audio pelo OpenRouter): `OPENROUTER_API_KEY` (chave em openrouter.ai/keys); opcionais `OPENROUTER_TTS_VOICE` (id de uma voz do fish.audio) e `OPENROUTER_TTS_MODEL` (por omissão `fish-audio/s2.1-pro-free:free`). Sem a chave, usa-se a voz do navegador.
+   - Opcional, voz neural do assistente (Fish Audio pelo OpenRouter): `OPENROUTER_API_KEY` (chave em openrouter.ai/keys); opcionais `OPENROUTER_TTS_VOICE_F` e `OPENROUTER_TTS_VOICE_M` (ids das vozes feminina e masculina do fish.audio; já há vozes por omissão) e `OPENROUTER_TTS_MODEL` (por omissão `fish-audio/s2.1-pro-free:free`). Sem a chave, usa-se a voz do navegador.
    - Opcional, para o assistente enviar emails ao responsável: `RESEND_API_KEY` (conta em resend.com) e `EMAIL_FROM` (ex.: `Horbit <avisos@a-sua-empresa.co.mz>`, com o domínio verificado no Resend). Sem isto, o aviso chega como notificação no Horbit e há um botão para enviar pelo email do próprio utilizador.
 3. O mesmo assistente serve o painel da empresa (*Assistente*) e o Super Admin (*Plataforma → Assistente*).
 

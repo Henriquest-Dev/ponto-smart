@@ -39,21 +39,18 @@ const TYPE_LABEL = { in: "Entrada", out: "Saída", break_start: "Início de inte
 
 export function ClockFlow({
   initialToken,
-  initialLink = null,
   state,
   wantsBreak,
   timeZone,
   devicePolicy,
 }: {
   initialToken: string | null;
-  /** Marcação por link (dia especial): id do link em vez do QR Code. */
-  initialLink?: string | null;
   state: "off" | "working" | "break" | null;
   wantsBreak: boolean;
   timeZone: string;
   devicePolicy: "off" | "warn" | "require";
 }) {
-  const [step, setStep] = useState<Step>(initialToken || initialLink ? "locating" : "intro");
+  const [step, setStep] = useState<Step>(initialToken ? "locating" : "intro");
   const [token, setToken] = useState<string | null>(initialToken);
   const [fix, setFix] = useState<Fix>(null);
   const [liveAccuracy, setLiveAccuracy] = useState<number | null>(null);
@@ -211,13 +208,13 @@ export function ClockFlow({
   /* ----------------------------- Envio ------------------------------ */
   const submit = useCallback(
     async (opts?: { requestReview?: boolean }) => {
-      if ((!token && !initialLink) || inflightRef.current) return;
+      if (!token || inflightRef.current) return;
       inflightRef.current = true;
       setStep("submitting");
       try {
         idemRef.current ??= newKey();
-        const result = await rpc<ClockResult>(initialLink && !token ? "ps_clock_link" : "ps_clock", {
-          ...(initialLink && !token ? { p_link: initialLink } : { p_token: token }),
+        const result = await rpc<ClockResult>("ps_clock", {
+          p_token: token,
           p_lat: fix?.latitude ?? null,
           p_lng: fix?.longitude ?? null,
           p_accuracy: fix?.accuracy ?? null,
@@ -237,7 +234,7 @@ export function ClockFlow({
         inflightRef.current = false;
       }
     },
-    [token, initialLink, fix, devicePolicy, wantsBreak, note],
+    [token, fix, devicePolicy, wantsBreak, note],
   );
 
   useEffect(() => {
@@ -386,7 +383,6 @@ export function ClockFlow({
               fix={fix}
               note={note}
               setNote={setNote}
-              byLink={!!initialLink && !token}
               onRetry={restart}
               onRetryGps={retryGps}
               onReview={requestReview}
@@ -471,7 +467,6 @@ function Result({
   fix,
   note,
   setNote,
-  byLink,
   onRetry,
   onRetryGps,
   onReview,
@@ -481,13 +476,12 @@ function Result({
   fix: Fix;
   note: string;
   setNote: (v: string) => void;
-  byLink: boolean;
   onRetry: () => void;
   onRetryGps: () => void;
   onReview: () => void;
 }) {
   if (!response.ok) {
-    const qrProblem = !byLink && /QR Code|estação/i.test(response.error.message);
+    const qrProblem = /QR Code|estação/i.test(response.error.message);
     return (
       <div className="mt-12 flex flex-1 flex-col items-center text-center">
         <ResultMark tone="danger" />
@@ -499,11 +493,11 @@ function Result({
         </p>
         {qrProblem ? (
           <p className="mt-3 max-w-xs text-[13px] leading-relaxed text-subtle">
-            Se o QR Code continuar a falhar, peça ao responsável o link de reserva de hoje.
+            Se o QR Code continuar a falhar, peça ajuda ao responsável.
           </p>
         ) : null}
-        <Button size="lg" className="mt-auto h-14 w-full text-[16px] font-bold" onClick={byLink ? onRetryGps : onRetry}>
-          {byLink ? "Tentar novamente" : "Ler QR Code novamente"}
+        <Button size="lg" className="mt-auto h-14 w-full text-[16px] font-bold" onClick={onRetry}>
+          Ler QR Code novamente
         </Button>
       </div>
     );

@@ -1,6 +1,6 @@
 "use client";
 
-import { Microphone, MicrophoneSlash, Paperclip, X } from "@phosphor-icons/react";
+import { Check, Microphone, MicrophoneSlash, Paperclip, X } from "@phosphor-icons/react";
 import * as React from "react";
 import { ACCEPT, type Attachment } from "@/components/ai/attachments";
 import type { OrbiApi } from "@/components/ai/orbi";
@@ -36,12 +36,20 @@ export const VoiceStage = React.forwardRef<
     onAttach: (files: FileList) => void;
     onRemoveAttachment: (i: number) => void;
     onToggleMic: () => void;
+    /** A ouvir e já disse algo: envia logo, sem esperar pela pausa. */
+    onFinishSpeaking?: () => void;
+    /** Voz do Orbi (feminina ou masculina). */
+    gender: "f" | "m";
+    onGender: (g: "f" | "m") => void;
     onClose: () => void;
     /** O navegador ainda não deixa falar sem um toque: mostra "Começar". */
     needsStart?: boolean;
     onStart?: () => void;
   }
->(function VoiceStage({ state, caption, actions, attachments, onAttach, onRemoveAttachment, onToggleMic, onClose, needsStart, onStart }, ref) {
+>(function VoiceStage(
+  { state, caption, actions, attachments, onAttach, onRemoveAttachment, onToggleMic, onFinishSpeaking, gender, onGender, onClose, needsStart, onStart },
+  ref,
+) {
   const root = React.useRef<HTMLDivElement>(null);
   const eye = React.useRef<OrbiApi | null>(null);
   const level = React.useRef(0);
@@ -112,7 +120,28 @@ export const VoiceStage = React.forwardRef<
       </div>
 
       <div className="relative flex items-center justify-between px-5 pt-[max(1rem,env(safe-area-inset-top))]">
-        <p className="text-[15px] font-bold tracking-[-0.01em]">Orbi</p>
+        <div className="flex items-center gap-3">
+          <p className="text-[15px] font-bold tracking-[-0.01em]">Orbi</p>
+          <div className="flex rounded-full bg-white/10 p-0.5 text-[12.5px] font-bold" role="radiogroup" aria-label="Voz do Orbi">
+            {(
+              [
+                ["f", "Feminina"],
+                ["m", "Masculina"],
+              ] as const
+            ).map(([g, label]) => (
+              <button
+                key={g}
+                type="button"
+                role="radio"
+                aria-checked={gender === g}
+                onClick={() => onGender(g)}
+                className={cn("h-8 rounded-full px-3 transition-colors", gender === g ? "bg-white text-[#2c1678]" : "text-white/75 hover:text-white")}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
         <button
           type="button"
           onClick={onClose}
@@ -181,17 +210,29 @@ export const VoiceStage = React.forwardRef<
         >
           <Paperclip className="size-5" aria-hidden />
         </button>
-        <button
-          type="button"
-          onClick={onToggleMic}
-          className={cn(
-            "flex size-[72px] items-center justify-center rounded-full shadow-lg transition-transform hover:scale-105",
-            state === "idle" ? "bg-white text-[#2c1678]" : "bg-white/15 text-white ring-2 ring-white/40",
-          )}
-          aria-label={state === "idle" ? "Falar" : "Pausar o microfone"}
-        >
-          {state === "idle" ? <Microphone className="size-8" weight="fill" aria-hidden /> : <MicrophoneSlash className="size-8" aria-hidden />}
-        </button>
+        {state === "listening" && caption && onFinishSpeaking ? (
+          <button
+            type="button"
+            onClick={onFinishSpeaking}
+            className="flex size-[72px] flex-col items-center justify-center rounded-full bg-white text-[#2c1678] shadow-lg transition-transform hover:scale-105"
+            aria-label="Terminei de falar: enviar"
+          >
+            <Check className="size-7" weight="bold" aria-hidden />
+            <span className="text-[10.5px] font-bold">Terminei</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onToggleMic}
+            className={cn(
+              "flex size-[72px] items-center justify-center rounded-full shadow-lg transition-transform hover:scale-105",
+              state === "idle" ? "bg-white text-[#2c1678]" : "bg-white/15 text-white ring-2 ring-white/40",
+            )}
+            aria-label={state === "idle" ? "Falar" : "Pausar o microfone"}
+          >
+            {state === "idle" ? <Microphone className="size-8" weight="fill" aria-hidden /> : <MicrophoneSlash className="size-8" aria-hidden />}
+          </button>
+        )}
         <button
           type="button"
           onClick={onClose}

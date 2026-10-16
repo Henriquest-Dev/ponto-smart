@@ -12,7 +12,6 @@ export default function ClockPage() {
   useTitle("Marcar ponto");
   const { company, companyId, tz } = useCompany();
   const t = useQueryParam("t");
-  const link = useQueryParam("link");
   const tipo = useQueryParam("tipo");
   const status = useData(() => rpc<MyStatus>("ps_my_status", { p_company: companyId }), [companyId]);
   const state = status.data ? clockState(status.data) : null;
@@ -26,7 +25,6 @@ export default function ClockPage() {
       ) : null}
       <ClockFlow
         initialToken={t ? extractQrToken(t) : null}
-        initialLink={link}
         state={state}
         wantsBreak={tipo === "intervalo" && state !== "off" && state !== "break"}
         timeZone={tz}

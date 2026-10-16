@@ -8,7 +8,7 @@ import { generatePassword, suggestLogin } from "@/components/company/p1-shared";
 import { employeeReportHref, todayIn } from "@/components/company/p2-shared";
 import { exportAttendance, exportEmployees } from "@/components/company/p2-reports";
 import { Button } from "@/components/ui/button";
-import { errorMessage, must, rpc, sb } from "@/lib/sb/client";
+import { errorMessage, must, rpc, sb, SUPABASE_KEY, SUPABASE_URL } from "@/lib/sb/client";
 import { useCompany } from "@/lib/sb/session";
 import { cn } from "@/lib/utils";
 
@@ -48,6 +48,60 @@ export async function askAssistant(body: Record<string, unknown>): Promise<AiRep
   const d = await invoke<{ reply?: string; actions?: AiAction[] }>(body);
   if (!d.reply) throw new Error("O assistente não devolveu resposta.");
   return { reply: d.reply, actions: Array.isArray(d.actions) ? d.actions : [] };
+}
+
+/**
+ * Pergunta ao assistente com a resposta a chegar aos pedaços: onDelta recebe cada pedaço de texto
+ * (para mostrar e falar logo). Se a função publicada ainda não suportar streaming, funciona como antes.
+ */
+export async function askAssistantStream(body: Record<string, unknown>, onDelta?: (text: string) => void): Promise<AiReply> {
+  const { data } = await sb().auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new Error("Sessão expirada. Entre novamente.");
+  let res: Response;
+  try {
+    res = await fetch(`${SUPABASE_URL}/functions/v1/${AI_FUNCTION}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, apikey: SUPABASE_KEY },
+      body: JSON.stringify({ ...body, stream: true }),
+    });
+  } catch {
+    throw new Error(`${NOT_ACTIVE} Se já está publicada, verifique a ligação à internet.`);
+  }
+  if (res.status === 404) throw new Error(NOT_ACTIVE);
+  if (!(res.headers.get("content-type") ?? "").includes("text/event-stream") || !res.body) {
+    const j = (await res.json().catch(() => ({}))) as { reply?: string; actions?: AiAction[]; error?: string; message?: string };
+    if (!res.ok || j.error || !j.reply) {
+      if (res.status === 401 || res.status === 403) throw new Error(j.error ?? "Sem acesso ao assistente.");
+      throw new Error(j.error ?? j.message ?? "O assistente não conseguiu responder. Tente novamente.");
+    }
+    onDelta?.(j.reply);
+    return { reply: j.reply, actions: Array.isArray(j.actions) ? j.actions : [] };
+  }
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  let text = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true }).replace(/\r/g, "");
+    let i;
+    while ((i = buf.indexOf("\n\n")) >= 0) {
+      const event = buf.slice(0, i);
+      buf = buf.slice(i + 2);
+      if (!event.startsWith("data: ")) continue;
+      const m = JSON.parse(event.slice(6)) as { d?: string; done?: boolean; reply?: string; actions?: AiAction[]; error?: string };
+      if (m.error) throw new Error(m.error);
+      if (m.d) {
+        text += m.d;
+        onDelta?.(m.d);
+      }
+      if (m.done) return { reply: m.reply || text, actions: Array.isArray(m.actions) ? m.actions : [] };
+    }
+  }
+  if (text.trim()) return { reply: text, actions: [] };
+  throw new Error("A resposta foi interrompida. Tente novamente.");
 }
 
 const PAGES: Record<string, string> = {
@@ -134,26 +188,6 @@ async function execute(a: AiAction, env: Env): Promise<Outcome> {
     case "rever_marcacao":
       await rpc("ps_review_event", { p_event: g.id, p_decision: g.decisao === "aceitar" ? "accepted" : "rejected", p_reason: g.fundamento });
       return { message: g.decisao === "aceitar" ? "Marcação aceite." : "Marcação rejeitada." };
-    case "criar_marcacao_por_link": {
-      // Para hoje usa o link de reserva do dia (já existe) e mostra o botão aos colaboradores.
-      const daily = await rpc<{ id: string; date: string }[]>("ps_daily_links", { p_company: env.companyId }).catch(() => []);
-      const todays = daily.find((d) => d.date === g.dia);
-      if (todays) {
-        await rpc("ps_daily_link_show", { p_link: todays.id, p_shown: true });
-        return { message: "Link de reserva de hoje activado: os colaboradores já vêem o botão Marcar ponto." };
-      }
-      await rpc("ps_clock_link_save", {
-        p_company: env.companyId,
-        p_id: null,
-        p_location: await firstId("work_locations", env.companyId),
-        p_date: g.dia,
-        p_start: g.das,
-        p_end: g.as,
-        p_note: s(g.motivo) || null,
-        p_require_gps: true,
-      });
-      return { message: "Marcação por link criada." };
-    }
     case "definir_horario_qr":
       await rpc("ps_station_set_window", { p_station: await firstId("attendance_stations", env.companyId), p_start: g.das ?? null, p_end: g.as ?? null });
       return { message: "Horário do QR Code actualizado." };

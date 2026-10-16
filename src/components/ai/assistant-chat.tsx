@@ -3,12 +3,12 @@
 import { ArrowUp, Brain, List, NotePencil, Paperclip, PhoneCall, SpeakerHigh, SpeakerSlash, Waveform, X } from "@phosphor-icons/react";
 import * as React from "react";
 import { toast } from "sonner";
-import { AI_FUNCTION, AiActions, askAssistant, NOT_ACTIVE, type AiAction, type AiActionsHandle, type AiReply } from "@/components/ai/actions";
+import { AI_FUNCTION, AiActions, askAssistantStream, NOT_ACTIVE, type AiAction, type AiActionsHandle, type AiReply } from "@/components/ai/actions";
 import { ACCEPT, addAttachments, fileSize, type Attachment } from "@/components/ai/attachments";
 import { ChatHistory, MemoryDialog, OrbiMark, type ConversationItem } from "@/components/ai/chat-parts";
 import type { OrbiApi } from "@/components/ai/orbi";
 import { OrbiEye } from "@/components/ai/orbi-eye";
-import { canListen, canSpeak, listen, speak, stopSpeaking, voiceCommand } from "@/components/ai/voice";
+import { canListen, canSpeak, createSpeaker, getVoiceGender, listen, setVoiceGender, speak, stopSpeaking, voiceCommand, type VoiceGender } from "@/components/ai/voice";
 import { VoiceStage, type VoiceStageHandle } from "@/components/ai/voice-stage";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Notice } from "@/components/ui/misc";
@@ -41,7 +41,7 @@ function normalize(raw: unknown): Msg[] {
 }
 
 /** Envia a conversa. Os anexos vão só com a última mensagem: texto (planilhas, CSV) junto ao texto, imagens e PDF à parte. */
-async function ask(scope: AssistantScope, messages: Msg[], files: Attachment[] = []): Promise<AiReply> {
+async function ask(scope: AssistantScope, messages: Msg[], files: Attachment[] = [], voice = false, onDelta?: (t: string) => void): Promise<AiReply> {
   const history = messages.map((m, i) => {
     const last = i === messages.length - 1;
     const names = m.files?.length && !last ? `\n(anexou: ${m.files.map((f) => f.name).join(", ")})` : "";
@@ -49,7 +49,8 @@ async function ask(scope: AssistantScope, messages: Msg[], files: Attachment[] =
     const binary = last ? files.filter((f) => f.data).map((f) => ({ name: f.name, mime: f.mime, data: f.data })) : [];
     return { role: m.role, text: m.text + names + texts, ...(binary.length ? { files: binary } : {}) };
   });
-  return askAssistant(scope.kind === "company" ? { scope: "company", companyId: scope.companyId, messages: history } : { scope: "platform", messages: history });
+  const base = scope.kind === "company" ? { scope: "company", companyId: scope.companyId } : { scope: "platform" };
+  return askAssistantStream({ ...base, messages: history, ...(voice ? { voice: true } : {}) }, onDelta);
 }
 
 /** Pedido interno ao abrir a conversa por voz: o Orbi fala primeiro. */
@@ -102,13 +103,17 @@ export function AssistantChat({
   filesRef.current = files;
   const fileInput = React.useRef<HTMLInputElement>(null);
   const [lastReply, setLastReply] = React.useState("");
+  /** Resposta a chegar (streaming), mostrada enquanto o Orbi escreve. */
+  const [streamText, setStreamText] = React.useState("");
   const [heard, setHeard] = React.useState("");
   const voiceOn = React.useRef(false);
   const stopListening = React.useRef<() => void>(() => {});
   const [readAloud, setReadAloud] = React.useState(false);
+  const [gender, setGender] = React.useState<VoiceGender>("f");
   const [voiceOk, setVoiceOk] = React.useState({ listen: false, speak: false });
   React.useEffect(() => {
     setVoiceOk({ listen: canListen(), speak: canSpeak() });
+    setGender(getVoiceGender());
     try {
       setReadAloud(localStorage.getItem("horbit-ler-respostas") === "1");
     } catch {}
@@ -211,7 +216,11 @@ export function AssistantChat({
     r.errors.forEach((e) => toast.error(e));
   }
 
-  async function send(text: string, fromVoice = false, opts: { hidden?: boolean } = {}): Promise<AiReply | null> {
+  async function send(
+    text: string,
+    fromVoice = false,
+    opts: { hidden?: boolean; onDelta?: (t: string) => void } = {},
+  ): Promise<AiReply | null> {
     const sending = opts.hidden ? [] : filesRef.current;
     const t = text.trim() || (sending.length ? "Analisa o anexo." : "");
     if (!t || busy) return null;
@@ -232,7 +241,12 @@ export function AssistantChat({
     }
     setBusy(true);
     try {
-      const answer = await ask(scope, next, sending);
+      setStreamText("");
+      const answer = await ask(scope, next, sending, fromVoice, (d) => {
+        setStreamText((cur) => cur + d);
+        opts.onDelta?.(d);
+      });
+      setStreamText("");
       const all: Msg[] = [...next, { role: "model", text: answer.reply, ...(answer.actions.length ? { actions: answer.actions } : {}) }];
       messagesRef.current = all;
       setMessages(all);
@@ -252,6 +266,7 @@ export function AssistantChat({
       const msg = e instanceof Error ? e.message : "Erro";
       if (msg.startsWith(NOT_ACTIVE)) setInactive(true);
       else toast.error(msg);
+      setStreamText("");
       messagesRef.current = before;
       setMessages(before);
       if (!fromVoice) setInput(t);
@@ -290,6 +305,32 @@ export function AssistantChat({
     await speak(text, (n) => stage.current?.kick(n ?? 0.8));
   }
 
+  /** Pergunta e fala a resposta enquanto ela chega: a primeira frase começa logo. */
+  async function reply(text: string, opts: { hidden?: boolean } = {}): Promise<AiReply | null> {
+    if (!voiceOn.current) return null;
+    const speaker = createSpeaker((n) => stage.current?.kick(n ?? 0.8));
+    let said = "";
+    const answer = await send(text, true, {
+      ...opts,
+      onDelta: (d) => {
+        if (!voiceOn.current) return;
+        if (!said) setVoice("speaking");
+        said += d;
+        setLastReply(said);
+        speaker.push(d);
+      },
+    });
+    if (answer?.actions.length) {
+      const extra = ` ${spoken({ reply: "", actions: answer.actions }).replace(/^:\s*/, "")}`;
+      if (!said) setVoice("speaking");
+      setLastReply(said + extra);
+      speaker.push(extra);
+    }
+    speaker.end();
+    await speaker.done;
+    return answer;
+  }
+
   /** Abre o ecrã de voz; o Orbi fala primeiro e depois fica a ouvir. */
   function openVoice() {
     if (!voiceOk.listen) return void toast.error("Este navegador não suporta conversa por voz. Use o Chrome, o Edge ou o Safari.");
@@ -308,9 +349,9 @@ export function AssistantChat({
     setNeedsStart(false);
     if (greet) {
       setVoice("thinking");
-      const hello = await send(GREETING, true, { hidden: true });
+      const hello = await reply(GREETING, { hidden: true });
       // Sem resposta (ex.: assistente sobrecarregado): cumprimenta na mesma.
-      await say(hello ? spoken(hello) : "Olá! Estou a ouvir. Em que posso ajudar?");
+      if (!hello) await say("Olá! Estou a ouvir. Em que posso ajudar?");
     }
     let silent = 0;
     while (voiceOn.current) {
@@ -355,8 +396,7 @@ export function AssistantChat({
         continue;
       }
       setVoice("thinking");
-      const answer = await send(text, true);
-      if (answer) await say(spoken(answer));
+      await reply(text);
     }
     // Silêncio ou erro: fica em pausa, com o ecrã aberto.
     if (voiceOn.current) pauseVoice();
@@ -571,7 +611,14 @@ export function AssistantChat({
                       </div>
                     ),
                   )}
-                  {busy && voice === "off" ? (
+                  {busy && voice === "off" && streamText ? (
+                    <div className="flex gap-3">
+                      <OrbiMark className="mt-0.5" />
+                      <div className="min-w-0 flex-1 text-[14.5px] leading-relaxed break-words text-foreground">
+                        <RichText text={streamText} />
+                      </div>
+                    </div>
+                  ) : busy && voice === "off" ? (
                     <div className="flex items-center gap-3">
                       <OrbiMark />
                       <span className="flex gap-1" aria-label="O Orbi está a escrever">
@@ -725,6 +772,12 @@ export function AssistantChat({
           onAttach={(l) => void attach(l)}
           onRemoveAttachment={(k) => setFiles((cur) => (filesRef.current = cur.filter((_, j) => j !== k)))}
           onToggleMic={() => (voice === "idle" ? void voiceLoop(false) : pauseVoice())}
+          onFinishSpeaking={() => stopListening.current()}
+          gender={gender}
+          onGender={(g) => {
+            setGender(g);
+            setVoiceGender(g);
+          }}
           onClose={endVoice}
           needsStart={needsStart}
           onStart={() => void voiceLoop(true)}

@@ -89,7 +89,7 @@ function Locations() {
       <PageBody>
         <Notice tone="info">
           Cada estação tem QR dinâmico (num ecrã na entrada, muda a cada poucos segundos) e QR fixo (impresso). Os dois funcionam ao mesmo tempo.
-          O QR fixo, o horário e o link de reserva do dia estão em QR Code.
+          O QR fixo e o horário do QR estão em QR Code.
         </Notice>
         {data.error ? <ErrorBlock message={data.error} /> : null}
         {!data.data && !data.error ? <LoadingBlock rows={2} /> : null}

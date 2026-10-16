@@ -13,7 +13,9 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-const MODELS = [Deno.env.get("GEMINI_MODEL") ?? "gemini-flash-lite-latest", "gemini-flash-latest", "gemini-3.5-flash-lite"];
+const MODELS = [Deno.env.get("GEMINI_MODEL") ?? "gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-3.5-flash"];
+/** Se um modelo não começar a responder neste tempo, o pedido vai também para o seguinte (fica o que responder primeiro). */
+const HEDGE_MS = 2500;
 const GEMINI = Deno.env.get("GEMINI_API_BASE") ?? "https://generativelanguage.googleapis.com/v1beta";
 const OPENROUTER = Deno.env.get("OPENROUTER_API_BASE") ?? "https://openrouter.ai/api/v1";
 
@@ -28,7 +30,7 @@ type Ctx = any;
 
 const GUIDE_COMPANY = `Como funciona o Horbit (painel da empresa):
 - Painel: quem está presente hoje, atrasos, faltas e gráficos dos últimos 30 dias.
-- QR Code (menu QR Code): código fixo da empresa, impresso na entrada, com horário de validade; o colaborador lê com a câmara e o ponto fica marcado (entrada e depois saída). Marcação por link: em dias especiais, a empresa define dia e horas e aparece um botão "Marcar ponto" no painel dos colaboradores.
+- QR Code (menu QR Code): QR Code dinâmico (num ecrã na entrada, muda a cada poucos segundos) e QR Code fixo (impresso, com horário de validade); o colaborador lê com a câmara e o ponto fica marcado (entrada e depois saída). Não há marcação por link.
 - O assistente pode, com confirmação: cessar ou reactivar colaboradores, editar fichas, criar colaboradores, dar/mudar/retirar acessos, gerar palavras-passe, alterar salários, atribuir horários, exportar planilhas, avisar o responsável e abrir páginas. Também ouve comandos de voz e lê as respostas em voz alta.
 - Colaboradores: criar colaborador (nome, código, horário, salário, utilizador e palavra-passe, papel). Na ficha: dados, histórico salarial, redefinir palavra-passe, desactivar, relatório do mês.
 - Papéis: responsável (owner), administrador, RH, financeiro, supervisor, colaborador.
@@ -72,20 +74,6 @@ const TOOLS = [
         fundamento: { type: "STRING" },
       },
       required: ["id", "decisao", "fundamento"],
-    },
-  },
-  {
-    name: "criar_marcacao_por_link",
-    description: "Propor uma marcação por link para um dia especial (o botão aparece aos colaboradores nesse dia e horas).",
-    parameters: {
-      type: "OBJECT",
-      properties: {
-        dia: { type: "STRING", description: "Data AAAA-MM-DD" },
-        das: { type: "STRING", description: "Hora HH:MM" },
-        as: { type: "STRING", description: "Hora HH:MM" },
-        motivo: { type: "STRING" },
-      },
-      required: ["dia", "das", "as"],
     },
   },
   {
@@ -240,6 +228,138 @@ const person = (ctx: Ctx, id: unknown) =>
 const fmtDate = (d: string) => (/^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : d);
 const isTime = (t: unknown) => typeof t === "string" && /^\d{2}:\d{2}$/.test(t);
 
+/** Chama o Gemini com raciocínio mínimo (respostas mais rápidas). Se o modelo não aceitar essa opção, repete sem ela;
+ *  se estiver sobrecarregado (503), tenta outra vez uma vez. */
+async function gemini(key: string, model: string, payload: Record<string, unknown>): Promise<Response> {
+  const cfg = (payload.generationConfig ?? {}) as Record<string, unknown>;
+  const fast = { ...payload, generationConfig: { ...cfg, thinkingConfig: { thinkingLevel: "minimal" } } };
+  const call = (p: Record<string, unknown>) =>
+    fetch(`${GEMINI}/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify(p),
+    });
+  let res = await call(fast);
+  if (res.status === 400) res = await call(payload);
+  if (res.status === 503) {
+    await new Promise((r) => setTimeout(r, 700));
+    res = await call(fast);
+  }
+  return res;
+}
+
+/** Corrida entre modelos: começa no primeiro; se falhar (sobrecarga) passa logo ao seguinte e, se demorar mais de
+ *  HEDGE_MS, lança também o seguinte. Fica a primeira resposta que chegar; as outras são canceladas. */
+function geminiRace(key: string, payload: Record<string, unknown>): Promise<Response | null> {
+  const cfg = (payload.generationConfig ?? {}) as Record<string, unknown>;
+  const fast = { ...payload, generationConfig: { ...cfg, thinkingConfig: { thinkingLevel: "minimal" } } };
+  const ctrls: AbortController[] = [];
+  return new Promise((resolve) => {
+    let next = 0;
+    let running = 0;
+    let finished = false;
+    let timer: number | undefined;
+    const done = (res: Response | null, winner?: AbortController) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      for (const c of ctrls) if (c !== winner) c.abort();
+      resolve(res);
+    };
+    const launch = () => {
+      if (finished) return;
+      clearTimeout(timer);
+      if (next >= MODELS.length) {
+        if (!running) done(null);
+        return;
+      }
+      const model = MODELS[next++];
+      const ctrl = new AbortController();
+      ctrls.push(ctrl);
+      running++;
+      const call = (p: Record<string, unknown>) =>
+        fetch(`${GEMINI}/models/${model}:streamGenerateContent?alt=sse`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+          body: JSON.stringify(p),
+          signal: ctrl.signal,
+        });
+      (async () => {
+        let res = await call(fast);
+        if (res.status === 400) res = await call(payload);
+        return res;
+      })()
+        .then((res) => {
+          running--;
+          if (res.ok && res.body) return done(res, ctrl);
+          void res.body?.cancel();
+          if (res.status === 429 || res.status === 503 || res.status === 404 || res.status === 500) launch();
+          else if (!running) done(null);
+        })
+        .catch(() => {
+          running--;
+          if (!finished) launch();
+        });
+      timer = setTimeout(launch, HEDGE_MS);
+    };
+    launch();
+  });
+}
+
+/** Reenvia o streaming do Gemini ao navegador: {d: texto} a cada pedaço e, no fim, {done, reply, actions}. */
+function streamReply(res: Response, context: Ctx): Response {
+  const enc = new TextEncoder();
+  const body = new ReadableStream({
+    async start(ctrl) {
+      const send = (o: unknown) => ctrl.enqueue(enc.encode(`data: ${JSON.stringify(o)}\n\n`));
+      const reader = res.body!.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      let text = "";
+      const calls: { name: string; args?: Record<string, unknown> }[] = [];
+      try {
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true }).replace(/\r/g, "");
+          let i;
+          while ((i = buf.indexOf("\n\n")) >= 0) {
+            const event = buf.slice(0, i);
+            buf = buf.slice(i + 2);
+            for (const line of event.split("\n")) {
+              if (!line.startsWith("data: ")) continue;
+              try {
+                const j = JSON.parse(line.slice(6));
+                for (const p of j?.candidates?.[0]?.content?.parts ?? []) {
+                  if (p.text) {
+                    text += p.text;
+                    send({ d: p.text });
+                  }
+                  if (p.functionCall) calls.push(p.functionCall);
+                }
+              } catch {
+                // pedaço incompleto: ignora
+              }
+            }
+          }
+        }
+        const seen = new Set<string>();
+        const actions = calls
+          .map((c) => toAction(c.name, c.args ?? {}, context))
+          .filter((a): a is Action => !!a && !seen.has(a.label) && !!seen.add(a.label))
+          .slice(0, 20);
+        const reply = text.trim() || (actions.length ? "Preparei o seguinte. Confirme para avançar:" : "");
+        send(reply ? { done: true, reply, actions } : { error: "O assistente não devolveu resposta. Tente novamente." });
+      } catch {
+        send({ error: "A resposta foi interrompida. Tente novamente." });
+      } finally {
+        ctrl.close();
+      }
+    },
+  });
+  return new Response(body, { headers: { ...CORS, "Content-Type": "text/event-stream", "Cache-Control": "no-store" } });
+}
+
 /** Valida a chamada do modelo contra o contexto e escreve o texto do botão. Devolve null se não fizer sentido. */
 function toAction(name: string, args: Record<string, unknown>, ctx: Ctx): Action | null {
   if (name === "decidir_justificacao") {
@@ -260,15 +380,6 @@ function toAction(name: string, args: Record<string, unknown>, ctx: Ctx): Action
       type: name,
       label: `${args.decisao === "aceitar" ? "Aceitar" : "Rejeitar"} a marcação de ${m.nome} (${m.quando}): ${fundamento}`,
       args: { id: m.id, decisao: args.decisao, fundamento },
-    };
-  }
-  if (name === "criar_marcacao_por_link") {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(args.dia)) || !isTime(args.das) || !isTime(args.as)) return null;
-    const motivo = String(args.motivo ?? "").trim();
-    return {
-      type: name,
-      label: `Criar marcação por link em ${fmtDate(String(args.dia))}, das ${args.das} às ${args.as}${motivo ? ` (${motivo})` : ""}`,
-      args: { dia: args.dia, das: args.das, as: args.as, motivo },
     };
   }
   if (name === "definir_horario_qr") {
@@ -399,14 +510,10 @@ async function proposeDecisions(key: string, model: string, payload: Record<stri
     { role: "model", parts: [{ text: analysis }] },
     { role: "user", parts: [{ text: "Agora propõe a decisão para cada justificação pendente e cada marcação em revisão, chamando as funções (uma chamada por pendente), com fundamento curto." }] },
   ];
-  const res = await fetch(`${GEMINI}/models/${model}:generateContent`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-    body: JSON.stringify({
-      ...payload,
-      contents,
-      toolConfig: { functionCallingConfig: { mode: "ANY", allowedFunctionNames: ["decidir_justificacao", "rever_marcacao"] } },
-    }),
+  const res = await gemini(key, model, {
+    ...payload,
+    contents,
+    toolConfig: { functionCallingConfig: { mode: "ANY", allowedFunctionNames: ["decidir_justificacao", "rever_marcacao"] } },
   });
   if (!res.ok) return [];
   const out = await res.json();
@@ -449,7 +556,13 @@ async function notifyOwner(req: Request, body: { companyId?: string; subject?: s
 }
 
 /** Voz neural: transforma o texto da resposta em áudio MP3 (Fish Audio S2.1 Pro, pelo OpenRouter). */
-async function speakText(req: Request, body: { text?: string }) {
+/** As duas vozes do Orbi (Fish Audio), sempre as mesmas: feminina e masculina. */
+const VOICES: Record<string, string> = {
+  f: Deno.env.get("OPENROUTER_TTS_VOICE_F") ?? "ca0326921a254a7295650b2cf85fe098",
+  m: Deno.env.get("OPENROUTER_TTS_VOICE_M") ?? "69fc4effef064b4495d584e632e92fa6",
+};
+
+async function speakText(req: Request, body: { text?: string; voice?: string | boolean }) {
   const key = Deno.env.get("OPENROUTER_API_KEY");
   if (!key) return json({ error: "Voz neural não configurada (segredo OPENROUTER_API_KEY)." }, 501);
   const text = String(body.text ?? "").trim().slice(0, 1500);
@@ -460,14 +573,14 @@ async function speakText(req: Request, body: { text?: string }) {
   });
   const { data: auth } = await supabase.auth.getUser();
   if (!auth?.user) return json({ error: "Sessão expirada. Entre novamente." }, 401);
-  const voice = Deno.env.get("OPENROUTER_TTS_VOICE");
+  const voice = VOICES[body.voice === "m" ? "m" : "f"];
   const res = await fetch(`${OPENROUTER}/audio/speech`, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "X-Title": "Horbit" },
     body: JSON.stringify({
       model: Deno.env.get("OPENROUTER_TTS_MODEL") ?? "fish-audio/s2.1-pro-free:free",
       input: text,
-      ...(voice ? { voice } : {}),
+      voice,
       response_format: "mp3",
     }),
   });
@@ -510,18 +623,14 @@ async function memorize(req: Request, body: { scope?: string; companyId?: string
     `Conversa:\n${convo}`,
   ].join("\n\n");
   for (const model of MODELS) {
-    const res = await fetch(`${GEMINI}/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 400,
-          responseMimeType: "application/json",
-          responseSchema: { type: "OBJECT", properties: { factos: { type: "ARRAY", items: { type: "STRING" } } }, required: ["factos"] },
-        },
-      }),
+    const res = await gemini(key, model, {
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 400,
+        responseMimeType: "application/json",
+        responseSchema: { type: "OBJECT", properties: { factos: { type: "ARRAY", items: { type: "STRING" } } }, required: ["factos"] },
+      },
     });
     if (!res.ok) {
       if (res.status === 429 || res.status === 503 || res.status === 404) continue;
@@ -555,6 +664,8 @@ Deno.serve(async (req) => {
     messages?: Msg[];
     mode?: "chat" | "insights" | "notify" | "speak" | "memorize";
     explicit?: string;
+    voice?: boolean | string;
+    stream?: boolean;
     subject?: string;
     message?: string;
     text?: string;
@@ -590,23 +701,25 @@ Deno.serve(async (req) => {
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
     global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
   });
-  const { data: context, error } = platform
-    ? await supabase.rpc("ps_ai_platform_context")
-    : await supabase.rpc("ps_ai_context", { p_company: body.companyId });
-  if (error) return json({ error: error.message }, 403);
-  if (!platform) {
-    // Equipa completa, acessos e organização (script 04_parte9.sql); sem ele, o assistente continua com o resto.
-    const extra = await supabase.rpc("ps_ai_context_extra", { p_company: body.companyId });
-    if (!extra.error && extra.data) Object.assign(context, extra.data);
-  }
-  // Memória (script 04_parte10.sql) e títulos das conversas anteriores desta pessoa.
+  // Tudo o que o assistente precisa, pedido em paralelo (mais rápido).
   const company = platform ? null : body.companyId ?? null;
-  const [mem, past] = await Promise.all([
+  const conversations = company
+    ? supabase.from("ai_conversations").select("title,updated_at").eq("company_id", company)
+    : supabase.from("ai_conversations").select("title,updated_at").is("company_id", null);
+  const [ctx, extra, mem, past] = await Promise.all([
+    platform ? supabase.rpc("ps_ai_platform_context") : supabase.rpc("ps_ai_context", { p_company: body.companyId }),
+    // Equipa completa, acessos e organização (script 04_parte9.sql); sem ele, o assistente continua com o resto.
+    platform ? Promise.resolve({ data: null, error: null }) : supabase.rpc("ps_ai_context_extra", { p_company: body.companyId }),
+    // Memória (script 04_parte10.sql) e títulos das conversas anteriores desta pessoa.
     supabase.rpc("ps_ai_memories", { p_company: company }),
-    (company ? supabase.from("ai_conversations").select("title,updated_at").eq("company_id", company) : supabase.from("ai_conversations").select("title,updated_at").is("company_id", null))
-      .order("updated_at", { ascending: false })
-      .limit(12),
+    conversations.order("updated_at", { ascending: false }).limit(12),
   ]);
+  if (ctx.error) return json({ error: ctx.error.message }, 403);
+  const context = ctx.data ?? {};
+  if (!extra.error && extra.data) Object.assign(context, extra.data);
+  // A marcação por link foi retirada: não falar dela.
+  delete context.marcacoesPorLink;
+  if (Array.isArray(context.qrCode)) for (const q of context.qrCode) delete q.linkReservaHoje;
   const memory = mem.error ? [] : ((mem.data ?? []) as { content: string }[]).map((m) => m.content);
   const history = past.error ? [] : ((past.data ?? []) as { title: string; updated_at: string }[]).map((c) => `${c.updated_at.slice(8, 10)}/${c.updated_at.slice(5, 7)}: ${c.title}`);
 
@@ -627,7 +740,7 @@ Deno.serve(async (req) => {
     platform
       ? "Não executas acções: não crias contas, não aprovas pedidos nem alteras empresas."
       : [
-          "Tens funções para fazer tudo na gestão de pessoas: decidir justificações, rever marcações, cessar (demitir/despedir) ou reactivar colaboradores, editar fichas, criar colaboradores, dar, mudar ou retirar acessos, gerar palavras-passe, alterar salários, atribuir horários, exportar planilhas Excel, avisar o responsável por email e notificação, abrir páginas, marcação por link e horário do QR Code.",
+          "Tens funções para fazer tudo na gestão de pessoas: decidir justificações, rever marcações, cessar (demitir/despedir) ou reactivar colaboradores, editar fichas, criar colaboradores, dar, mudar ou retirar acessos, gerar palavras-passe, alterar salários, atribuir horários, exportar planilhas Excel, avisar o responsável por email e notificação, abrir páginas e horário do QR Code fixo.",
           "Sempre que o utilizador pede uma destas coisas, CHAMA a função na mesma resposta (uma chamada por acção) com os ids de pessoas; procura a pessoa pelo nome mesmo com erros de escrita e, se houver mais de uma parecida, pergunta qual. Cada chamada aparece como um botão Confirmar (ou é confirmada por voz). Não perguntes \"quer que avance?\": o botão já é a confirmação. Nunca digas que a acção já está feita; diz numa frase o que preparaste.",
           "Antes de cessar alguém, se não houver motivo, prepara a acção na mesma e menciona que pode indicar o motivo. As palavras-passe são geradas e mostradas só depois de confirmar; nunca inventes palavras-passe.",
           "As acções correm com as permissões de quem está a falar (minhasPermissoes); se faltar a permissão, explica que o papel dele não permite.",
@@ -635,6 +748,9 @@ Deno.serve(async (req) => {
           "As respostas podem ser lidas em voz alta: frases curtas e naturais, sem tabelas. Valores em MZN; não calculas taxas legais.",
         ].join(" "),
     platform ? GUIDE_PLATFORM : GUIDE_COMPANY,
+    body.voice === true
+      ? "Estás numa chamada de voz: responde em 1 a 3 frases curtas e naturais, sem listas nem negrito; os detalhes ficam para o ecrã."
+      : "",
     memory.length
       ? `O que já sabes desta pessoa (memória de conversas anteriores; usa com naturalidade quando for útil, sem a recitar):\n${memory.map((m) => `- ${m}`).join("\n")}`
       : "",
@@ -667,13 +783,15 @@ Deno.serve(async (req) => {
     payload.toolConfig = { functionCallingConfig: { mode: "AUTO" } };
   }
 
+  // Conversa: a resposta vai chegando aos pedaços (o texto aparece e a voz começa logo).
+  if (body.stream === true && !insights) {
+    const res = await geminiRace(key, payload);
+    if (res) return streamReply(res, context);
+  }
+
   let lastError = "Assistente indisponível.";
   for (const model of MODELS) {
-    const res = await fetch(`${GEMINI}/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify(payload),
-    });
+    const res = await gemini(key, model, payload);
     if (res.ok) {
       const out = await res.json();
       const parts: { text?: string; functionCall?: { name: string; args?: Record<string, unknown> } }[] = out?.candidates?.[0]?.content?.parts ?? [];
