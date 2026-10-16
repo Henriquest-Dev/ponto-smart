@@ -599,7 +599,7 @@ export function AssistantChat({
                         <OrbiMark className="mt-0.5" />
                         <div className="min-w-0 flex-1 text-[14.5px] leading-relaxed break-words text-foreground">
                           <RichText text={m.text} />
-                          {m.actions?.length && companyId ? (
+                          {m.actions?.length ? (
                             <AiActions
                               ref={i === lastWithActions && !stageOpen ? actionsRef : undefined}
                               actions={m.actions}
@@ -764,7 +764,7 @@ export function AssistantChat({
           state={voice}
           caption={voice === "listening" || voice === "thinking" ? heard : lastReply}
           actions={
-            lastActionsMsg?.actions?.some((a) => !a.state) && companyId ? (
+            lastActionsMsg?.actions?.some((a) => !a.state) ? (
               <AiActions ref={actionsRef} actions={lastActionsMsg.actions} companyId={companyId} onChange={onActionsChange(lastWithActions)} />
             ) : undefined
           }

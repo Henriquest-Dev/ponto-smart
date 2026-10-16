@@ -404,7 +404,7 @@ export function voiceCommand(text: string): "confirm" | "skip" | "stop" | null {
     .toLowerCase()
     .replace(/[^a-z\s]/g, "")
     .trim();
-  if (/^(sim|confirmar|confirmo|confirma|confirmado|pode avancar|pode confirmar|avanca|avancar|ok|esta bem|faz isso|faca isso|pode fazer)( por favor)?$/.test(t)) return "confirm";
+  if (/^(sim|confirmar|confirmo|confirma|confirmado|pode avancar|pode confirmar|avanca|avancar|ok|esta bem|faz isso|faca isso|pode fazer|envia|enviar|pode enviar|manda|pode mandar|cria|pode criar|vai|bora)( por favor| ja| agora)?$/.test(t)) return "confirm";
   if (/^(nao|ignorar|ignora|ignore|cancelar|cancela|nao faz isso|nao facas isso)( por favor)?$/.test(t)) return "skip";
   if (/^(parar|para|terminar|sair|desligar|desliga|chega|obrigad[oa]|e tudo)( obrigad[oa])?$/.test(t)) return "stop";
   return null;

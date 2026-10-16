@@ -7,10 +7,11 @@ import { toast } from "sonner";
 import { generatePassword, suggestLogin } from "@/components/company/p1-shared";
 import { employeeReportHref, todayIn } from "@/components/company/p2-shared";
 import { exportAttendance, exportEmployees } from "@/components/company/p2-reports";
-import { CredentialsMail } from "@/components/mail/send";
+import { CredentialsMail, sendMail } from "@/components/mail/send";
+import { generatePassword as strongPassword } from "@/components/admin/data";
 import { Button } from "@/components/ui/button";
 import { errorMessage, must, rpc, sb, SUPABASE_KEY, SUPABASE_URL } from "@/lib/sb/client";
-import { useCompany } from "@/lib/sb/session";
+import { useSession } from "@/lib/sb/session";
 import { cn } from "@/lib/utils";
 
 /** Nome da Edge Function publicada no Supabase (no projecto actual chama-se "Ponto-ai"). */
@@ -121,7 +122,8 @@ const PAGES: Record<string, string> = {
 };
 
 /** Resultado que fica visível por baixo da acção (credenciais nunca são guardadas no histórico). */
-type Outcome = { message: string; credentials?: { name: string; login: string; password: string; email?: string | null }; mailto?: string };
+type Creds = { name: string; login: string; password: string; email?: string | null; owner?: boolean; company?: string };
+type Outcome = { message: string; credentials?: Creds; mailto?: string };
 type Env = { companyId: string; companyName: string; tz: string; canSalary: boolean; go: (href: string) => void };
 
 const s = (v: unknown) => (typeof v === "string" ? v.trim() : v == null ? "" : String(v));
@@ -295,6 +297,87 @@ async function execute(a: AiAction, env: Env): Promise<Outcome> {
     case "atribuir_horario":
       await rpc("ps_assign_schedule", { p_employee: g.id, p_schedule: await idByName("work_schedules", env.companyId, g.horario), p_from: s(g.desde) || today });
       return { message: "Horário atribuído." };
+    case "enviar_email": {
+      const to = (g.to as string[]) ?? [];
+      const r = await sendMail({ companyId: env.companyId, kind: "company", to, data: { subject: s(g.assunto), text: s(g.mensagem) } });
+      if (!r.ok) throw new Error(r.error);
+      return { message: `Email "${s(g.assunto)}" enviado a ${r.sent ?? to.length} ${to.length === 1 ? "pessoa" : "pessoas"}.` };
+    }
+    case "enviar_resumo_mensal": {
+      const r = await invoke<{ sent?: number; to?: string[]; month?: string }>({ mode: "monthly_report", companyId: env.companyId, force: true });
+      return { message: `Resumo do mês enviado para ${(r.to ?? []).join(", ")}.` };
+    }
+    case "resumo_mensal_automatico":
+      await rpc("ps_monthly_report_set", { p_company: env.companyId, p_enabled: g.ligado === true });
+      return { message: g.ligado === true ? "Resumo mensal automático ligado: vai por email no início de cada mês." : "Resumo mensal automático desligado." };
+    default:
+      throw new Error("Acção desconhecida. Actualize a página.");
+  }
+}
+
+const ASK_DETAILS = (empresa: string) =>
+  `Olá,\n\nRecebemos o pedido de acesso da ${empresa} ao Horbit. Para criarmos a conta, responda a este email com:\n\n- Nome completo do responsável\n- Telefone\n- NUIT da empresa\n- Cidade\n- Número aproximado de colaboradores\n\nDepois de criarmos a conta, enviamos para este email o utilizador e a palavra-passe do responsável.\n\nCumprimentos,\nEquipa Horbit`;
+const PLATFORM_PAGES: Record<string, string> = { visao: "/admin/", empresas: "/admin/empresas/", pedidos: "/admin/pedidos/", emails: "/admin/emails/", auditoria: "/admin/auditoria/" };
+
+/** Acções do Super Admin (com a sessão dele; as regras da plataforma aplicam-se). */
+async function executePlatform(a: AiAction, go: (href: string) => void): Promise<Outcome> {
+  const g = a.args;
+  switch (a.type) {
+    case "enviar_email_plataforma": {
+      const to = (g.to as string[]) ?? [];
+      const r = await sendMail({ kind: "message", to, data: { subject: s(g.assunto), text: s(g.mensagem) } });
+      if (!r.ok) throw new Error(r.error);
+      return { message: `Email "${s(g.assunto)}" enviado para ${to.join(", ")}.` };
+    }
+    case "pedir_dados_pedido": {
+      const r = await sendMail({ kind: "message", to: s(g.email), data: { subject: `Horbit: pedido de acesso da ${s(g.empresa)}`, text: ASK_DETAILS(s(g.empresa)) } });
+      if (!r.ok) throw new Error(r.error);
+      return { message: `Pedido de dados enviado para ${s(g.email)}.` };
+    }
+    case "criar_empresa": {
+      const password = strongPassword();
+      const base = (s(g.utilizador) || suggestLogin(s(g.responsavel))).toLowerCase();
+      let login = base;
+      for (let i = 0; ; i++) {
+        login = i === 0 ? base : `${base}${i + 1}`;
+        try {
+          await rpc<string>("ps_admin_create_company", {
+            p_name: s(g.nome),
+            p_plan_code: null,
+            p_owner_name: s(g.responsavel),
+            p_owner_login: login,
+            p_owner_password: password,
+            p_nuit: s(g.nuit) || null,
+            p_email: s(g.email) || null,
+            p_phone: s(g.telefone) || null,
+            p_trial_days: 0,
+            p_request: g.pedido ?? null,
+          });
+          break;
+        } catch (e) {
+          if (i < 3 && /exist|já|duplicate/i.test(errorMessage(e)) && !/empresa/i.test(errorMessage(e))) continue;
+          throw e;
+        }
+      }
+      return {
+        message: `Empresa ${s(g.nome)} criada.`,
+        credentials: { name: s(g.responsavel), login, password, email: s(g.email), owner: true, company: s(g.nome) },
+      };
+    }
+    case "estado_empresa":
+      await rpc("ps_admin_set_company_status", { p_company: g.id, p_status: g.estado });
+      return { message: g.estado === "active" ? `${s(g.nome)} reactivada.` : g.estado === "suspended" ? `${s(g.nome)} suspensa.` : `${s(g.nome)} cancelada.` };
+    case "repor_palavra_passe_responsavel": {
+      const password = strongPassword();
+      const login = await rpc<string>("ps_admin_reset_owner_password", { p_company: g.id, p_password: password });
+      return { message: "Palavra-passe nova gerada.", credentials: { name: `Responsável da ${s(g.nome)}`, login, password, email: (g.email as string | null) ?? null, owner: true, company: s(g.nome) } };
+    }
+    case "recusar_pedido":
+      await rpc("ps_admin_reject_request", { p_request: g.id, p_reason: s(g.motivo) });
+      return { message: "Pedido recusado." };
+    case "abrir_pagina_plataforma":
+      go(PLATFORM_PAGES[s(g.pagina)] ?? "/admin/");
+      return { message: "" };
     default:
       throw new Error("Acção desconhecida. Actualize a página.");
   }
@@ -308,13 +391,15 @@ export const AiActions = React.forwardRef<
   AiActionsHandle,
   {
     actions: AiAction[];
-    companyId: string;
+    /** Sem empresa = acções do Super Admin. */
+    companyId?: string | null;
     /** Chamado com o novo estado da lista (para guardar no histórico). */
     onChange?: (actions: AiAction[]) => void;
   }
 >(function AiActions({ actions, companyId, onChange }, ref) {
   const router = useRouter();
-  const { company, can, tz } = useCompany();
+  const { company, can } = useSession();
+  const tz = company?.timezone ?? "Africa/Maputo";
   const [busy, setBusy] = React.useState<number | null>(null);
   const [list, setList] = React.useState(actions);
   const [outcomes, setOutcomes] = React.useState<Record<number, Outcome>>({});
@@ -336,13 +421,15 @@ export const AiActions = React.forwardRef<
     if (!a || a.state || busy !== null) return null;
     setBusy(i);
     try {
-      const out = await execute(a, {
-        companyId,
-        companyName: company.companyName,
-        tz,
-        canSalary: can("employees.salary.view", "payroll.view"),
-        go: (href) => router.push(href),
-      });
+      const out = companyId
+        ? await execute(a, {
+            companyId,
+            companyName: company?.companyName ?? "",
+            tz,
+            canSalary: can("employees.salary.view", "payroll.view"),
+            go: (href) => router.push(href),
+          })
+        : await executePlatform(a, (href) => router.push(href));
       if (out.message) {
         setOutcomes((o) => ({ ...o, [i]: out }));
         if (!out.credentials) toast.success(out.message);
@@ -377,6 +464,12 @@ export const AiActions = React.forwardRef<
         return (
           <li key={i} className={cn("rounded-lg border bg-background px-3.5 py-3", a.state ? "border-border" : "border-primary/40")}>
             <p className={cn("text-[13.5px] leading-snug font-medium text-foreground", a.state && "opacity-70")}>{a.label}</p>
+            {typeof a.args.mensagem === "string" && a.args.mensagem ? (
+              <details className="mt-1.5 text-[13px]" open={!a.state}>
+                <summary className="cursor-pointer font-bold text-primary">Ver o email</summary>
+                <p className="mt-1.5 rounded-md bg-surface px-3 py-2 leading-relaxed whitespace-pre-wrap text-foreground/90">{a.args.mensagem}</p>
+              </details>
+            ) : null}
             {a.state ? (
               <p className={cn("mt-1.5 text-[12.5px] font-bold", a.state === "done" ? "text-success" : "text-muted")}>
                 {a.state === "done" ? "Feito" : "Ignorado"}
@@ -385,7 +478,7 @@ export const AiActions = React.forwardRef<
               <div className="mt-2.5 flex gap-2">
                 <Button size="sm" disabled={busy !== null} onClick={() => void run(i)}>
                   {busy === i ? <span className="spinner" aria-hidden /> : null}
-                  {a.type === "abrir_relatorio" || a.type === "abrir_pagina" ? "Abrir" : a.type === "exportar_planilha" ? "Descarregar" : "Confirmar"}
+                  {a.type.startsWith("abrir_") ? "Abrir" : a.type === "exportar_planilha" ? "Descarregar" : /email|resumo_mensal$|pedir_dados/.test(a.type) ? "Enviar" : "Confirmar"}
                 </Button>
                 <Button size="sm" variant="ghost" disabled={busy !== null} onClick={() => mark(i, "skipped")}>
                   Ignorar
@@ -407,8 +500,8 @@ export const AiActions = React.forwardRef<
 });
 
 /** Credenciais geradas: só ficam no ecrã (não vão para o histórico da conversa). */
-function Credentials({ name, login, password, email }: { name: string; login: string; password: string; email?: string | null }) {
-  const { company, companyId } = useCompany();
+function Credentials({ name, login, password, email, owner, company: companyName }: Creds) {
+  const { company } = useSession();
   const text = `Horbit — ${name}\nUtilizador: ${login}\nPalavra-passe: ${password}`;
   return (
     <div className="mt-2.5 rounded-lg bg-surface px-3 py-2.5 text-[13px]">
@@ -428,7 +521,15 @@ function Credentials({ name, login, password, email }: { name: string; login: st
         Copiar dados
       </Button>
       <div className="mt-2">
-        <CredentialsMail email={email} name={name} company={company.companyName} companyId={companyId} login={login} password={password} />
+        <CredentialsMail
+          email={email}
+          name={owner ? "" : name}
+          company={companyName ?? company?.companyName}
+          companyId={owner ? null : company?.companyId}
+          login={login}
+          password={password}
+          owner={owner}
+        />
       </div>
     </div>
   );

@@ -42,6 +42,7 @@ const GUIDE_COMPANY = `Como funciona o Horbit (painel da empresa):
 - Justificações: o colaborador pede com anexo; supervisor e/ou RH aprovam ou recusam com fundamento.
 - Relatórios: relatório por colaborador (mês dia a dia) e exportação em Excel.
 - Salários: fechar a assiduidade, gerar o pré-processamento, outra pessoa aprova, emitir recibos, registar pagamentos.
+- Comunicados: escrever um email aos colaboradores (todos, um departamento ou pessoas escolhidas); sai em nome do Horbit, com os dados da empresa. Lá também se liga o resumo mensal do Orbi, que vai por email no início de cada mês.
 - Auditoria: quem fez o quê e quando.`;
 
 const GUIDE_PLATFORM = `Como funciona o Horbit (Super Admin):
@@ -49,6 +50,7 @@ const GUIDE_PLATFORM = `Como funciona o Horbit (Super Admin):
 - Pedidos de acesso (menu Plataforma → Pedidos de acesso): as empresas pedem acesso na página pública "Pedir acesso" com só o nome, o email e o motivo. No menu Pedidos de acesso, o Super Admin usa "Pedir dados por email" para pedir o nome do responsável e os dados da empresa; com a resposta usa "Criar conta" (cria a empresa e o acesso do responsável) e depois "Enviar por email" para mandar as credenciais. Também pode recusar com motivo.
 - Empresas: criar empresa directamente, ver o responsável, redefinir a palavra-passe do responsável, suspender ou reactivar.
 - Auditoria: todas as acções na plataforma.
+- Emails: o envio está integrado (sai em nome do Horbit pela conta Gmail da plataforma). Em Plataforma → Emails vê-se o estado e envia-se um teste.
 - O Super Admin não vê salários das empresas. Cada empresa cria os acessos da própria equipa.`;
 
 /** Acções que o assistente da empresa pode propor (o utilizador confirma no ecrã). */
@@ -198,6 +200,32 @@ const TOOLS = [
     parameters: { type: "OBJECT", properties: { assunto: { type: "STRING" }, mensagem: { type: "STRING" } }, required: ["assunto", "mensagem"] },
   },
   {
+    name: "enviar_email",
+    description:
+      "Enviar um email (em nome do Horbit, com os dados da empresa) a colaboradores: todos, um departamento ou pessoas escolhidas (ids de pessoas). Escreve tu o assunto e a mensagem completa, bem redigida.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        para: { type: "STRING", enum: ["todos", "departamento", "pessoas"] },
+        ids: { type: "ARRAY", items: { type: "STRING" }, description: "ids de pessoas (quando para = pessoas)" },
+        departamento: { type: "STRING" },
+        assunto: { type: "STRING" },
+        mensagem: { type: "STRING", description: "Texto completo do email; parágrafos separados por linha em branco." },
+      },
+      required: ["para", "assunto", "mensagem"],
+    },
+  },
+  {
+    name: "enviar_resumo_mensal",
+    description: "Enviar já, por email, o resumo do mês passado (o Orbi escreve-o) ao email da empresa e dos responsáveis.",
+    parameters: { type: "OBJECT", properties: {} },
+  },
+  {
+    name: "resumo_mensal_automatico",
+    description: "Ligar ou desligar o envio automático do resumo do mês, por email, no início de cada mês.",
+    parameters: { type: "OBJECT", properties: { ligado: { type: "BOOLEAN" } }, required: ["ligado"] },
+  },
+  {
     name: "abrir_pagina",
     description: "Abrir uma página do Horbit.",
     parameters: {
@@ -212,6 +240,126 @@ const TOOLS = [
     },
   },
 ];
+
+/** Acções que o assistente do Super Admin pode propor (o Super Admin confirma no ecrã ou por voz). */
+const PLATFORM_TOOLS = [
+  {
+    name: "enviar_email_plataforma",
+    description: "Enviar um email em nome do Horbit para um ou mais endereços e/ou para o email de empresas (ids de empresas). Escreve tu o assunto e a mensagem completa.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        emails: { type: "ARRAY", items: { type: "STRING" } },
+        empresas: { type: "ARRAY", items: { type: "STRING" }, description: "ids de empresas (usa o email registado da empresa)" },
+        assunto: { type: "STRING" },
+        mensagem: { type: "STRING" },
+      },
+      required: ["assunto", "mensagem"],
+    },
+  },
+  {
+    name: "pedir_dados_pedido",
+    description: "Responder a um pedido de acesso pedindo por email os dados que faltam (nome do responsável, telefone, NUIT, cidade). Usar o id de pedidosDeConta.",
+    parameters: { type: "OBJECT", properties: { id: { type: "STRING" } }, required: ["id"] },
+  },
+  {
+    name: "criar_empresa",
+    description:
+      "Criar uma empresa cliente e o acesso do responsável. A palavra-passe é gerada ao confirmar e as credenciais seguem por email. Se vier de um pedido, passar o id do pedido.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        nome: { type: "STRING" },
+        responsavel: { type: "STRING", description: "Nome completo do responsável" },
+        email: { type: "STRING" },
+        telefone: { type: "STRING" },
+        nuit: { type: "STRING" },
+        utilizador: { type: "STRING", description: "Utilizador do responsável (opcional; gerado a partir do nome)" },
+        pedido: { type: "STRING", description: "id do pedido de acesso (opcional)" },
+      },
+      required: ["nome", "responsavel", "email"],
+    },
+  },
+  {
+    name: "estado_empresa",
+    description: "Suspender, reactivar ou cancelar uma empresa. Usar o id de empresas.",
+    parameters: { type: "OBJECT", properties: { id: { type: "STRING" }, estado: { type: "STRING", enum: ["active", "suspended", "cancelled"] } }, required: ["id", "estado"] },
+  },
+  {
+    name: "repor_palavra_passe_responsavel",
+    description: "Gerar uma palavra-passe nova para o responsável de uma empresa e enviá-la por email. Usar o id de empresas.",
+    parameters: { type: "OBJECT", properties: { id: { type: "STRING" } }, required: ["id"] },
+  },
+  {
+    name: "recusar_pedido",
+    description: "Recusar um pedido de acesso com um motivo. Usar o id de pedidosDeConta.",
+    parameters: { type: "OBJECT", properties: { id: { type: "STRING" }, motivo: { type: "STRING" } }, required: ["id", "motivo"] },
+  },
+  {
+    name: "abrir_pagina_plataforma",
+    description: "Abrir uma página do painel do Super Admin.",
+    parameters: {
+      type: "OBJECT",
+      properties: { pagina: { type: "STRING", enum: ["visao", "empresas", "pedidos", "emails", "auditoria"] } },
+      required: ["pagina"],
+    },
+  },
+];
+const PLATFORM_PAGE_PT: Record<string, string> = { visao: "Visão geral", empresas: "Empresas", pedidos: "Pedidos de acesso", emails: "Emails", auditoria: "Auditoria" };
+const STATUS_PT: Record<string, string> = { active: "Reactivar", suspended: "Suspender", cancelled: "Cancelar" };
+const isEmail = (e: unknown) => typeof e === "string" && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e.trim());
+
+/** Acções do Super Admin: valida contra o contexto da plataforma e escreve o texto do botão. */
+function toPlatformAction(name: string, args: Record<string, unknown>, ctx: Ctx): Action | null {
+  const company = (id: unknown) => (ctx?.empresas ?? []).find((c: Ctx) => c.id === id) ?? null;
+  const request = (id: unknown) => (ctx?.pedidosDeConta ?? []).find((r: Ctx) => r.id === id) ?? null;
+  if (name === "enviar_email_plataforma") {
+    const assunto = str(args.assunto).slice(0, 150), mensagem = str(args.mensagem).slice(0, 8000);
+    const emails = new Set<string>(((args.emails as unknown[]) ?? []).filter(isEmail).map((e) => String(e).trim().toLowerCase()));
+    for (const id of (args.empresas as unknown[]) ?? []) {
+      const c = company(id);
+      if (c && isEmail(c.email)) emails.add(String(c.email).toLowerCase());
+    }
+    if (!assunto || !mensagem || !emails.size) return null;
+    const to = [...emails];
+    return { type: name, label: `Enviar o email "${assunto}" para ${to.slice(0, 4).join(", ")}${to.length > 4 ? ` e mais ${to.length - 4}` : ""}`, args: { to, assunto, mensagem } };
+  }
+  if (name === "pedir_dados_pedido") {
+    const r = request(args.id);
+    if (!r || !isEmail(r.email)) return null;
+    return { type: name, label: `Pedir por email à ${r.empresa} (${r.email}) os dados que faltam para criar a conta`, args: { id: r.id, email: r.email, empresa: r.empresa } };
+  }
+  if (name === "criar_empresa") {
+    const nome = str(args.nome), responsavel = str(args.responsavel), email = str(args.email).toLowerCase();
+    if (nome.length < 2 || responsavel.length < 3 || !isEmail(email)) return null;
+    const r = args.pedido ? request(args.pedido) : null;
+    return {
+      type: name,
+      label: `Criar a empresa ${nome} com o responsável ${responsavel} (credenciais por email para ${email})`,
+      args: { nome, responsavel, email, telefone: str(args.telefone), nuit: str(args.nuit), utilizador: str(args.utilizador), pedido: r?.id ?? null },
+    };
+  }
+  if (name === "estado_empresa") {
+    const c = company(args.id), estado = str(args.estado);
+    if (!c || !STATUS_PT[estado] || c.estado === estado) return null;
+    return { type: name, label: `${STATUS_PT[estado]} a empresa ${c.nome}`, args: { id: c.id, estado, nome: c.nome } };
+  }
+  if (name === "repor_palavra_passe_responsavel") {
+    const c = company(args.id);
+    if (!c) return null;
+    return { type: name, label: `Gerar uma palavra-passe nova para o responsável da ${c.nome}${isEmail(c.email) ? ` e enviá-la para ${c.email}` : ""}`, args: { id: c.id, nome: c.nome, email: isEmail(c.email) ? c.email : null } };
+  }
+  if (name === "recusar_pedido") {
+    const r = request(args.id), motivo = str(args.motivo).slice(0, 500);
+    if (!r || r.estado !== "pending" || !motivo) return null;
+    return { type: name, label: `Recusar o pedido da ${r.empresa}: ${motivo}`, args: { id: r.id, motivo } };
+  }
+  if (name === "abrir_pagina_plataforma") {
+    const p = str(args.pagina);
+    return PLATFORM_PAGE_PT[p] ? { type: name, label: `Abrir ${PLATFORM_PAGE_PT[p]}`, args: { pagina: p } } : null;
+  }
+  return null;
+}
 
 const ROLE_PT: Record<string, string> = { employee: "colaborador", manager: "gerente", supervisor: "supervisor", hr: "RH", finance: "financeiro", admin: "administrador", owner: "responsável" };
 const PAGE_PT: Record<string, string> = {
@@ -309,8 +457,38 @@ function geminiRace(key: string, payload: Record<string, unknown>): Promise<Resp
   });
 }
 
+/** O modelo disse que preparou uma acção mas não chamou a função? */
+const CLAIMS_ACTION =
+  /(preparei|pronto a (confirmar|criar|enviar)|vou (j[aá] )?(criar|enviar|mandar|avisar|suspender|reactivar|recusar|gerar|pedir|desligar|ligar)|basta confirmar|pode(s)? confirmar|confirme|fica pronto)/i;
+
+/** Segunda tentativa, obrigando o modelo a chamar as funções do que acabou de dizer que preparou. */
+async function forceActions(key: string, payload: Record<string, unknown>, said: string, ctx: Ctx): Promise<Action[]> {
+  const contents = [
+    ...(payload.contents as unknown[]),
+    { role: "model", parts: [{ text: said }] },
+    { role: "user", parts: [{ text: "Chama agora as funções do que acabaste de preparar (uma chamada por acção), com os dados desta conversa e os ids do contexto." }] },
+  ];
+  for (const model of MODELS) {
+    try {
+      const res = await gemini(key, model, { ...payload, contents, toolConfig: { functionCallingConfig: { mode: "ANY" } } });
+      if (!res.ok) continue;
+      const out = await res.json();
+      const parts: { functionCall?: { name: string; args?: Record<string, unknown> } }[] = out?.candidates?.[0]?.content?.parts ?? [];
+      const seen = new Set<string>();
+      return parts
+        .filter((p) => p.functionCall)
+        .map((p) => toAction(p.functionCall!.name, p.functionCall!.args ?? {}, ctx))
+        .filter((a): a is Action => !!a && !seen.has(a.label) && !!seen.add(a.label))
+        .slice(0, 20);
+    } catch {
+      // tenta o modelo seguinte
+    }
+  }
+  return [];
+}
+
 /** Reenvia o streaming do Gemini ao navegador: {d: texto} a cada pedaço e, no fim, {done, reply, actions}. */
-function streamReply(res: Response, context: Ctx): Response {
+function streamReply(res: Response, context: Ctx, recover?: (said: string) => Promise<Action[]>): Response {
   const enc = new TextEncoder();
   const body = new ReadableStream({
     async start(ctrl) {
@@ -347,10 +525,11 @@ function streamReply(res: Response, context: Ctx): Response {
           }
         }
         const seen = new Set<string>();
-        const actions = calls
+        let actions = calls
           .map((c) => toAction(c.name, c.args ?? {}, context))
           .filter((a): a is Action => !!a && !seen.has(a.label) && !!seen.add(a.label))
           .slice(0, 20);
+        if (!actions.length && recover && CLAIMS_ACTION.test(text)) actions = await recover(text);
         const reply = text.trim() || (actions.length ? "Preparei o seguinte. Confirme para avançar:" : "");
         send(reply ? { done: true, reply, actions } : { error: "O assistente não devolveu resposta. Tente novamente." });
       } catch {
@@ -365,6 +544,30 @@ function streamReply(res: Response, context: Ctx): Response {
 
 /** Valida a chamada do modelo contra o contexto e escreve o texto do botão. Devolve null se não fizer sentido. */
 function toAction(name: string, args: Record<string, unknown>, ctx: Ctx): Action | null {
+  if (ctx?.papel === "Super Admin da plataforma") return toPlatformAction(name, args, ctx);
+  if (name === "enviar_email") {
+    const assunto = str(args.assunto).slice(0, 150), mensagem = str(args.mensagem).slice(0, 8000);
+    if (!assunto || !mensagem) return null;
+    const active = (ctx?.pessoas ?? []).filter((x: Ctx) => x.estado === "activo");
+    const para = str(args.para);
+    const ids = new Set(((args.ids as unknown[]) ?? []).map(String));
+    const dep = str(args.departamento).toLowerCase();
+    const chosen = para === "todos" ? active : para === "departamento" ? active.filter((x: Ctx) => String(x.departamento ?? "").toLowerCase() === dep) : (ctx?.pessoas ?? []).filter((x: Ctx) => ids.has(x.id));
+    const withEmail = chosen.filter((x: Ctx) => isEmail(x.email));
+    if (!withEmail.length) return null;
+    const names = withEmail.map((x: Ctx) => x.nome as string);
+    const missing = chosen.length - withEmail.length;
+    return {
+      type: name,
+      label: `Enviar o email "${assunto}" a ${withEmail.length === 1 ? names[0] : `${withEmail.length} pessoas (${names.slice(0, 3).join(", ")}${names.length > 3 ? "…" : ""})`}${missing ? ` — ${missing} sem email na ficha ficam de fora` : ""}`,
+      args: { to: withEmail.map((x: Ctx) => String(x.email).toLowerCase()), assunto, mensagem },
+    };
+  }
+  if (name === "enviar_resumo_mensal") return { type: name, label: "Enviar agora por email o resumo do mês passado", args: {} };
+  if (name === "resumo_mensal_automatico") {
+    const on = args.ligado === true || args.ligado === "true";
+    return { type: name, label: on ? "Ligar o envio automático do resumo mensal por email" : "Desligar o envio automático do resumo mensal", args: { ligado: on } };
+  }
   if (name === "decidir_justificacao") {
     const j = (ctx?.justificacoesPendentes ?? []).find((x: Ctx) => x.id === args.id);
     if (!j || !["aprovar", "recusar"].includes(String(args.decisao))) return null;
@@ -1220,9 +1423,14 @@ Deno.serve(async (req) => {
     "Para perguntas sobre como usar o Horbit, explica os passos com base no guia abaixo.",
     "O utilizador pode anexar ficheiros (imagens, PDF, planilhas Excel/CSV, texto): lê-os com atenção e responde sobre eles. Se pedir para registar o que está no ficheiro (por exemplo criar os colaboradores de uma planilha ou um atestado para uma justificação), usa as funções, uma chamada por pessoa ou acção.",
     platform
-      ? "Não executas acções: não crias contas, não aprovas pedidos nem alteras empresas."
+      ? [
+          "És o gestor da plataforma: fazes o trabalho do Super Admin. Tens funções para enviar emails em nome do Horbit, pedir dados a quem pediu acesso, criar empresas (as credenciais seguem por email), recusar pedidos, suspender, reactivar ou cancelar empresas, gerar nova palavra-passe do responsável e abrir páginas.",
+          "Sempre que o Super Admin pede uma destas coisas, CHAMA a função na mesma resposta (uma chamada por acção), com os ids do contexto. Cada chamada aparece como um botão Confirmar (ou confirma-se por voz). Não perguntes \"quer que avance?\"; diz numa frase o que preparaste. Nunca digas que já está feito.",
+          "Para emails, escreve tu um assunto claro e a mensagem completa, educada e em português de Portugal, assinada como Equipa Horbit.",
+        ].join(" ")
       : [
-          "Tens funções para fazer tudo na gestão de pessoas: decidir justificações, rever marcações, cessar (demitir/despedir) ou reactivar colaboradores, editar fichas, criar colaboradores, dar, mudar ou retirar acessos, gerar palavras-passe, alterar salários, atribuir horários, exportar planilhas Excel, avisar o responsável por email e notificação, abrir páginas e horário do QR Code fixo.",
+          "Tens funções para fazer tudo na gestão de pessoas: decidir justificações, rever marcações, cessar (demitir/despedir) ou reactivar colaboradores, editar fichas, criar colaboradores, dar, mudar ou retirar acessos, gerar palavras-passe, alterar salários, atribuir horários, exportar planilhas Excel, avisar o responsável por email e notificação, enviar emails aos colaboradores (em nome do Horbit, com os dados da empresa), enviar já o resumo do mês e ligar ou desligar o resumo mensal automático, abrir páginas e horário do QR Code fixo.",
+          "Para emails, escreve tu um assunto claro e a mensagem completa e bem redigida em português de Portugal, assinada com o nome da empresa; não peças ao utilizador para escrever o texto.",
           "Sempre que o utilizador pede uma destas coisas, CHAMA a função na mesma resposta (uma chamada por acção) com os ids de pessoas; procura a pessoa pelo nome mesmo com erros de escrita e, se houver mais de uma parecida, pergunta qual. Cada chamada aparece como um botão Confirmar (ou é confirmada por voz). Não perguntes \"quer que avance?\": o botão já é a confirmação. Nunca digas que a acção já está feita; diz numa frase o que preparaste.",
           "Antes de cessar alguém, se não houver motivo, prepara a acção na mesma e menciona que pode indicar o motivo. As palavras-passe são geradas e mostradas só depois de confirmar; nunca inventes palavras-passe.",
           "As acções correm com as permissões de quem está a falar (minhasPermissoes); se faltar a permissão, explica que o papel dele não permite.",
@@ -1231,7 +1439,7 @@ Deno.serve(async (req) => {
         ].join(" "),
     platform ? GUIDE_PLATFORM : GUIDE_COMPANY,
     body.voice === true
-      ? "Estás numa chamada de voz: responde em 1 a 3 frases curtas e naturais, sem listas nem negrito; os detalhes ficam para o ecrã."
+      ? "Estás numa chamada de voz: responde em 1 a 3 frases curtas e naturais, sem listas nem negrito; os detalhes ficam para o ecrã. Mesmo em voz, quando pedem para fazer algo (enviar email, criar, alterar, avisar), CHAMA a função na mesma resposta e diz que está pronto a confirmar: basta dizer \"sim\" ou \"envia\"."
       : "",
     memory.length
       ? `O que já sabes desta pessoa (memória de conversas anteriores; usa com naturalidade quando for útil, sem a recitar):\n${memory.map((m) => `- ${m}`).join("\n")}`
@@ -1260,15 +1468,13 @@ Deno.serve(async (req) => {
     }),
     generationConfig: { temperature: 0.4, maxOutputTokens: 2048 },
   };
-  if (!platform) {
-    payload.tools = [{ functionDeclarations: TOOLS }];
-    payload.toolConfig = { functionCallingConfig: { mode: "AUTO" } };
-  }
+  payload.tools = [{ functionDeclarations: platform ? PLATFORM_TOOLS : TOOLS }];
+  payload.toolConfig = { functionCallingConfig: { mode: "AUTO" } };
 
   // Conversa: a resposta vai chegando aos pedaços (o texto aparece e a voz começa logo).
   if (body.stream === true && !insights) {
     const res = await geminiRace(key, payload);
-    if (res) return streamReply(res, context);
+    if (res) return streamReply(res, context, (said) => forceActions(key, payload, said, context));
   }
 
   let lastError = "Assistente indisponível.";
@@ -1284,6 +1490,7 @@ Deno.serve(async (req) => {
         .map((p) => toAction(p.functionCall!.name, p.functionCall!.args ?? {}, context))
         .filter((a): a is Action => !!a && !seen.has(a.label) && !!seen.add(a.label))
         .slice(0, 20);
+      if (!insights && !actions.length && text && CLAIMS_ACTION.test(text)) actions.push(...(await forceActions(key, payload, text, context)));
       // Na análise automática, se há pendentes e o modelo não propôs botões, pede só as propostas de decisão.
       if (insights && !actions.length && text && (context?.justificacoesPendentes?.length || context?.marcacoesEmRevisao?.length)) {
         actions.push(...(await proposeDecisions(key, model, payload, text, context)));
