@@ -1357,16 +1357,20 @@ async function speakText(req: Request, body: { text?: string; voice?: string | b
   const { data: auth } = await supabase.auth.getUser();
   if (!auth?.user) return json({ error: "Sessão expirada. Entre novamente." }, 401);
   const voice = VOICES[body.voice === "m" ? "m" : "f"];
-  const res = await fetch(`${OPENROUTER}/audio/speech`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "X-Title": "Horbit" },
-    body: JSON.stringify({
-      model: Deno.env.get("OPENROUTER_TTS_MODEL") ?? "fish-audio/s2.1-pro-free:free",
-      input: text,
-      voice,
-      response_format: "mp3",
-    }),
-  });
+  // A versão gratuita tem um limite diário (50 pedidos); quando se esgota (429) ou falha, tenta o modelo seguinte.
+  const models = [...new Set([Deno.env.get("OPENROUTER_TTS_MODEL"), "fish-audio/s2.1-pro", "fish-audio/s2.1-pro-free:free"]
+    .filter((m): m is string => !!m))];
+  let res: Response | null = null;
+  for (const model of models) {
+    res = await fetch(`${OPENROUTER}/audio/speech`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "X-Title": "Horbit" },
+      body: JSON.stringify({ model, input: text, voice, response_format: "mp3" }),
+    });
+    if (res.ok && res.body) break;
+    await res.body?.cancel();
+  }
+  if (!res) return json({ error: "Voz neural indisponível." }, 502);
   if (!res.ok || !res.body) return json({ error: `Voz neural indisponível (${res.status}).` }, 502);
   return new Response(res.body, {
     headers: { ...CORS, "Content-Type": res.headers.get("content-type") ?? "audio/mpeg", "Cache-Control": "no-store" },
