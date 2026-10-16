@@ -11,7 +11,7 @@ import { rpc } from "@/lib/sb/client";
 import { useCompany } from "@/lib/sb/session";
 import { CredentialFields, CredentialsCard, RoleSelect, suggestLogin, todayIn, validLogin, type OrgOptions } from "./p1-shared";
 
-type Created = { id: string; name: string; login: string | null; password: string | null };
+type Created = { id: string; name: string; login: string | null; password: string | null; email: string | null; role: string };
 
 export function NewEmployee({ org, onCreated }: { org: OrgOptions; onCreated: () => void }) {
   const { companyId, can, tz, company } = useCompany();
@@ -41,7 +41,7 @@ export function NewEmployee({ org, onCreated }: { org: OrgOptions; onCreated: ()
         {created ? (
           <div className="space-y-6">
             {created.login ? (
-              <CredentialsCard name={created.name} login={created.login} password={created.password} />
+              <CredentialsCard name={created.name} login={created.login} password={created.password} email={created.email} role={created.role} />
             ) : (
               <p className="rounded-lg bg-surface px-4 py-3.5 text-[13.5px] text-muted">A ficha foi criada sem acesso. Pode criar as credenciais mais tarde, na ficha do colaborador.</p>
             )}
@@ -86,7 +86,7 @@ export function NewEmployee({ org, onCreated }: { org: OrgOptions; onCreated: ()
                 return {
                   ok: true,
                   message: "Colaborador criado.",
-                  data: { id, name: o.fullName ?? "", login: access ? p.login : null, password: access ? p.password : null },
+                  data: { id, name: o.fullName ?? "", login: access ? p.login : null, password: access ? p.password : null, email: o.email ?? null, role: p.role ?? "employee" },
                 };
               })
             }

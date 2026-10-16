@@ -10,6 +10,7 @@ import { must, sb } from "@/lib/sb/client";
 import { useData, withBase } from "@/lib/sb/use-data";
 import { useCompany } from "@/lib/sb/session";
 import { localDate } from "@/lib/time";
+import { CredentialsMail } from "@/components/mail/send";
 import { ROLE_LABEL } from "@/lib/labels";
 
 export const ABSENCE_TYPES: Record<string, string> = {
@@ -201,7 +202,21 @@ export function RoleSelect({ defaultValue = "employee", name = "role" }: { defau
 }
 
 /** Cartão com as credenciais a entregar ao colaborador (mostradas uma única vez). */
-export function CredentialsCard({ name, login, password }: { name: string; login: string; password: string | null }) {
+export function CredentialsCard({
+  name,
+  login,
+  password,
+  email,
+  role,
+}: {
+  name: string;
+  login: string;
+  password: string | null;
+  /** Email do colaborador: as credenciais seguem automaticamente para lá. */
+  email?: string | null;
+  role?: string;
+}) {
+  const { company, companyId } = useCompany();
   const [copied, setCopied] = React.useState(false);
   const url = typeof window !== "undefined" ? `${window.location.origin}${withBase("/login/")}` : "";
   const text = [`Horbit — acesso de ${name}`, `Endereço: ${url}`, `Utilizador: ${login}`, password ? `Palavra-passe: ${password}` : null]
@@ -241,14 +256,16 @@ export function CredentialsCard({ name, login, password }: { name: string; login
         {password ? (
           <>
             <span className="font-bold text-foreground">A palavra-passe só é mostrada agora.</span> Entregue-a ao colaborador por um canal
-            seguro. Se a perder, terá de definir uma nova na ficha.
+            seguro{email ? " (vai também por email)" : ""}. Se a perder, terá de definir uma nova na ficha.
           </>
         ) : (
           "O utilizador mantém a palavra-passe actual."
         )}
       </p>
 
-      <Button type="button" size="lg" className="w-full" onClick={copy}>
+      <CredentialsMail email={email} name={name} company={company.companyName} companyId={companyId} login={login} password={password} role={role ? ROLE_LABEL[role] ?? role : undefined} />
+
+      <Button type="button" size="lg" className="w-full" variant={email ? "outline" : "primary"} onClick={copy}>
         {copied ? "Copiado" : "Copiar credenciais"}
       </Button>
     </div>

@@ -139,6 +139,7 @@ function adminNav() {
     { href: "/admin/empresas/", label: "Empresas" },
     { href: "/admin/pedidos/", label: "Pedidos de acesso" },
     { href: "/admin/assistente/", label: "Assistente" },
+    { href: "/admin/emails/", label: "Emails" },
     { href: "/admin/auditoria/", label: "Auditoria" },
   ];
   const short: Record<string, string> = { "/admin/": "Início", "/admin/pedidos/": "Pedidos" };

@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import * as React from "react";
+import { toast } from "sonner";
 import { CompanyDialog } from "@/components/admin/company-form";
 import { loadOverview, REQUEST_STATUS, type AdminRequest } from "@/components/admin/data";
 import { mailto } from "@/components/admin/credentials";
+import { sendMail } from "@/components/mail/send";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -116,9 +118,7 @@ export default function RequestsPage() {
                   </div>
                   {r.status === "pending" ? (
                     <div className="flex flex-wrap gap-2 lg:flex-col lg:items-stretch">
-                      <Button size="sm" variant="outline" asChild>
-                        <a href={askDetailsMail(r)}>Pedir dados por email</a>
-                      </Button>
+                      <AskDetailsButton r={r} />
                       <Button
                         size="sm"
                         onClick={() => {
@@ -200,6 +200,33 @@ function RejectDialog({ request, onClose, onDone }: { request: AdminRequest | nu
     </Dialog>
   );
 }
+
+/** Pede os dados em falta por email (Gmail da empresa-mãe); sem envio configurado, abre o programa de email. */
+function AskDetailsButton({ r }: { r: AdminRequest }) {
+  const [busy, setBusy] = React.useState(false);
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        const res = await sendMail({ kind: "message", to: r.email, data: { subject: askDetailsSubject(r), text: askDetailsText(r) } });
+        setBusy(false);
+        if (res.ok) toast.success(`Email enviado para ${r.email}.`);
+        else if (res.notConfigured) window.location.href = askDetailsMail(r);
+        else toast.error(res.error);
+      }}
+    >
+      {busy ? <span className="spinner" aria-hidden /> : null}
+      Pedir dados por email
+    </Button>
+  );
+}
+
+const askDetailsSubject = (r: AdminRequest) => `Horbit: pedido de acesso da ${r.company_name}`;
+const askDetailsText = (r: AdminRequest) =>
+  `Olá,\n\nRecebemos o pedido de acesso da ${r.company_name} ao Horbit. Para criarmos a conta, responda a este email com:\n\n- Nome completo do responsável:\n- Telefone:\n- NUIT da empresa:\n- Cidade:\n- Número aproximado de colaboradores:\n- Utilizador que prefere para entrar (opcional):\n\nDepois de criarmos a conta, enviamos para este email o utilizador e a palavra-passe do responsável.\n\nCumprimentos,\nEquipa Horbit`;
 
 /** Resposta ao pedido: pede ao responsável os dados que faltam para criar a conta. */
 function askDetailsMail(r: AdminRequest) {

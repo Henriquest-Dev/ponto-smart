@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { generatePassword, suggestLogin } from "@/components/company/p1-shared";
 import { employeeReportHref, todayIn } from "@/components/company/p2-shared";
 import { exportAttendance, exportEmployees } from "@/components/company/p2-reports";
+import { CredentialsMail } from "@/components/mail/send";
 import { Button } from "@/components/ui/button";
 import { errorMessage, must, rpc, sb, SUPABASE_KEY, SUPABASE_URL } from "@/lib/sb/client";
 import { useCompany } from "@/lib/sb/session";
@@ -20,7 +21,7 @@ export const NOT_ACTIVE = `O assistente ainda não está activo. Publique a fun�
 export type AiAction = { type: string; label: string; args: Record<string, unknown>; state?: "done" | "skipped" };
 export type AiReply = { reply: string; actions: AiAction[] };
 
-async function invoke<T>(body: Record<string, unknown>): Promise<T> {
+export async function invoke<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await sb().functions.invoke(AI_FUNCTION, { body });
   if (error) {
     if (error instanceof FunctionsHttpError) {
@@ -120,7 +121,7 @@ const PAGES: Record<string, string> = {
 };
 
 /** Resultado que fica visível por baixo da acção (credenciais nunca são guardadas no histórico). */
-type Outcome = { message: string; credentials?: { name: string; login: string; password: string }; mailto?: string };
+type Outcome = { message: string; credentials?: { name: string; login: string; password: string; email?: string | null }; mailto?: string };
 type Env = { companyId: string; companyName: string; tz: string; canSalary: boolean; go: (href: string) => void };
 
 const s = (v: unknown) => (typeof v === "string" ? v.trim() : v == null ? "" : String(v));
@@ -141,9 +142,9 @@ async function idByName(table: "departments" | "branches" | "work_schedules", co
 }
 
 async function employee(id: unknown) {
-  const { data } = await sb().from("employees").select("id,full_name,user_id,status").eq("id", s(id)).maybeSingle();
+  const { data } = await sb().from("employees").select("id,full_name,user_id,status,email").eq("id", s(id)).maybeSingle();
   if (!data) throw new Error("Colaborador não encontrado ou sem permissão para o ver.");
-  return data as { id: string; full_name: string; user_id: string | null; status: string };
+  return data as { id: string; full_name: string; user_id: string | null; status: string; email: string | null };
 }
 
 /** Próximo nº mecanográfico livre: mantém o prefixo mais usado (ex.: L07 → L08). */
@@ -263,7 +264,7 @@ async function execute(a: AiAction, env: Env): Promise<Outcome> {
       if (!g.acesso) return { message: `${name} criado com o nº ${p.employeeCode}.` };
       const password = generatePassword();
       const login = await setAccess(id, suggestLogin(name), password, s(g.papel) || "employee");
-      return { message: `${name} criado com o nº ${p.employeeCode} e com acesso ao Horbit.`, credentials: { name, login, password } };
+      return { message: `${name} criado com o nº ${p.employeeCode} e com acesso ao Horbit.`, credentials: { name, login, password, email: p.email ?? null } };
     }
     case "dar_acesso": {
       const e = await employee(g.id);
@@ -275,7 +276,7 @@ async function execute(a: AiAction, env: Env): Promise<Outcome> {
       }
       const password = generatePassword();
       const login = await setAccess(e.id, s(g.utilizador) || suggestLogin(e.full_name), password, role);
-      return { message: `${e.full_name} já pode entrar no Horbit.`, credentials: { name: e.full_name, login, password } };
+      return { message: `${e.full_name} já pode entrar no Horbit.`, credentials: { name: e.full_name, login, password, email: e.email } };
     }
     case "retirar_acesso": {
       const e = await employee(g.id);
@@ -286,7 +287,7 @@ async function execute(a: AiAction, env: Env): Promise<Outcome> {
       const e = await employee(g.id);
       const password = generatePassword();
       await rpc("ps_set_access", { p_employee: e.id, p_login: s(g.utilizador), p_password: password, p_role: s(g.papel) || null });
-      return { message: "Palavra-passe nova gerada.", credentials: { name: e.full_name, login: s(g.utilizador), password } };
+      return { message: "Palavra-passe nova gerada.", credentials: { name: e.full_name, login: s(g.utilizador), password, email: e.email } };
     }
     case "alterar_salario":
       await rpc("ps_add_salary", { p_employee: g.id, p_amount: Number(g.valor), p_from: s(g.desde) || today });
@@ -406,7 +407,8 @@ export const AiActions = React.forwardRef<
 });
 
 /** Credenciais geradas: só ficam no ecrã (não vão para o histórico da conversa). */
-function Credentials({ name, login, password }: { name: string; login: string; password: string }) {
+function Credentials({ name, login, password, email }: { name: string; login: string; password: string; email?: string | null }) {
+  const { company, companyId } = useCompany();
   const text = `Horbit — ${name}\nUtilizador: ${login}\nPalavra-passe: ${password}`;
   return (
     <div className="mt-2.5 rounded-lg bg-surface px-3 py-2.5 text-[13px]">
@@ -425,6 +427,9 @@ function Credentials({ name, login, password }: { name: string; login: string; p
       >
         Copiar dados
       </Button>
+      <div className="mt-2">
+        <CredentialsMail email={email} name={name} company={company.companyName} companyId={companyId} login={login} password={password} />
+      </div>
     </div>
   );
 }

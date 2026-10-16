@@ -3,9 +3,10 @@
 import * as React from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { CredentialsMail } from "@/components/mail/send";
 import { withBase } from "@/lib/sb/use-data";
 
-export type Credentials = { company: string; login: string; password: string; email?: string | null };
+export type Credentials = { company: string; login: string; password: string; email?: string | null; ownerName?: string | null };
 
 /** Abre o programa de email do Super Admin com a mensagem já escrita (não há envio automático). */
 export function mailto(to: string, subject: string, body: string) {
@@ -33,13 +34,6 @@ export function CredentialsPanel({ creds, onClose }: { creds: Credentials; onClo
   const [copied, setCopied] = React.useState(false);
   const url = loginUrl();
   const text = `Horbit — ${creds.company}\nEndereço: ${url}\nUtilizador: ${creds.login}\nPalavra-passe: ${creds.password}`;
-  const mail = creds.email
-    ? mailto(
-        creds.email,
-        `Horbit: acesso da ${creds.company}`,
-        `Olá,\n\nA conta da ${creds.company} no Horbit está criada. Estas são as credenciais do responsável:\n\nEndereço: ${url}\nUtilizador: ${creds.login}\nPalavra-passe: ${creds.password}\n\nNo primeiro acesso, altere a palavra-passe em Conta > Segurança. Depois, em Colaboradores, crie os acessos da sua equipa.\n\nCumprimentos,\nEquipa Horbit`,
-      )
-    : null;
 
   const rows: [string, string, boolean][] = [
     ["Endereço de entrada", url, false],
@@ -69,9 +63,13 @@ export function CredentialsPanel({ creds, onClose }: { creds: Credentials; onClo
         </dl>
       </section>
 
+      {creds.email ? (
+        <CredentialsMail email={creds.email} name={creds.ownerName ?? ""} company={creds.company} login={creds.login} password={creds.password} owner />
+      ) : null}
+
       <p className="rounded-lg border-l-4 border-warning bg-warning-soft px-4 py-3 text-[13px] leading-relaxed text-[#7a4b00]">
-        A palavra-passe não volta a ser mostrada depois de fechar esta janela. Envie-a agora para o email da empresa; o responsável
-        deve alterá-la no primeiro acesso e depois criar os acessos da equipa.
+        A palavra-passe não volta a ser mostrada depois de fechar esta janela.{creds.email ? " Já seguiu para o email da empresa." : " Copie-a e entregue-a ao responsável."} O
+        responsável deve alterá-la no primeiro acesso e depois criar os acessos da equipa.
       </p>
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -79,18 +77,14 @@ export function CredentialsPanel({ creds, onClose }: { creds: Credentials; onClo
           Fechar
         </Button>
         <Button
-          variant={mail || copied ? "outline" : "primary"}
+          variant={creds.email || copied ? "outline" : "primary"}
           onClick={async () => {
             if (await copy(text)) setCopied(true);
           }}
         >
           {copied ? "Credenciais copiadas" : "Copiar credenciais"}
         </Button>
-        {mail ? (
-          <Button asChild>
-            <a href={mail}>Enviar por email</a>
-          </Button>
-        ) : null}
+
       </div>
     </div>
   );

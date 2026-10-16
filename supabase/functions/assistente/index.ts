@@ -2,7 +2,8 @@
 // Super Admin (scope "platform"): conversa sobre a plataforma.
 // Empresa (scope "company"): gestor de RH — conversa, análise automática (mode "insights") e propostas de acções
 // que o utilizador confirma no ecrã (a função nunca altera dados: só propõe). Mode "notify": avisa o responsável
-// (notificação no Horbit e, se houver RESEND_API_KEY, email). Mode "speak": voz neural (Fish Audio pelo OpenRouter,
+// (notificação no Horbit e email). Mode "mail": credenciais e mensagens por email, pelo Gmail da empresa-mãe
+// (Google Apps Script) ou pelo Resend. Mode "speak": voz neural (Fish Audio pelo OpenRouter,
 // segredo OPENROUTER_API_KEY) — o Gemini é o cérebro, o Fish Audio é a voz. Mode "memorize": guarda na memória
 // os factos duradouros de uma conversa (preferências, decisões), para o assistente se lembrar nas conversas seguintes.
 // Os dados vêm de ps_ai_platform_context / ps_ai_context com o login do próprio utilizador (as regras de acesso aplicam-se).
@@ -527,7 +528,184 @@ async function proposeDecisions(key: string, model: string, payload: Record<stri
     .slice(0, 6);
 }
 
-/** Aviso ao responsável: notificação no Horbit (sempre) e email através do Resend (se RESEND_API_KEY estiver definido). */
+/* ---------------------------------------------------------------------------------------------------------------
+ * Emails: pelo Gmail da empresa-mãe através de um Google Apps Script (sem SMTP, sem domínio próprio).
+ * O Super Admin configura em Plataforma → Emails (fica em ps_secrets). Alternativa: segredo RESEND_API_KEY.
+ * ------------------------------------------------------------------------------------------------------------- */
+type MailCfg = { url?: string | null; secret?: string | null; from?: string | null };
+let mailCache: { at: number; cfg: MailCfg } | null = null;
+
+async function mailConfig(): Promise<MailCfg> {
+  if (mailCache && Date.now() - mailCache.at < 60_000) return mailCache.cfg;
+  let cfg: MailCfg = {};
+  const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (service) {
+    const admin = createClient(Deno.env.get("SUPABASE_URL")!, service, { auth: { persistSession: false } });
+    const { data } = await admin.rpc("ps_mail_config");
+    if (data) cfg = data as MailCfg;
+  }
+  cfg.url ||= Deno.env.get("MAIL_SCRIPT_URL");
+  cfg.secret ||= Deno.env.get("MAIL_SCRIPT_SECRET");
+  mailCache = { at: Date.now(), cfg };
+  return cfg;
+}
+
+type MailOut = { to: string[]; subject: string; text: string; html: string; replyTo?: string };
+type MailResult = { ok: boolean; via: "gmail" | "resend" | "none"; error?: string; quota?: number };
+
+async function callScript(cfg: MailCfg, payload: Record<string, unknown>) {
+  const r = await fetch(cfg.url!, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ secret: cfg.secret, fromName: cfg.from || "Horbit", ...payload }),
+    redirect: "follow",
+  });
+  const t = await r.text();
+  try {
+    return JSON.parse(t) as { ok?: boolean; error?: string; quota?: number };
+  } catch {
+    return {
+      ok: false,
+      error: /accounts\.google\.com|Sign in|Iniciar sess/i.test(t)
+        ? "O Apps Script pede login: publique-o com acesso \"Qualquer pessoa\"."
+        : `O Apps Script respondeu de forma inesperada (${r.status}).`,
+    };
+  }
+}
+
+async function deliver(m: MailOut): Promise<MailResult> {
+  const cfg = await mailConfig();
+  if (cfg.url && cfg.secret) {
+    try {
+      const j = await callScript(cfg, { to: m.to, subject: m.subject, text: m.text, html: m.html, replyTo: m.replyTo });
+      if (j.ok) return { ok: true, via: "gmail", quota: j.quota };
+      return { ok: false, via: "gmail", error: j.error || "O Gmail não enviou o email." };
+    } catch (e) {
+      return { ok: false, via: "gmail", error: `Não foi possível contactar o Apps Script: ${e instanceof Error ? e.message : e}` };
+    }
+  }
+  const resend = Deno.env.get("RESEND_API_KEY");
+  if (resend) {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${resend}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: Deno.env.get("EMAIL_FROM") ?? "Horbit <onboarding@resend.dev>", to: m.to, subject: m.subject, text: m.text, html: m.html, reply_to: m.replyTo }),
+    });
+    return res.ok ? { ok: true, via: "resend" } : { ok: false, via: "resend", error: `O Resend recusou o email (${res.status}).` };
+  }
+  return { ok: false, via: "none", error: "O envio automático de emails ainda não está configurado (Plataforma → Emails)." };
+}
+
+const esc = (t: unknown) =>
+  String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+
+/** Email com o aspecto do Horbit (HTML simples, compatível com o Gmail) e a versão em texto. */
+function mailBody(o: { title: string; paragraphs: string[]; rows?: [string, string][]; button?: { label: string; url: string }; after?: string[]; footer?: string }) {
+  const p = (t: string) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.55;color:#2a2540">${esc(t).replace(/\n/g, "<br>")}</p>`;
+  const rows = o.rows?.length
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 20px;border:1px solid #e4e1ee;border-radius:12px;border-collapse:separate">
+${o.rows.map(([k, v], i) => `<tr><td style="padding:12px 16px;${i ? "border-top:1px solid #eeecf4;" : ""}font-size:12.5px;color:#6b6780;width:96px">${esc(k)}</td><td style="padding:12px 16px;${i ? "border-top:1px solid #eeecf4;" : ""}font-family:Menlo,Consolas,monospace;font-size:14px;font-weight:bold;color:#1a1530;word-break:break-word">${esc(v)}</td></tr>`).join("\n")}
+</table>`
+    : "";
+  const button = o.button
+    ? `<p style="margin:4px 0 22px"><a href="${esc(o.button.url)}" style="display:inline-block;background:#7041ec;color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;padding:12px 22px;border-radius:10px">${esc(o.button.label)}</a></p>`
+    : "";
+  const html = `<!doctype html><html><body style="margin:0;padding:0;background:#f4f3f8">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f3f8;padding:24px 12px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;font-family:Arial,Helvetica,sans-serif">
+<tr><td style="background:#1a1530;padding:20px 28px;color:#ffffff;font-size:20px;font-weight:bold;letter-spacing:-0.3px">Horbit</td></tr>
+<tr><td style="padding:28px">
+<h1 style="margin:0 0 16px;font-size:20px;line-height:1.3;color:#1a1530">${esc(o.title)}</h1>
+${o.paragraphs.map(p).join("\n")}
+${rows}${button}
+${(o.after ?? []).map(p).join("\n")}
+</td></tr>
+<tr><td style="padding:16px 28px;background:#faf9fc;border-top:1px solid #eeecf4;font-size:12px;line-height:1.5;color:#8a869a">${esc(o.footer ?? "Horbit · ponto, assiduidade e salários")}</td></tr>
+</table></td></tr></table></body></html>`;
+  const text = [o.title, "", ...o.paragraphs, "", ...(o.rows ?? []).map(([k, v]) => `${k}: ${v}`), o.button ? `\n${o.button.label}: ${o.button.url}` : "", "", ...(o.after ?? [])]
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return { html, text };
+}
+
+type MailBody = {
+  companyId?: string | null;
+  kind?: "credentials" | "message" | "test";
+  to?: string | string[];
+  data?: { name?: string; company?: string; login?: string; password?: string; url?: string; role?: string; owner?: boolean; subject?: string; text?: string };
+};
+
+/** Link de entrada: só aceita o endereço do próprio Horbit (o site de onde veio o pedido). */
+function loginLink(req: Request, url?: string) {
+  const origin = req.headers.get("origin") ?? "";
+  if (url && origin && url.startsWith(origin) && /^https?:\/\//.test(url)) return url;
+  return origin ? `${origin}/login/` : "";
+}
+
+async function sendMailMode(req: Request, body: MailBody) {
+  const to = ([] as string[]).concat(body.to ?? []).map((e) => String(e).trim().toLowerCase()).filter(Boolean);
+  if (!to.length) return json({ error: "Sem destinatário." }, 400);
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+  });
+  const auth = await supabase.rpc("ps_mail_authorize", { p_company: body.companyId ?? null, p_emails: to });
+  if (auth.error) return json({ error: auth.error.message }, 403);
+  const d = body.data ?? {};
+  let subject: string;
+  let content: ReturnType<typeof mailBody>;
+  if (body.kind === "credentials") {
+    if (!d.login || !d.password) return json({ error: "Faltam o utilizador ou a palavra-passe." }, 400);
+    const first = String(d.name ?? "").trim().split(/\s+/)[0] || "";
+    const url = loginLink(req, d.url);
+    subject = d.owner ? `Horbit: a conta da ${d.company} está pronta` : `Horbit: o seu acesso${d.company ? ` à ${d.company}` : ""}`;
+    content = mailBody({
+      title: d.owner ? `A conta da ${d.company} está pronta` : `Olá${first ? `, ${first}` : ""}! O seu acesso ao Horbit está pronto`,
+      paragraphs: d.owner
+        ? [`Olá${first ? ` ${first}` : ""},`, `A conta da ${d.company} no Horbit está criada. Estas são as credenciais do responsável:`]
+        : [`${d.company ? `A ${d.company}` : "A sua empresa"} criou o seu acesso ao Horbit, onde marca o ponto e vê o seu histórico, as justificações e os recibos.`],
+      rows: [["Utilizador", String(d.login)], ["Palavra-passe", String(d.password)], ...(d.role ? ([["Perfil", String(d.role)]] as [string, string][]) : [])],
+      button: url ? { label: "Entrar no Horbit", url } : undefined,
+      after: d.owner
+        ? ["No primeiro acesso, altere a palavra-passe em Conta > Segurança. Depois, em Colaboradores, crie os acessos da sua equipa: cada pessoa recebe o seu email automaticamente."]
+        : ["Depois de entrar, mude a palavra-passe em Conta > Segurança. Este email é pessoal: não o reencaminhe."],
+      footer: `${d.company ? `${d.company} · ` : ""}Enviado pelo Horbit. Se não esperava este email, ignore-o.`,
+    });
+  } else if (body.kind === "test") {
+    subject = "Horbit: email de teste";
+    content = mailBody({ title: "O envio de emails está a funcionar", paragraphs: ["Este é um email de teste do Horbit. Se o recebeu, as credenciais e os avisos vão chegar às caixas de correio dos colaboradores."] });
+  } else {
+    const subj = String(d.subject ?? "").trim().slice(0, 150);
+    const text = String(d.text ?? "").trim().slice(0, 8000);
+    if (!subj || !text) return json({ error: "Indique o assunto e a mensagem." }, 400);
+    subject = subj;
+    content = mailBody({ title: subj, paragraphs: text.split(/\n{2,}/), footer: d.company ? `${d.company} · Enviado pelo Horbit` : undefined });
+  }
+  const r = await deliver({ to, subject, ...content });
+  if (!r.ok) return json({ error: r.error, notConfigured: r.via === "none" }, r.via === "none" ? 501 : 502);
+  return json({ sent: to.length, via: r.via, quota: r.quota ?? null });
+}
+
+/** Estado do envio (painel do Super Admin): testa a ligação ao Apps Script. */
+async function mailStatus(req: Request) {
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+  });
+  const s = await supabase.rpc("ps_mail_settings");
+  if (s.error) return json({ error: s.error.message }, 403);
+  mailCache = null;
+  const cfg = await mailConfig();
+  if (!Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")) return json({ configured: false, error: "Falta a chave de serviço na Edge Function." });
+  if (!cfg.url || !cfg.secret) return json({ configured: false, resend: !!Deno.env.get("RESEND_API_KEY") });
+  try {
+    const j = await callScript(cfg, { ping: true });
+    return json({ configured: true, ok: !!j.ok, quota: j.quota ?? null, error: j.ok ? null : j.error });
+  } catch (e) {
+    return json({ configured: true, ok: false, error: e instanceof Error ? e.message : String(e) });
+  }
+}
+
+/** Aviso ao responsável: notificação no Horbit (sempre) e email (Gmail/Resend, se configurado). */
 async function notifyOwner(req: Request, body: { companyId?: string; subject?: string; message?: string }) {
   if (!body.companyId || !body.subject?.trim() || !body.message?.trim()) return json({ error: "Indique o assunto e a mensagem." }, 400);
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -536,24 +714,23 @@ async function notifyOwner(req: Request, body: { companyId?: string; subject?: s
   const { data, error } = await supabase.rpc("ps_ai_notify_owner", { p_company: body.companyId, p_subject: body.subject, p_body: body.message });
   if (error) return json({ error: error.message }, 403);
   const emails: string[] = data?.emails ?? [];
-  const resend = Deno.env.get("RESEND_API_KEY");
   let sent = 0;
   let emailError: string | null = null;
-  if (resend && emails.length) {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${resend}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: Deno.env.get("EMAIL_FROM") ?? "Horbit <onboarding@resend.dev>",
-        to: emails,
-        subject: `[Horbit] ${body.subject.trim()}`,
-        text: `${body.message.trim()}\n\n— Assistente do Horbit, ${data?.company ?? ""}`,
-      }),
+  let configured = true;
+  if (emails.length) {
+    const content = mailBody({
+      title: body.subject.trim(),
+      paragraphs: body.message.trim().split(/\n{2,}/),
+      footer: `Assistente do Horbit · ${data?.company ?? ""}`,
     });
-    if (res.ok) sent = emails.length;
-    else emailError = `O email não foi enviado (${res.status}).`;
+    const r = await deliver({ to: emails, subject: `[Horbit] ${body.subject.trim()}`, ...content });
+    if (r.ok) sent = emails.length;
+    else {
+      configured = r.via !== "none";
+      emailError = configured ? r.error ?? "O email não foi enviado." : null;
+    }
   }
-  return json({ notified: data?.notified ?? 0, emails, sent, emailConfigured: !!resend, emailError });
+  return json({ notified: data?.notified ?? 0, emails, sent, emailConfigured: configured, emailError });
 }
 
 /** Voz neural: transforma o texto da resposta em áudio MP3 (Fish Audio S2.1 Pro, pelo OpenRouter). */
@@ -663,7 +840,7 @@ Deno.serve(async (req) => {
     scope?: "company" | "platform";
     companyId?: string;
     messages?: Msg[];
-    mode?: "chat" | "insights" | "notify" | "speak" | "memorize";
+    mode?: "chat" | "insights" | "notify" | "speak" | "memorize" | "mail" | "mail_status";
     explicit?: string;
     voice?: boolean | string;
     stream?: boolean;
@@ -677,6 +854,8 @@ Deno.serve(async (req) => {
     return json({ error: "Pedido inválido." }, 400);
   }
   if (body.mode === "notify") return notifyOwner(req, body);
+  if (body.mode === "mail") return sendMailMode(req, body as MailBody);
+  if (body.mode === "mail_status") return mailStatus(req);
   if (body.mode === "speak") return speakText(req, body);
 
   const key = Deno.env.get("GEMINI_API_KEY");

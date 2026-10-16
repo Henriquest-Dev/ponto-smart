@@ -131,8 +131,8 @@ function CompanyForm({
         p_trial_days: 0,
         p_request: request?.id ?? null,
       });
-      const data: Credentials = { company: o.name, login: ownerLogin, password, email: request?.email ?? o.email ?? null };
-      return { ok: true, message: request ? "Conta criada. Envie as credenciais por email." : "Empresa criada.", data };
+      const data: Credentials = { company: o.name, login: ownerLogin, password, email: o.email ?? request?.email ?? null, ownerName: o.owner_name ?? null };
+      return { ok: true, message: "Empresa criada.", data };
     });
 
   return (

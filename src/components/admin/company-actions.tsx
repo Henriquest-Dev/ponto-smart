@@ -110,7 +110,7 @@ function ResetOwnerPassword({ company, open, onOpenChange }: { company: AdminCom
               attempt(async () => {
                 if (password.length < 8) throw new Error("A palavra-passe deve ter pelo menos 8 caracteres.");
                 const login = await rpc<string>("ps_admin_reset_owner_password", { p_company: company.id, p_password: password });
-                const data: Credentials = { company: company.name, login: login ?? company.owner_login ?? "", password };
+                const data: Credentials = { company: company.name, login: login ?? company.owner_login ?? "", password, email: company.email };
                 return { ok: true, message: "Palavra-passe alterada.", data };
               })
             }

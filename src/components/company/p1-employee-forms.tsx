@@ -307,7 +307,7 @@ export function AccessDialog({
   onDone: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [result, setResult] = useState<{ login: string; password: string | null } | null>(null);
+  const [result, setResult] = useState<{ login: string; password: string | null; role?: string } | null>(null);
   const meta = {
     create: { button: "Criar acesso", title: "Criar acesso ao Horbit", variant: "primary" as const },
     reset: { button: "Repor palavra-passe", title: "Repor palavra-passe", variant: "outline" as const },
@@ -337,7 +337,7 @@ export function AccessDialog({
       <DialogContent title={result ? "Credenciais do colaborador" : meta.title} description={result ? employee.full_name : description}>
         {result ? (
           <div className="space-y-3">
-            <CredentialsCard name={employee.full_name} login={result.login} password={result.password} />
+            <CredentialsCard name={employee.full_name} login={result.login} password={result.password} email={employee.email} role={result.role} />
             <Button variant="ghost" className="w-full" onClick={close}>
               Concluído
             </Button>
@@ -354,11 +354,11 @@ export function AccessDialog({
                 if ((mode === "create" || mode === "reset") && password.length < 8) throw new Error("A palavra-passe deve ter pelo menos 8 caracteres.");
                 if (password && password.length < 8) throw new Error("A palavra-passe deve ter pelo menos 8 caracteres.");
                 await rpc("ps_set_access", { p_employee: employee.id, p_login: login, p_password: password || null, p_role: role });
-                return { ok: true, message: "Acesso guardado.", data: { login, password: password || null } };
+                return { ok: true, message: "Acesso guardado.", data: { login, password: password || null, role } };
               })
             }
             onSuccess={(r) => {
-              if (r.ok && r.data) setResult(r.data as { login: string; password: string | null });
+              if (r.ok && r.data) setResult(r.data as { login: string; password: string | null; role?: string });
             }}
             resetOnSuccess={false}
             className="space-y-4"

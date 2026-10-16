@@ -1,6 +1,7 @@
 import {
   Bell,
   Car,
+  EnvelopeSimple,
   Package,
   Buildings,
   CalendarCheck,
@@ -42,6 +43,7 @@ const BY_HREF: Record<string, Icon> = {
   "/admin/empresas/": Buildings,
   "/admin/pedidos/": Tray,
   "/admin/assistente/": ChatsCircle,
+  "/admin/emails/": EnvelopeSimple,
   "/admin/auditoria/": ListMagnifyingGlass,
   "/empresa/": SquaresFour,
   "/empresa/colaboradores/": UsersThree,
